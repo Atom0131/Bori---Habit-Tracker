@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- Frame drum: simple flat wide ring, thin frame depth -->
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.8"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M2,12A10,7 0 1,0 22,12A10,7 0 1,0 2,12" />
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.1"
+      android:strokeLineCap="round"
+      android:pathData="M4.3,12A7.7,5 0 1,0 19.7,12A7.7,5 0 1,0 4.3,12" />
+</vector>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto Backup rules for Android 6–11 (API 23–30).
+  Covers: Room database, Preferences DataStore, and all internal image files.
+-->
+<full-backup-content>
+    <!-- Room database — main file + WAL journal files -->
+    <include domain="database" path="habit_database" />
+    <include domain="database" path="habit_database-shm" />
+    <include domain="database" path="habit_database-wal" />
+
+    <!-- Preferences DataStore (theme, user profile, Pro flag, journal lock credentials)
+         Lives in filesDir/datastore/ — NOT in shared_prefs/ -->
+    <include domain="file" path="datastore" />
+
+    <!-- Note image attachments -->
+    <include domain="file" path="notes/images" />
+
+    <!-- Journal photo attachments (copied to internal storage on save) -->
+    <include domain="file" path="journal/images" />
+
+</full-backup-content>

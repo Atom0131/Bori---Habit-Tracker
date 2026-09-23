@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- Steelpan: cylinder with a concave dished top, radiating note-section lines -->
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.8"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M4,9L4,17A8,2 0 0,0 20,17L20,9A8,2 0 0,1 4,9Z" />
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.2"
+      android:strokeLineCap="round"
+      android:pathData="M12,7.2L12,9.6M8.2,7.9L11.3,9.9M15.8,7.9L12.7,9.9M5.5,10.3L11.5,10.3M18.5,10.3L12.5,10.3" />
+</vector>

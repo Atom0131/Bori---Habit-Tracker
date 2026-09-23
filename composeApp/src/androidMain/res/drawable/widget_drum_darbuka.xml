@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- Darbuka: hourglass goblet drum, narrow waist flaring into a wide open bell -->
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.8"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M8,3L16,3C16.8,5 13,8.5 13,11L13,12.5C13,14.5 18,16.5 18,20L6,20C6,16.5 11,14.5 11,12.5L11,11C11,8.5 7.2,5 8,3Z" />
+  <path
+      android:strokeColor="#FF3C3C3C"
+      android:strokeWidth="1.1"
+      android:strokeLineCap="round"
+      android:pathData="M9.3,5L14.7,5" />
+</vector>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_card_bg"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="10dp">
+
+    <FrameLayout
+        android:layout_width="72dp"
+        android:layout_height="72dp">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/widget_preview_ring" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="5:30"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#006A6A" />
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Focus Session"
+        android:textSize="10sp"
+        android:textColor="#3E4948" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_preview_pill_mint"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:text="Pause"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#006A6A" />
+
+        <ImageView android:layout_width="8dp" android:layout_height="1dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_preview_pill_gray"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:text="Cancel"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#191C1C" />
+    </LinearLayout>
+</LinearLayout>

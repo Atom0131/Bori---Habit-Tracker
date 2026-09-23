@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rhythm</string>
+    <string name="settings_about">About Rhythm</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_restore_purchases">Restore Purchases</string>
+    <string name="pro_status_active">Pro Plan Active</string>
+    <string name="pro_status_free">Free Version</string>
+    <string name="widget_habit_ring_desc">Daily habit progress ring</string>
+    <string name="widget_habit_grid_desc">6-habit daily completion grid</string>
+    <string name="widget_today_glance_desc">Habits, to-dos &amp; reminders at a glance</string>
+    <string name="widget_streak_spotlight_desc">Streak counter with custom drum icon</string>
+    <string name="widget_active_timer_desc">Active countdown timer</string>
+</resources>
