@@ -110,8 +110,15 @@ kotlin {
             // Everything else (Room KMP, Koin, coroutines-core, DataStore) is
             // already visible here via commonMain's `implementation`/`api`
             // deps — desktopMain sits under commonMain in the source-set
-            // hierarchy. This is the one genuinely desktop-only addition.
+            // hierarchy.
             implementation(compose.desktop.currentOs)
+
+            // Provides Dispatchers.Main backed by the Swing/AWT event thread
+            // — Compose Desktop's windowing runs on AWT, same role
+            // kotlinx-coroutines-android plays for the Android main looper.
+            // Without this, viewModelScope.launch { } (which defaults to
+            // Dispatchers.Main.immediate) throws at runtime on desktop.
+            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }

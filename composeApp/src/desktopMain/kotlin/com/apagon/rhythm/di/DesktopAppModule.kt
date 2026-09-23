@@ -5,6 +5,8 @@ import com.apagon.rhythm.data.db.buildDesktopHabitDatabase
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.platform.DesktopWidgetRefresher
 import com.apagon.rhythm.platform.WidgetRefresher
+import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 // Mirrors androidMain/di/AppModule.kt's shape but scoped to just what the
@@ -17,4 +19,5 @@ val desktopAppModule = module {
     single { get<DesktopHabitDatabase>().habitDao() }
     single<WidgetRefresher> { DesktopWidgetRefresher() }
     single { HabitRepository(get(), get()) }
+    viewModel { DesktopHabitViewModel(get()) }
 }
