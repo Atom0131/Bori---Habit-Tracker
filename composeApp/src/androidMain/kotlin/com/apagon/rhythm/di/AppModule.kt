@@ -123,7 +123,7 @@ val appModule = module {
     single { BillingRepository(androidContext(), get()) }
 
     // ── Repositories ──────────────────────────────────────────────────────────
-    single { HabitRepository(get()) }
+    single { HabitRepository(get(), get()) }
     single { ReminderRepository(get()) }
     single { CalendarEventRepository(get()) }
     single { AlarmRepository(get()) }

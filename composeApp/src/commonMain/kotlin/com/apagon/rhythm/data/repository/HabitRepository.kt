@@ -7,10 +7,12 @@ import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
+import com.apagon.rhythm.platform.WidgetRefresher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 class HabitRepository constructor(
-    private val habitDao: HabitDao
+    private val habitDao: HabitDao,
+    private val widgetRefresher: WidgetRefresher
 ) {
     // ── Habits ────────────────────────────────────────────────────────────────
 
@@ -20,21 +22,37 @@ class HabitRepository constructor(
 
     fun getHabitById(id: Long): Flow<Habit?> = habitDao.getHabitById(id)
 
-    suspend fun addHabit(habit: Habit): Long = habitDao.insertHabit(habit)
+    suspend fun addHabit(habit: Habit): Long =
+        habitDao.insertHabit(habit).also { widgetRefresher.refreshAll() }
 
-    suspend fun updateHabit(habit: Habit) = habitDao.updateHabit(habit)
+    suspend fun updateHabit(habit: Habit) {
+        habitDao.updateHabit(habit)
+        widgetRefresher.refreshAll()
+    }
 
     /** Soft-delete: marks the habit inactive rather than removing it. */
-    suspend fun archiveHabit(habit: Habit) = habitDao.updateHabit(habit.copy(isActive = false))
+    suspend fun archiveHabit(habit: Habit) {
+        habitDao.updateHabit(habit.copy(isActive = false))
+        widgetRefresher.refreshAll()
+    }
 
     /** Restores an archived habit to the active list. */
-    suspend fun restoreHabit(habit: Habit) = habitDao.updateHabit(habit.copy(isActive = true))
+    suspend fun restoreHabit(habit: Habit) {
+        habitDao.updateHabit(habit.copy(isActive = true))
+        widgetRefresher.refreshAll()
+    }
 
     /** Soft-delete to "Recently Deleted": item stays in DB for 14 days. */
-    suspend fun deleteHabit(habit: Habit) = habitDao.updateHabit(habit.copy(deletedAt = System.currentTimeMillis()))
+    suspend fun deleteHabit(habit: Habit) {
+        habitDao.updateHabit(habit.copy(deletedAt = System.currentTimeMillis()))
+        widgetRefresher.refreshAll()
+    }
 
     /** Permanently removes from DB. */
-    suspend fun hardDeleteHabit(habit: Habit) = habitDao.deleteHabit(habit)
+    suspend fun hardDeleteHabit(habit: Habit) {
+        habitDao.deleteHabit(habit)
+        widgetRefresher.refreshAll()
+    }
 
     fun getDeletedHabits(): Flow<List<Habit>> = habitDao.getDeletedHabits()
 
@@ -49,9 +67,12 @@ class HabitRepository constructor(
 
     suspend fun markComplete(habitId: Long, date: String): Long =
         habitDao.insertCompletion(HabitCompletion(habitId = habitId, dateCompleted = date))
+            .also { widgetRefresher.refreshAll() }
 
-    suspend fun markIncomplete(habitId: Long, date: String) =
+    suspend fun markIncomplete(habitId: Long, date: String) {
         habitDao.deleteCompletion(habitId, date)
+        widgetRefresher.refreshAll()
+    }
 
     fun getCompletionsForHabit(habitId: Long): Flow<List<HabitCompletion>> =
         habitDao.getCompletionsForHabit(habitId)
@@ -71,6 +92,7 @@ class HabitRepository constructor(
                 ChecklistItem(habitId = habitId, label = label, sortOrder = index)
             })
         }
+        widgetRefresher.refreshAll()
         return habitId
     }
 
@@ -96,6 +118,7 @@ class HabitRepository constructor(
         if (toInsert.isNotEmpty()) {
             habitDao.insertChecklistItems(toInsert)
         }
+        widgetRefresher.refreshAll()
     }
 
     fun getItemsForHabit(habitId: Long): Flow<List<ChecklistItem>> =
@@ -105,9 +128,12 @@ class HabitRepository constructor(
 
     suspend fun checkItem(itemId: Long, date: String): Long =
         habitDao.insertItemCompletion(ChecklistItemCompletion(itemId = itemId, dateCompleted = date))
+            .also { widgetRefresher.refreshAll() }
 
-    suspend fun uncheckItem(itemId: Long, date: String) =
+    suspend fun uncheckItem(itemId: Long, date: String) {
         habitDao.deleteItemCompletion(itemId, date)
+        widgetRefresher.refreshAll()
+    }
 
     fun getItemCompletionsByHabitsOnDate(habitIds: List<Long>, date: String): Flow<List<ChecklistItemCompletion>> =
         habitDao.getItemCompletionsByHabitsOnDate(habitIds, date)

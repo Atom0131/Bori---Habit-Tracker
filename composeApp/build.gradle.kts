@@ -29,6 +29,8 @@ kotlin {
         }
     }
 
+    jvm("desktop")
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -103,6 +105,14 @@ kotlin {
             // WorkManager — periodic widget refresh
             implementation(libs.work.runtime.ktx)
         }
+        val desktopMain by getting
+        desktopMain.dependencies {
+            // Everything else (Room KMP, Koin, coroutines-core, DataStore) is
+            // already visible here via commonMain's `implementation`/`api`
+            // deps — desktopMain sits under commonMain in the source-set
+            // hierarchy. This is the one genuinely desktop-only addition.
+            implementation(compose.desktop.currentOs)
+        }
     }
 }
 
@@ -126,7 +136,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.apagon.rhythm"
+        // Deliberately distinct from the live Android app's applicationId
+        // (com.apagon.rhythm) so the dormant androidTarget here can never
+        // collide with a real install of production Rhythm on the same phone.
+        applicationId = "com.apagon.rhythm.desktop"
         minSdk = 24
         targetSdk = 35
         versionCode = 74
@@ -166,5 +179,12 @@ dependencies {
     add("kspAndroid", libs.room.compiler)
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
+    add("kspDesktop", libs.room.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+compose.desktop {
+    application {
+        mainClass = "com.apagon.rhythm.MainKt"
+    }
 }

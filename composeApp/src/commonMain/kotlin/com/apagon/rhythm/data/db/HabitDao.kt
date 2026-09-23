@@ -29,7 +29,10 @@ interface HabitDao {
     @Query("DELETE FROM habits WHERE deletedAt IS NOT NULL AND deletedAt < :olderThan")
     suspend fun purgeDeletedHabits(olderThan: Long)
 
-    @Query("SELECT * FROM habits WHERE id = :id")
+    // deletedAt IS NULL matters here: without it, a soft-deleted habit could
+    // still be looked up by id and re-arm its own reminder. Ported forward
+    // from the live Android app's fix for the same bug.
+    @Query("SELECT * FROM habits WHERE id = :id AND deletedAt IS NULL")
     fun getHabitById(id: Long): Flow<Habit?>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
