@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.habit
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +42,15 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
     val peerAddress by viewModel.peerAddress.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     var newHabitName by remember { mutableStateOf("") }
+    // Stage 9: tapping a habit navigates to DesktopHabitDetailScreen (Stats).
+    // Plain local state, matching this project's existing showX/editingX
+    // toggle pattern rather than a real navigation library (Stage 11 territory).
+    var selectedHabitId by remember { mutableStateOf<Long?>(null) }
+
+    selectedHabitId?.let { habitId ->
+        DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
+        return
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Rhythm — ${state.date}") }) }
@@ -104,7 +114,11 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                                 checked = isDone,
                                 onCheckedChange = { viewModel.toggleCompletion(habit.id, isDone) }
                             )
-                            Text(habit.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                habit.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f).clickable { selectedHabitId = habit.id }
+                            )
                         }
                     }
                 }

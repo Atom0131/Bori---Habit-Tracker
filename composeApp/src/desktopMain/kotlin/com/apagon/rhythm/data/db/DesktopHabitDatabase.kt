@@ -13,6 +13,7 @@ import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
+import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Todo
 import kotlinx.coroutines.Dispatchers
 import java.io.File
@@ -28,8 +29,8 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class],
-    version = 4,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -37,6 +38,7 @@ abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun todoDao(): TodoDao
     abstract fun calendarEventDao(): CalendarEventDao
+    abstract fun journalDao(): JournalDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -126,6 +128,42 @@ val DESKTOP_HABIT_MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+// Stage 9: adds the `journal_entries` table, brand-new on this database.
+// Unlike CalendarEvent, JournalEntry DOES declare `indices = [Index("habitId"),
+// Index("date")]` AND a @ForeignKey(habits, onDelete=SET_NULL) in its @Entity
+// annotation — applying the Stage 8 lesson literally (match the specific
+// entity's annotations, don't infer by analogy from a previous migration),
+// this migration includes both indices, no SQL DEFAULT clauses (JournalEntry
+// has no @ColumnInfo(defaultValue=...)), AND a FOREIGN KEY clause. The first
+// attempt at this migration omitted the FK, guessing (wrongly) that no prior
+// desktop migration needing one meant none was needed here either — Room's
+// own "Migration didn't properly handle" Expected/Found diff on first launch
+// caught it directly: Expected carried a ForeignKey{referenceTable='habits',
+// onDelete='SET NULL'}, Found had none. Every other column/index matched.
+val DESKTOP_HABIT_MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS journal_entries (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                date       TEXT NOT NULL,
+                title      TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                mood       INTEGER NOT NULL,
+                habitId    INTEGER,
+                createdAt  INTEGER NOT NULL,
+                updatedAt  INTEGER NOT NULL,
+                tags       TEXT NOT NULL,
+                photoUris  TEXT NOT NULL,
+                feelings   TEXT NOT NULL,
+                deletedAt  INTEGER,
+                FOREIGN KEY(habitId) REFERENCES habits(id) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_habitId ON journal_entries(habitId)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_date ON journal_entries(date)")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -137,6 +175,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5)
         .build()
 }
