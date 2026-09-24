@@ -75,81 +75,12 @@ import com.apagon.rhythm.core.time.ChronoUnit
 // Progress stats (frequency-aware, excludes pre-creation periods)
 // ---------------------------------------------------------------------------
 
-private data class ProgressStats(
-    val completedPeriods: Int,
-    val totalPeriods: Int,
-    val periodLabel: String   // "days" | "weeks" | "months"
-)
-
-private fun computeProgressStats(
-    habit: Habit,
-    completedDates: Set<String>,
-    today: LocalDate
-): ProgressStats {
-    val yearStart = LocalDate.of(today.year, 1, 1)
-    val rawCreated = Instant.ofEpochMilli(habit.createdAt)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-    val createdDate = if (rawCreated.isBefore(yearStart)) yearStart else rawCreated
-
-    return when (habit.frequency) {
-        HabitFrequency.DAILY -> {
-            val yearEnd = LocalDate.of(today.year, 12, 31)
-            val goalEnd = if (habit.durationDays > 0)
-                rawCreated.plusDays(habit.durationDays.toLong() - 1).coerceAtMost(yearEnd)
-            else yearEnd
-            val start = if (createdDate.isAfter(yearStart)) createdDate else yearStart
-            var scheduled = 0
-            var completed = 0
-            var d = start
-            while (!d.isAfter(goalEnd)) {
-                if (habit.isScheduledForDate(d)) {
-                    scheduled++
-                    if (!d.isAfter(today) && d.format(ISO_LOCAL_DATE) in completedDates) completed++
-                }
-                d = d.plusDays(1)
-            }
-            ProgressStats(completed, scheduled, "days")
-        }
-        HabitFrequency.WEEKLY -> {
-            val createdWeekIndex = (createdDate.dayOfYear - 1) / 7
-            val todayWeekIndex   = (today.dayOfYear - 1) / 7
-            val yearEndWeekIndex = 51
-            var completed = 0
-            val total = if (habit.durationDays > 0)
-                (habit.durationDays + 6) / 7
-            else
-                (yearEndWeekIndex - createdWeekIndex + 1).coerceAtLeast(0)
-            for (w in createdWeekIndex..todayWeekIndex) {
-                val wStart = yearStart.plusDays((w * 7).toLong())
-                val wEnd   = wStart.plusDays(6)
-                if (completedDates.any { dateStr ->
-                        val d = LocalDate.parse(dateStr)
-                        !d.isBefore(wStart) && !d.isAfter(wEnd)
-                    }) completed++
-            }
-            ProgressStats(completed, total, "weeks")
-        }
-        HabitFrequency.MONTHLY -> {
-            val startMonth = YearMonth.from(createdDate)
-            val endMonth   = YearMonth.from(today)
-            val total = run {
-                var m = startMonth; var count = 0
-                val goalEnd = if (habit.durationDays > 0)
-                    rawCreated.plusDays(habit.durationDays.toLong() - 1)
-                else today
-                while (!m.isAfter(YearMonth.from(goalEnd))) { count++; m = m.plusMonths(1) }
-                count
-            }
-            var completed = 0; var m = startMonth
-            while (!m.isAfter(endMonth)) {
-                if (completedDates.any { YearMonth.from(LocalDate.parse(it)) == m }) completed++
-                m = m.plusMonths(1)
-            }
-            ProgressStats(completed, total, "months")
-        }
-    }
-}
+// ProgressStats/computeProgressStats now live in commonMain
+// (ui/stats/DesktopStatsContent.kt, Stage 10's desktop port) — internal
+// visibility, same module, same package, so this file uses them directly
+// with no import needed. Deleted from here to fix a top-level redeclaration
+// conflict caught when compileDebugKotlinAndroid was finally run after
+// Stage 10 shipped.
 
 // ---------------------------------------------------------------------------
 // Screen

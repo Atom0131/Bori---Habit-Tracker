@@ -27,16 +27,11 @@ import kotlin.time.Instant
 import com.apagon.rhythm.core.time.ZoneId
 import com.apagon.rhythm.core.time.DateTimeFormatter
 
-val journalFeelings = listOf(
-    "Happy" to "😄",
-    "Grateful" to "🙏",
-    "Anxious" to "😰",
-    "Excited" to "🎉",
-    "Calm" to "😌",
-    "Tired" to "😴",
-    "Proud" to "💪",
-    "Focused" to "🎯"
-)
+// journalFeelings now lives in commonMain (JournalListHelpers.kt, Stage 9's
+// desktop port) — internal visibility, same module, same package, so this
+// file uses it directly with no import needed. Deleted from here to fix a
+// top-level redeclaration conflict caught when compileDebugKotlinAndroid was
+// finally run after Stage 9 shipped.
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

@@ -25,6 +25,7 @@ import com.apagon.rhythm.ui.calendar.DesktopCalendarScreen
 import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedScreen
 import com.apagon.rhythm.ui.habit.DesktopHabitScreen
 import com.apagon.rhythm.ui.journal.DesktopJournalScreen
+import com.apagon.rhythm.ui.notes.DesktopNotesTab
 import com.apagon.rhythm.ui.theme.RhythmTheme
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.todos.DesktopTodoScreen
@@ -97,7 +98,7 @@ fun main() {
 @Composable
 private fun DesktopAppRoot() {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Recently Deleted")
+    val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted")
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -114,7 +115,8 @@ private fun DesktopAppRoot() {
             1 -> DesktopTodoScreen()
             2 -> DesktopCalendarScreen()
             3 -> DesktopJournalScreen()
-            4 -> DesktopRecentlyDeletedScreen()
+            4 -> DesktopNotesTab()
+            5 -> DesktopRecentlyDeletedScreen()
         }
     }
 }

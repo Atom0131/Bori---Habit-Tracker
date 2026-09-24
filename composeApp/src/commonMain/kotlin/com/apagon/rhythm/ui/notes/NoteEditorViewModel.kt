@@ -1,7 +1,9 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package com.apagon.rhythm.ui.notes
 
+import com.apagon.rhythm.core.time.System
 import com.apagon.rhythm.platform.PhotoStorage
-import java.util.UUID
 
 import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
@@ -19,11 +21,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.apagon.rhythm.core.json.JSONArray
 import com.apagon.rhythm.core.json.JSONObject
+import kotlin.uuid.Uuid
 
+// Stage 10: mechanical move from androidMain to commonMain — this file had
+// zero real Android dependencies (PhotoStorage is already a cross-platform
+// DI interface), only java.util.UUID (JVM-only, would break the iOS targets
+// this project still declares even though iosMain is empty) and a bare
+// System.currentTimeMillis() call that relied on androidMain's implicit
+// java.lang.System import. Both fixed below; no behavior change.
 enum class BlockType { TEXT, HEADER, CHECKLIST, BULLET_LIST, NUMBERED_LIST, QUOTE, CODE, DIVIDER, IMAGE }
 
 data class NoteBlock(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String = Uuid.random().toString(),
     val type: BlockType = BlockType.TEXT,
     val content: String = "",
     val isChecked: Boolean = false
@@ -258,7 +267,7 @@ class NoteEditorViewModel constructor(
                 val typeStr = obj.optString("type", "TEXT").uppercase()
                 val type = runCatching { BlockType.valueOf(typeStr) }.getOrDefault(BlockType.TEXT)
                 list.add(NoteBlock(
-                    id = obj.optString("id", UUID.randomUUID().toString()),
+                    id = obj.optString("id", Uuid.random().toString()),
                     type = type,
                     content = obj.optString("content", ""),
                     isChecked = obj.optBoolean("isChecked", false)

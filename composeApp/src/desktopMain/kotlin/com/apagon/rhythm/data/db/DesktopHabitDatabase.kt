@@ -14,6 +14,8 @@ import com.apagon.rhythm.data.model.ChecklistItemCompletion
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.JournalEntry
+import com.apagon.rhythm.data.model.Note
+import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.model.Todo
 import kotlinx.coroutines.Dispatchers
 import java.io.File
@@ -29,8 +31,8 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class],
-    version = 5,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -39,6 +41,7 @@ abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun todoDao(): TodoDao
     abstract fun calendarEventDao(): CalendarEventDao
     abstract fun journalDao(): JournalDao
+    abstract fun notesDao(): NotesDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -164,6 +167,46 @@ val DESKTOP_HABIT_MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+// Stage 10: adds `notebooks` and `notes`, brand-new on this database.
+// `Notebook` has no @ForeignKey/@Index/@ColumnInfo(defaultValue=...) — same
+// shape as CalendarEvent, so no FK/index/DEFAULT clauses. `Note` DOES declare
+// `@ForeignKey(Notebook::class, onDelete = CASCADE)` and `indices =
+// [Index("notebookId")]` — same shape as JournalEntry (Stage 9), so this
+// migration includes both, applying the same lesson: read the entity's own
+// annotations, never infer from a sibling migration.
+val DESKTOP_HABIT_MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS notebooks (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                name       TEXT NOT NULL,
+                colorIndex INTEGER NOT NULL,
+                colorArgb  INTEGER,
+                createdAt  INTEGER NOT NULL,
+                updatedAt  INTEGER NOT NULL,
+                deletedAt  INTEGER
+            )
+        """.trimIndent())
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS notes (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                notebookId INTEGER NOT NULL,
+                title      TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                createdAt  INTEGER NOT NULL,
+                updatedAt  INTEGER NOT NULL,
+                isPinned   INTEGER NOT NULL,
+                deletedAt  INTEGER,
+                tags       TEXT NOT NULL,
+                fontFamily TEXT NOT NULL,
+                fontSize   TEXT NOT NULL,
+                FOREIGN KEY(notebookId) REFERENCES notebooks(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_notes_notebookId ON notes(notebookId)")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -175,6 +218,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6)
         .build()
 }

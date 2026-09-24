@@ -9,6 +9,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 
+// Stage 10: mechanical move from androidMain to commonMain — zero Android
+// dependencies to begin with (pure androidx.compose.ui.text logic).
 private data class MarkdownSpan(
     val fullStart: Int,
     val fullEnd: Int,

@@ -10,6 +10,7 @@ import com.apagon.rhythm.data.repository.DesktopDeviceCalendarIntegration
 import com.apagon.rhythm.data.repository.DeviceCalendarIntegration
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.repository.JournalRepository
+import com.apagon.rhythm.data.repository.NotesRepository
 import com.apagon.rhythm.data.repository.SecurityRepository
 import com.apagon.rhythm.data.repository.TodoRepository
 import com.apagon.rhythm.data.sync.DesktopSyncPreferences
@@ -39,6 +40,10 @@ import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
 import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedViewModel
 import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
 import com.apagon.rhythm.ui.journal.JournalViewModel
+import com.apagon.rhythm.ui.notes.NoteEditorViewModel
+import com.apagon.rhythm.ui.notes.NotebookDetailViewModel
+import com.apagon.rhythm.ui.notes.NotesSearchViewModel
+import com.apagon.rhythm.ui.notes.NotesViewModel
 import com.apagon.rhythm.ui.todos.TodoViewModel
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -65,6 +70,7 @@ val desktopAppModule = module {
     single { get<DesktopHabitDatabase>().todoDao() }
     single { get<DesktopHabitDatabase>().calendarEventDao() }
     single { get<DesktopHabitDatabase>().journalDao() }
+    single { get<DesktopHabitDatabase>().notesDao() }
     single<WidgetRefresher> { DesktopWidgetRefresher() }
     single<SyncPreferences> { DesktopSyncPreferences() }
     single { ThemePreferences(buildDesktopThemeDataStore()) }
@@ -73,6 +79,7 @@ val desktopAppModule = module {
     single { TodoRepository(get()) }
     single { CalendarEventRepository(get()) }
     single { JournalRepository(get()) }
+    single { NotesRepository(get()) }
     single { SyncEngine(get(), get()) }
     single { SyncClient(get(), desktopDeviceId) }
     single { SyncServer(get(), desktopDeviceId) }
@@ -85,6 +92,10 @@ val desktopAppModule = module {
     viewModel { DesktopRecentlyDeletedViewModel(get(), get()) }
     viewModel { DesktopCalendarViewModel(get(), get()) }
     viewModel { JournalViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { NotesViewModel(get(), get(), get()) }
+    viewModel { NotebookDetailViewModel(get()) }
+    viewModel { NotesSearchViewModel(get()) }
+    viewModel { NoteEditorViewModel(get(), get(), get()) }
 
     // ── Stage 6: cross-cutting platform shims ───────────────────────────────
     single<LocaleFormatting> { DesktopLocaleFormatting() }

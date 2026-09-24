@@ -1,10 +1,15 @@
 package com.apagon.rhythm.ui.notes
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import com.apagon.rhythm.core.time.*
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 
+// Stage 10: mechanical move from androidMain to commonMain — swaps
+// java.text.SimpleDateFormat/Calendar/Date/Locale (JVM-only, would break the
+// iOS targets this project still declares) for the project's own
+// multiplatform core.time shim, same TemporalAdjusters.previousOrSame
+// pattern already used by DesktopJournalWeekStrip (Stage 9). No content
+// change to any of the templates themselves.
 sealed class NoteTemplate(val label: String) {
     object Blank        : NoteTemplate("Blank")
     object MeetingNotes : NoteTemplate("Meeting Notes")
@@ -20,12 +25,12 @@ sealed class NoteTemplate(val label: String) {
 }
 
 fun NoteTemplate.buildBlocks(): List<NoteBlock> {
-    val today = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date())
-    val cal = Calendar.getInstance()
+    val now = LocalDate.now()
+    val today = now.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
     // Sunday-anchored week start (matches app-wide day order)
-    val daysToSunday = (cal.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY + 7) % 7
-    cal.add(Calendar.DAY_OF_YEAR, -daysToSunday)
-    val weekStart = SimpleDateFormat("MMMM d", Locale.getDefault()).format(cal.time)
+    val weekStartDate = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+    val weekStart = weekStartDate.format(DateTimeFormatter.ofPattern("MMMM d"))
+    fun dayLabel(offset: Int) = weekStartDate.plusDays(offset.toLong()).format(DateTimeFormatter.ofPattern("EEE, MMM d"))
 
     return when (this) {
         NoteTemplate.Blank -> listOf(NoteBlock())
@@ -117,57 +122,51 @@ fun NoteTemplate.buildBlocks(): List<NoteBlock> {
         // ── WEEKLY PLAN ───────────────────────────────────────────────────────
         // Purpose: a planner, not just a goal list — tasks live inside each day.
         // Structure: theme + outcomes → day-by-day slots → end-of-week retrospective.
-        NoteTemplate.WeeklyPlan -> {
-            val dayFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
-            fun dayLabel(offset: Int) = dayFmt.format(
-                (cal.clone() as Calendar).also { it.add(Calendar.DAY_OF_YEAR, offset) }.time
-            )
-            listOf(
-                NoteBlock(type = BlockType.HEADER, content = "Week of $weekStart"),
-                NoteBlock(type = BlockType.TEXT,   content = "🧭 Weekly theme / intention:"),
-                NoteBlock(type = BlockType.TEXT,   content = ""),
-                NoteBlock(type = BlockType.TEXT,   content = "🏆 Top 3 outcomes I need by Friday:"),
-                NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
-                NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
-                NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
-                NoteBlock(type = BlockType.TEXT,   content = "🔁 Habit focus this week:"),
-                NoteBlock(type = BlockType.BULLET_LIST, content = ""),
-                NoteBlock(type = BlockType.DIVIDER),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(0)),  // Sunday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(1)),  // Monday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(2)),  // Tuesday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(3)),  // Wednesday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(4)),  // Thursday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(5)),  // Friday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.HEADER, content = dayLabel(6)),  // Saturday
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.CHECKLIST, content = ""),
-                NoteBlock(type = BlockType.DIVIDER),
-                NoteBlock(type = BlockType.TEXT,   content = "🎉 Wins this week:"),
-                NoteBlock(type = BlockType.BULLET_LIST, content = ""),
-                NoteBlock(type = BlockType.BULLET_LIST, content = ""),
-                NoteBlock(type = BlockType.TEXT,   content = "📚 What I learned:"),
-                NoteBlock(type = BlockType.TEXT,   content = ""),
-                NoteBlock(type = BlockType.TEXT,   content = "🚀 Carry into next week:"),
-                NoteBlock(type = BlockType.CHECKLIST, content = "")
-            )
-        }
+        NoteTemplate.WeeklyPlan -> listOf(
+            NoteBlock(type = BlockType.HEADER, content = "Week of $weekStart"),
+            NoteBlock(type = BlockType.TEXT,   content = "🧭 Weekly theme / intention:"),
+            NoteBlock(type = BlockType.TEXT,   content = ""),
+            NoteBlock(type = BlockType.TEXT,   content = "🏆 Top 3 outcomes I need by Friday:"),
+            NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
+            NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
+            NoteBlock(type = BlockType.NUMBERED_LIST, content = ""),
+            NoteBlock(type = BlockType.TEXT,   content = "🔁 Habit focus this week:"),
+            NoteBlock(type = BlockType.BULLET_LIST, content = ""),
+            NoteBlock(type = BlockType.DIVIDER),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(0)),  // Sunday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(1)),  // Monday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(2)),  // Tuesday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(3)),  // Wednesday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(4)),  // Thursday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(5)),  // Friday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.HEADER, content = dayLabel(6)),  // Saturday
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.CHECKLIST, content = ""),
+            NoteBlock(type = BlockType.DIVIDER),
+            NoteBlock(type = BlockType.TEXT,   content = "🎉 Wins this week:"),
+            NoteBlock(type = BlockType.BULLET_LIST, content = ""),
+            NoteBlock(type = BlockType.BULLET_LIST, content = ""),
+            NoteBlock(type = BlockType.TEXT,   content = "📚 What I learned:"),
+            NoteBlock(type = BlockType.TEXT,   content = ""),
+            NoteBlock(type = BlockType.TEXT,   content = "🚀 Carry into next week:"),
+            NoteBlock(type = BlockType.CHECKLIST, content = "")
+        )
 
         // ── LECTURE NOTES ─────────────────────────────────────────────────────
         // Purpose: Cornell-style study notes — capture during lecture, review after.
