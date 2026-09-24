@@ -60,6 +60,7 @@ import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.stats.HabitYearStats
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.*
 import kotlinx.datetime.LocalDate
 import com.apagon.rhythm.core.time.DateTimeFormatter

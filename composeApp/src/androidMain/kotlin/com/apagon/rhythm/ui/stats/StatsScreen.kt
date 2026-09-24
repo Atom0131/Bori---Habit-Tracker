@@ -59,7 +59,7 @@ import com.apagon.rhythm.ui.journal.JournalScreen
 import com.apagon.rhythm.ui.util.DetailField
 import com.apagon.rhythm.ui.util.HabitCard
 import com.apagon.rhythm.ui.util.EditorialTitle
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.resolvedIcon
 import com.apagon.rhythm.ui.util.isScheduledForDate
 import com.apagon.rhythm.ui.util.scheduleLabel

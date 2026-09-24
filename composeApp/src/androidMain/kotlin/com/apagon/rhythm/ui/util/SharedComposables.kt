@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.util
 
+import com.apagon.rhythm.ui.theme.habitColorPalette
 import org.koin.compose.viewmodel.koinViewModel
 
 import androidx.compose.foundation.BorderStroke

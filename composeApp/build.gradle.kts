@@ -55,7 +55,14 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
+            implementation(compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)
+
+            // MaterialKolor — seed-color-based M3 color scheme generation.
+            // Publishes real per-target variants (jvm/android/iOS/js), so —
+            // unlike Ktor in Stage 4a — it doesn't need the jvmMain-only
+            // workaround and can be declared here directly.
+            implementation(libs.materialkolor)
             api(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
 
@@ -107,14 +114,13 @@ kotlin {
             // DataStore
             implementation(libs.androidx.datastore.preferences)
 
-            // MaterialKolor — seed-color-based M3 color scheme generation
-            implementation(libs.materialkolor)
-
             // Google Play Billing
             implementation(libs.google.billing)
             implementation(libs.google.billing.ktx)
 
-            // Google Fonts for Compose (Plus Jakarta Sans, Inter)
+            // Google Fonts for Compose — still used by ui/notes/NoteFonts.kt
+            // (the Notes custom-font picker). App-wide theme fonts (Type.kt)
+            // moved to Compose Resources in commonMain; see the theme port plan.
             implementation(libs.androidx.compose.ui.text.google.fonts)
 
             // Glance — home screen widgets

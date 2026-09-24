@@ -89,7 +89,7 @@ import com.apagon.rhythm.ui.util.IconPickerButton
 import com.apagon.rhythm.ui.util.sheetTextFieldColors
 
 import android.media.RingtoneManager
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable

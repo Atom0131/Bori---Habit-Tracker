@@ -27,7 +27,7 @@ import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.ui.util.ProPaywallSheet
 import androidx.compose.ui.platform.LocalContext
 import com.apagon.rhythm.ui.util.findActivity
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

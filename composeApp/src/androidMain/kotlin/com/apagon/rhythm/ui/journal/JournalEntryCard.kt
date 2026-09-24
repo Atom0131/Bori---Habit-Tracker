@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.JournalEntry
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.*
 import kotlin.time.Instant
 import com.apagon.rhythm.core.time.ZoneId

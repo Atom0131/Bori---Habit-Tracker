@@ -133,7 +133,7 @@ import com.apagon.rhythm.ui.reminders.AddReminderSheet
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
 import com.apagon.rhythm.ui.util.HabitCard
 import com.apagon.rhythm.ui.util.ProPaywallSheet
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.findActivity
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate

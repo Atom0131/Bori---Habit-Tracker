@@ -70,7 +70,7 @@ import com.apagon.rhythm.ui.reminders.AddReminderSheet
 import com.apagon.rhythm.ui.util.findActivity
 import com.apagon.rhythm.ui.util.formatAsReminderTime
 import com.apagon.rhythm.ui.util.ProPaywallSheet
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.toFormattedTime
 import com.apagon.rhythm.ui.util.resolvedIcon
 import com.apagon.rhythm.ui.util.ordinal

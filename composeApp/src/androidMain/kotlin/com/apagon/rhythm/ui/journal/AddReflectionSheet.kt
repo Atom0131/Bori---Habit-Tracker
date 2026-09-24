@@ -40,7 +40,7 @@ import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.repository.LockType
 import com.apagon.rhythm.ui.util.*
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.datetime.LocalDate
 import com.apagon.rhythm.core.time.DateTimeFormatter
 

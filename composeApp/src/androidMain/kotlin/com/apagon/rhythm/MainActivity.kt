@@ -38,7 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import com.apagon.rhythm.data.billing.BillingRepository
 import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemePreferences
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.habit.HabitListScreen
 import com.apagon.rhythm.ui.onboarding.OnboardingScreen
 import com.apagon.rhythm.ui.notes.NotesScreen

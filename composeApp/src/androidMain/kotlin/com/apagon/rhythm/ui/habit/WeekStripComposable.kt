@@ -99,7 +99,7 @@ import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.stats.HabitYearStats
 import com.apagon.rhythm.ui.util.PermissionUtils
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.resolvedIcon
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate

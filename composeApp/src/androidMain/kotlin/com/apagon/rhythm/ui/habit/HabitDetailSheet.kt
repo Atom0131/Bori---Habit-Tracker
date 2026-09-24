@@ -56,7 +56,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistProgress
 import com.apagon.rhythm.data.model.Habit
-import com.apagon.rhythm.ui.util.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
 
 @Composable
 fun HabitDetailSheet(
