@@ -12,6 +12,7 @@ import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
+import com.apagon.rhythm.data.model.Todo
 import kotlinx.coroutines.Dispatchers
 import java.io.File
 
@@ -26,13 +27,14 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class],
-    version = 2,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
 abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
+    abstract fun todoDao(): TodoDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -61,6 +63,37 @@ val DESKTOP_HABIT_MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+// Stage 7: adds the `todos` table, brand-new on this database (no existing
+// desktop rows to preserve for it), so this creates the entity's final
+// current shape directly rather than replaying commonMain's incremental
+// MIGRATION_14_15..MIGRATION_33_34 ALTERs one at a time. Column
+// definitions/index names must match Room's generated schema for `Todo`
+// exactly (verified by Room's runtime identity-hash check), same
+// requirement DESKTOP_HABIT_MIGRATION_1_2 above already meets.
+val DESKTOP_HABIT_MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS todos (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                title              TEXT NOT NULL,
+                note               TEXT NOT NULL DEFAULT '',
+                dueDate            TEXT NOT NULL DEFAULT '',
+                priority           TEXT NOT NULL DEFAULT 'NONE',
+                isCompleted        INTEGER NOT NULL DEFAULT 0,
+                completedAt        INTEGER DEFAULT NULL,
+                iconIndex          INTEGER NOT NULL DEFAULT 0,
+                createdAt          INTEGER NOT NULL,
+                isArchived         INTEGER NOT NULL DEFAULT 0,
+                deletedAt          INTEGER DEFAULT NULL,
+                soundUri           TEXT NOT NULL DEFAULT '',
+                vibrationPatternId TEXT NOT NULL DEFAULT 'default'
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_todos_isCompleted ON todos(isCompleted)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_todos_completedAt ON todos(completedAt)")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -72,6 +105,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3)
         .build()
 }

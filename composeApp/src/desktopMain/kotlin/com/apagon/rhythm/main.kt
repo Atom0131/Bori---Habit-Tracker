@@ -1,8 +1,18 @@
 package com.apagon.rhythm
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.apagon.rhythm.data.preferences.DarkReadability
@@ -11,9 +21,11 @@ import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.sync.DEFAULT_SYNC_PORT
 import com.apagon.rhythm.data.sync.SyncServer
 import com.apagon.rhythm.di.desktopAppModule
+import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedScreen
 import com.apagon.rhythm.ui.habit.DesktopHabitScreen
 import com.apagon.rhythm.ui.theme.RhythmTheme
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.todos.DesktopTodoScreen
 import org.koin.compose.koinInject
 import org.koin.core.context.startKoin
 
@@ -69,8 +81,36 @@ fun main() {
                     DarkReadability.HIGH        -> 0.65
                 }
             ) {
-                DesktopHabitScreen()
+                DesktopAppRoot()
             }
+        }
+    }
+}
+
+// Stage 7's minimal tab switcher — the desktop app's first navigation of any
+// kind (Stages 3-6 only ever showed one screen). A plain TabRow rather than
+// the real app's bottom NavigationBar/NavHost, which is Settings-adjacent
+// scaffolding (Stage 11) out of scope here; this just needs to make the
+// newly-ported Todo/Recently-Deleted screens reachable.
+@Composable
+private fun DesktopAppRoot() {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Habits", "To-dos", "Recently Deleted")
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selectedTab) {
+            tabs.forEachIndexed { index, label ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { Text(label) }
+                )
+            }
+        }
+        when (selectedTab) {
+            0 -> DesktopHabitScreen()
+            1 -> DesktopTodoScreen()
+            2 -> DesktopRecentlyDeletedScreen()
         }
     }
 }
