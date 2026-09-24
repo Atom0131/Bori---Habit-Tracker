@@ -36,6 +36,14 @@ fun main() {
     val syncPort = System.getProperty("rhythm.syncPort")?.toIntOrNull() ?: DEFAULT_SYNC_PORT
     koinApp.koin.get<SyncServer>().start(bindHost = "127.0.0.1", port = syncPort)
 
+    // Stage 6 billing shim: there's no desktop payment rail and no plan to
+    // build one, so desktop is unconditionally Pro rather than wiring up a
+    // fake BillingRepository that mimics an API nothing here calls. Cheap to
+    // re-assert on every launch since it's a single DataStore write.
+    kotlinx.coroutines.runBlocking {
+        koinApp.koin.get<ThemePreferences>().setIsPro(true)
+    }
+
     application {
         Window(onCloseRequest = ::exitApplication, title = "Rhythm") {
             val themePreferences = koinInject<ThemePreferences>()

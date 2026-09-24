@@ -28,3 +28,23 @@ interface ReminderScheduling {
 interface WidgetRefresher {
     suspend fun refreshAll()
 }
+
+/**
+ * Whether the platform's locale/user setting prefers 24-hour time display.
+ * Android actual: android.text.format.DateFormat.is24HourFormat(context).
+ * Desktop actual: derived from java.text.DateFormat's locale pattern.
+ */
+interface LocaleFormatting {
+    fun is24HourFormat(): Boolean
+}
+
+/**
+ * Starts/stops a repeating vibration pattern for a high-priority alert
+ * (alarm/timer/reminder firing). Android actual: the device vibrator
+ * (ui/util/Extensions.kt's AlertVibrator). Desktop actual: no-op — no
+ * standard Linux desktop haptics API.
+ */
+interface HapticAlerter {
+    fun start(patternId: String = "default")
+    fun stop()
+}

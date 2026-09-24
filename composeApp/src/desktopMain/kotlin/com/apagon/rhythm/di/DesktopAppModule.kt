@@ -4,6 +4,8 @@ import com.apagon.rhythm.data.db.DesktopHabitDatabase
 import com.apagon.rhythm.data.db.buildDesktopHabitDatabase
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.preferences.buildDesktopThemeDataStore
+import com.apagon.rhythm.data.repository.DesktopDeviceCalendarIntegration
+import com.apagon.rhythm.data.repository.DeviceCalendarIntegration
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.sync.DesktopSyncPreferences
 import com.apagon.rhythm.data.sync.JvmSyncCoordinator
@@ -12,12 +14,19 @@ import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncEngine
 import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.data.sync.SyncServer
+import com.apagon.rhythm.platform.DesktopHapticAlerter
+import com.apagon.rhythm.platform.DesktopLocaleFormatting
+import com.apagon.rhythm.platform.DesktopPhotoStorage
 import com.apagon.rhythm.platform.DesktopWidgetRefresher
+import com.apagon.rhythm.platform.HapticAlerter
+import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.platform.WidgetRefresher
 import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 // A fresh id per process launch — good enough for Stage 4b/4c's metadata
@@ -27,11 +36,12 @@ import org.koin.dsl.module
 private val desktopDeviceId = "desktop-" + Uuid.random().toString().take(8)
 
 // Mirrors androidMain/di/AppModule.kt's shape but scoped to just what's been
-// ported to desktop so far: the Habit database/DAO/repository, a no-op
-// WidgetRefresher, and (Stage 5) real ThemePreferences persistence.
-// Notifications, billing, calendar integration, the Notes vault, Journal,
-// Todos, Alarms, and Timers are still deliberately not wired here — see
-// ref_notes/ for the staged full-port roadmap.
+// ported to desktop so far: the Habit database/DAO/repository, (Stage 5) real
+// ThemePreferences persistence, and (Stage 6) the cross-cutting platform
+// shims the rest of the full-port roadmap builds on. Notifications, real
+// billing, real calendar sync, the Notes vault, Journal, Todos, Alarms, and
+// Timers are still deliberately not wired here — see ref_notes/ for the
+// staged full-port roadmap.
 val desktopAppModule = module {
     single<DesktopHabitDatabase> { buildDesktopHabitDatabase() }
     single { get<DesktopHabitDatabase>().habitDao() }
@@ -44,4 +54,10 @@ val desktopAppModule = module {
     single { SyncServer(get(), desktopDeviceId) }
     single<SyncCoordinator> { JvmSyncCoordinator(get()) }
     viewModel { DesktopHabitViewModel(get(), get(), get()) }
+
+    // ── Stage 6: cross-cutting platform shims ───────────────────────────────
+    single<LocaleFormatting> { DesktopLocaleFormatting() }
+    single<HapticAlerter> { DesktopHapticAlerter() }
+    single<PhotoStorage> { DesktopPhotoStorage() }
+    single { DesktopDeviceCalendarIntegration() } bind DeviceCalendarIntegration::class
 }

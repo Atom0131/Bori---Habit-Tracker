@@ -144,6 +144,8 @@ val appModule = module {
     single<WidgetRefresher> { AndroidWidgetRefresher(androidContext()) }
     single { AndroidPurchaseLauncher(get()) } bind PurchaseLauncher::class
     single<com.apagon.rhythm.platform.PhotoStorage> { com.apagon.rhythm.platform.AndroidPhotoStorage(androidContext()) }
+    single<com.apagon.rhythm.platform.LocaleFormatting> { com.apagon.rhythm.platform.AndroidLocaleFormatting(androidContext()) }
+    single<com.apagon.rhythm.platform.HapticAlerter> { com.apagon.rhythm.platform.AndroidHapticAlerter(androidContext()) }
 
     // ── Managers ──────────────────────────────────────────────────────────────
     single { BackupManager(get(), get(), androidContext()) }
