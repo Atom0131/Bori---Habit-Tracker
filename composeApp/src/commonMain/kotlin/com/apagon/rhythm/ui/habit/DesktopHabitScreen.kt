@@ -38,6 +38,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
+    val peerAddress by viewModel.peerAddress.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
     var newHabitName by remember { mutableStateOf("") }
 
     Scaffold(
@@ -61,6 +63,28 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                 }) {
                     Text("Add")
                 }
+            }
+
+            // Stage 4b: local sync test UI — a Tailscale IP field replaces this
+            // "host:port" text field wholesale in Stage 4c; the sync engine
+            // underneath doesn't change.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = peerAddress,
+                    onValueChange = { viewModel.updatePeerAddress(it) },
+                    label = { Text("Peer address (host:port)") },
+                    modifier = Modifier.weight(1f)
+                )
+                Button(onClick = { viewModel.syncNow() }) {
+                    Text("Sync")
+                }
+            }
+            if (syncStatus != null) {
+                Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
             }
 
             if (state.habits.isEmpty()) {

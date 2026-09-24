@@ -67,6 +67,8 @@ class HabitRepository constructor(
 
     suspend fun getHabitBySyncId(syncId: String): Habit? = habitDao.getHabitBySyncId(syncId)
 
+    suspend fun getHabitByIdRaw(id: Long): Habit? = habitDao.getHabitByIdRaw(id)
+
     suspend fun getHabitsUpdatedSince(since: Long): List<Habit> = habitDao.getHabitsUpdatedSince(since)
 
     /** Permanently removes from DB. */

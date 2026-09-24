@@ -52,6 +52,10 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE syncId = :syncId")
     suspend fun getHabitBySyncId(syncId: String): Habit?
 
+    /** Unlike getHabitById, no deletedAt filter — a completion belonging to a soft-deleted habit still needs its habit's syncId resolved when building an outgoing sync batch. */
+    @Query("SELECT * FROM habits WHERE id = :id")
+    suspend fun getHabitByIdRaw(id: Long): Habit?
+
     @Query("SELECT * FROM habits WHERE updatedAt > :since")
     suspend fun getHabitsUpdatedSince(since: Long): List<Habit>
 

@@ -62,7 +62,11 @@ val DESKTOP_HABIT_MIGRATION_1_2 = object : Migration(1, 2) {
 }
 
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
-    val dbDir = File(System.getProperty("user.home"), ".rhythm")
+    // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
+    // sync test run two independent "devices" as separate JVM processes on
+    // this one machine, each pointed at its own database directory.
+    val dbDir = System.getProperty("rhythm.home")?.let { File(it) }
+        ?: File(System.getProperty("user.home"), ".rhythm")
     dbDir.mkdirs()
     val dbFile = File(dbDir, "habit_database.db")
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
