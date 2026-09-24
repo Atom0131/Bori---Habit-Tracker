@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
+import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
 import com.apagon.rhythm.data.model.Habit
@@ -27,14 +28,15 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class],
-    version = 3,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
 abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun todoDao(): TodoDao
+    abstract fun calendarEventDao(): CalendarEventDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -94,6 +96,36 @@ val DESKTOP_HABIT_MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+// Stage 8: adds the `calendar_events` table, brand-new on this database.
+// Unlike DESKTOP_HABIT_MIGRATION_2_3's `todos` table, CalendarEvent has no
+// @ColumnInfo(defaultValue=...)/@Index annotations, so Room's expected
+// TableInfo has no SQL DEFAULT clauses and no indices at all — verified by
+// the exact "Migration didn't properly handle" diff Room prints on a
+// mismatch. Match that shape exactly rather than decorating columns with
+// defaults derived from the Kotlin data class's constructor defaults (those
+// aren't the same thing to Room). No syncId/updatedAt columns either —
+// calendar_events isn't part of the sync engine yet.
+val DESKTOP_HABIT_MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS calendar_events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                title       TEXT NOT NULL,
+                note        TEXT NOT NULL,
+                startDate   TEXT NOT NULL,
+                endDate     TEXT NOT NULL,
+                startTime   TEXT,
+                endTime     TEXT,
+                colorIndex  INTEGER NOT NULL,
+                colorArgb   INTEGER,
+                isActive    INTEGER NOT NULL,
+                createdAt   INTEGER NOT NULL,
+                deletedAt   INTEGER
+            )
+        """.trimIndent())
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -105,6 +137,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4)
         .build()
 }

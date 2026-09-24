@@ -1,0 +1,325 @@
+package com.apagon.rhythm.ui.calendar
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.core.time.*
+import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
+import com.apagon.rhythm.data.model.CalendarEvent
+import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.theme.habitColorPalette
+import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
+import org.koin.compose.koinInject
+
+/**
+ * Desktop equivalent of androidMain's AddCalendarEventSheet.kt, with the
+ * target-calendar picker, isPro/paywall gating, and custom color-wheel
+ * picker dropped — see ref_notes/plan_2026-09-24_calendar_port.md decisions
+ * 6-7. Date/time logic is otherwise a near-verbatim port; it already ran
+ * against commonMain's java.time compat shim before this stage.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DesktopAddCalendarEventSheet(
+    existing: CalendarEvent? = null,
+    initialDate: LocalDate = LocalDate.now(),
+    onDismiss: () -> Unit,
+    onSave: (CalendarEvent) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val localeFormatting = koinInject<LocaleFormatting>()
+    val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
+    val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+
+    var title by remember { mutableStateOf(existing?.title ?: "") }
+    var note by remember { mutableStateOf(existing?.note ?: "") }
+
+    var startDate by remember {
+        mutableStateOf<LocalDate?>(existing?.startDate?.let { LocalDate.parse(it, ISO_LOCAL_DATE) } ?: initialDate)
+    }
+    var endDate by remember {
+        mutableStateOf<LocalDate?>(existing?.endDate?.let { LocalDate.parse(it, ISO_LOCAL_DATE) } ?: initialDate)
+    }
+
+    var allDay by remember { mutableStateOf(existing != null && existing.startTime == null) }
+
+    var startHour by remember { mutableIntStateOf(existing?.startTime?.substringBefore(":")?.toIntOrNull() ?: 9) }
+    var startMinute by remember { mutableIntStateOf(existing?.startTime?.substringAfter(":")?.toIntOrNull() ?: 0) }
+    var endHour by remember { mutableIntStateOf(existing?.endTime?.substringBefore(":")?.toIntOrNull() ?: 10) }
+    var endMinute by remember { mutableIntStateOf(existing?.endTime?.substringAfter(":")?.toIntOrNull() ?: 0) }
+
+    var colorIndex by remember { mutableIntStateOf(existing?.colorIndex ?: 0) }
+    var colorArgb by remember { mutableStateOf<Int?>(existing?.colorArgb) }
+
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden })
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.fillMaxHeight(),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (existing == null) "New Event" else "Edit Event",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Title") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text("Note (optional)") },
+                singleLine = false,
+                maxLines = 3,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PickerSurface(
+                    label = startDate?.format(dateFmt) ?: "Start Date",
+                    onClick = { showStartDatePicker = true },
+                    modifier = Modifier.weight(1f)
+                )
+                PickerSurface(
+                    label = endDate?.format(dateFmt) ?: "End Date",
+                    onClick = { showEndDatePicker = true },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("All day", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Switch(checked = allDay, onCheckedChange = { allDay = it })
+            }
+
+            AnimatedVisibility(
+                visible = !allDay,
+                enter = expandVertically(
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn(tween(200)),
+                exit = shrinkVertically(animationSpec = tween(250, easing = FastOutLinearInEasing)) + fadeOut(tween(150))
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PickerSurface(
+                        label = formatTimeLabel("%02d:%02d".format(startHour, startMinute), is24Hour),
+                        onClick = { showStartTimePicker = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                    PickerSurface(
+                        label = formatTimeLabel("%02d:%02d".format(endHour, endMinute), is24Hour),
+                        onClick = { showEndTimePicker = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Text("Color", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                habitColorPalette.forEachIndexed { index, color ->
+                    val isSelected = colorIndex == index && colorArgb == null
+                    Box(
+                        modifier = Modifier
+                            .size(if (isSelected) 44.dp else 40.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .then(
+                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                else Modifier
+                            )
+                            .clickable { colorIndex = index; colorArgb = null }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val canSave = title.isNotBlank() && startDate != null && endDate != null
+            Button(
+                onClick = {
+                    val sd = startDate!!
+                    val ed = if (endDate!! < sd) sd else endDate!!
+                    onSave(
+                        CalendarEvent(
+                            id = existing?.id ?: 0,
+                            title = title.trim(),
+                            note = note.trim(),
+                            startDate = sd.format(ISO_LOCAL_DATE),
+                            endDate = ed.format(ISO_LOCAL_DATE),
+                            startTime = if (allDay) null else "%02d:%02d".format(startHour, startMinute),
+                            endTime = if (allDay) null else "%02d:%02d".format(endHour, endMinute),
+                            colorIndex = colorIndex,
+                            colorArgb = colorArgb
+                        )
+                    )
+                },
+                enabled = canSave,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (existing == null) "Create Event" else "Update Event")
+            }
+        }
+    }
+
+    if (showStartDatePicker) {
+        val initMillis = (startDate ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
+        DatePickerDialog(
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        val picked = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                        startDate = picked
+                        if (endDate != null && endDate!! < picked) endDate = picked
+                    }
+                    showStartDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(todayDateBorderColor = Color.Transparent)) }
+    }
+
+    if (showEndDatePicker) {
+        val initMillis = (endDate ?: startDate ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        endDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showEndDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(todayDateBorderColor = Color.Transparent)) }
+    }
+
+    if (showStartTimePicker) {
+        val state = rememberTimePickerState(initialHour = startHour, initialMinute = startMinute, is24Hour = is24Hour)
+        AlertDialog(
+            onDismissRequest = { showStartTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    focusManager.clearFocus()
+                    startHour = state.hour
+                    startMinute = state.minute
+                    var totalMinutes = startHour * 60 + startMinute + 30
+                    endHour = (totalMinutes / 60) % 24
+                    endMinute = totalMinutes % 60
+                    if (totalMinutes >= 24 * 60 && endDate == startDate) endDate = endDate?.plusDays(1)
+                    showStartTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showStartTimePicker = false }) { Text("Cancel") } },
+            text = { TimePicker(state = state) }
+        )
+    }
+
+    if (showEndTimePicker) {
+        val state = rememberTimePickerState(initialHour = endHour, initialMinute = endMinute, is24Hour = is24Hour)
+        AlertDialog(
+            onDismissRequest = { showEndTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    focusManager.clearFocus()
+                    endHour = state.hour
+                    endMinute = state.minute
+                    showEndTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showEndTimePicker = false }) { Text("Cancel") } },
+            text = { TimePicker(state = state) }
+        )
+    }
+}
+
+@Composable
+private fun PickerSurface(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shadowElevation = 2.dp,
+        tonalElevation = 1.dp,
+        border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}

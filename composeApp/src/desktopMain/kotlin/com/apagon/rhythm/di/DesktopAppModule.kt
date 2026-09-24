@@ -4,6 +4,7 @@ import com.apagon.rhythm.data.db.DesktopHabitDatabase
 import com.apagon.rhythm.data.db.buildDesktopHabitDatabase
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.preferences.buildDesktopThemeDataStore
+import com.apagon.rhythm.data.repository.CalendarEventRepository
 import com.apagon.rhythm.data.repository.DesktopDeviceCalendarIntegration
 import com.apagon.rhythm.data.repository.DeviceCalendarIntegration
 import com.apagon.rhythm.data.repository.HabitRepository
@@ -25,6 +26,7 @@ import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.platform.ReminderScheduling
 import com.apagon.rhythm.platform.WidgetRefresher
+import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
 import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedViewModel
 import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
 import com.apagon.rhythm.ui.todos.TodoViewModel
@@ -51,11 +53,13 @@ val desktopAppModule = module {
     single<DesktopHabitDatabase> { buildDesktopHabitDatabase() }
     single { get<DesktopHabitDatabase>().habitDao() }
     single { get<DesktopHabitDatabase>().todoDao() }
+    single { get<DesktopHabitDatabase>().calendarEventDao() }
     single<WidgetRefresher> { DesktopWidgetRefresher() }
     single<SyncPreferences> { DesktopSyncPreferences() }
     single { ThemePreferences(buildDesktopThemeDataStore()) }
     single { HabitRepository(get(), get()) }
     single { TodoRepository(get()) }
+    single { CalendarEventRepository(get()) }
     single { SyncEngine(get(), get()) }
     single { SyncClient(get(), desktopDeviceId) }
     single { SyncServer(get(), desktopDeviceId) }
@@ -63,6 +67,7 @@ val desktopAppModule = module {
     viewModel { DesktopHabitViewModel(get(), get(), get()) }
     viewModel { TodoViewModel(get(), get(), get(), get()) }
     viewModel { DesktopRecentlyDeletedViewModel(get(), get()) }
+    viewModel { DesktopCalendarViewModel(get(), get()) }
 
     // ── Stage 6: cross-cutting platform shims ───────────────────────────────
     single<LocaleFormatting> { DesktopLocaleFormatting() }
