@@ -37,6 +37,7 @@ import com.apagon.rhythm.data.db.MIGRATION_29_30
 import com.apagon.rhythm.data.db.MIGRATION_30_31
 import com.apagon.rhythm.data.db.MIGRATION_31_32
 import com.apagon.rhythm.data.db.MIGRATION_32_33
+import com.apagon.rhythm.data.db.MIGRATION_33_34
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.repository.AlarmRepository
 import com.apagon.rhythm.data.repository.CalendarEventRepository
@@ -48,6 +49,8 @@ import com.apagon.rhythm.data.repository.ReminderRepository
 import com.apagon.rhythm.data.repository.SecurityRepository
 import com.apagon.rhythm.data.repository.TimerRepository
 import com.apagon.rhythm.data.repository.TodoRepository
+import com.apagon.rhythm.data.sync.AndroidSyncPreferences
+import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.TimerViewModel
 import com.apagon.rhythm.ui.calendar.CalendarViewModel
@@ -84,6 +87,7 @@ import org.koin.dsl.module
 // Same names/paths as the old in-class delegates, so existing user data is preserved.
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 private val Context.securityDataStore: DataStore<Preferences> by preferencesDataStore(name = "security_prefs")
+private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStore(name = "sync_prefs")
 
 val appModule = module {
 
@@ -104,7 +108,7 @@ val appModule = module {
                 MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
                 MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                 MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32,
-                MIGRATION_32_33
+                MIGRATION_32_33, MIGRATION_33_34
             ).build()
     }
 
@@ -121,6 +125,7 @@ val appModule = module {
     // ── Preferences / billing ─────────────────────────────────────────────────
     single { ThemePreferences(androidContext().settingsDataStore) }
     single { BillingRepository(androidContext(), get()) }
+    single<SyncPreferences> { AndroidSyncPreferences(androidContext().syncDataStore) }
 
     // ── Repositories ──────────────────────────────────────────────────────────
     single { HabitRepository(get(), get()) }

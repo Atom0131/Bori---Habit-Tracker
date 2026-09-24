@@ -26,27 +26,48 @@ class HabitRepository constructor(
         habitDao.insertHabit(habit).also { widgetRefresher.refreshAll() }
 
     suspend fun updateHabit(habit: Habit) {
-        habitDao.updateHabit(habit)
+        habitDao.updateHabit(habit.copy(updatedAt = System.currentTimeMillis()))
         widgetRefresher.refreshAll()
     }
 
     /** Soft-delete: marks the habit inactive rather than removing it. */
     suspend fun archiveHabit(habit: Habit) {
-        habitDao.updateHabit(habit.copy(isActive = false))
+        habitDao.updateHabit(habit.copy(isActive = false, updatedAt = System.currentTimeMillis()))
         widgetRefresher.refreshAll()
     }
 
     /** Restores an archived habit to the active list. */
     suspend fun restoreHabit(habit: Habit) {
-        habitDao.updateHabit(habit.copy(isActive = true))
+        habitDao.updateHabit(habit.copy(isActive = true, updatedAt = System.currentTimeMillis()))
         widgetRefresher.refreshAll()
     }
 
     /** Soft-delete to "Recently Deleted": item stays in DB for 14 days. */
     suspend fun deleteHabit(habit: Habit) {
-        habitDao.updateHabit(habit.copy(deletedAt = System.currentTimeMillis()))
+        val now = System.currentTimeMillis()
+        habitDao.updateHabit(habit.copy(deletedAt = now, updatedAt = now))
         widgetRefresher.refreshAll()
     }
+
+    // ── Sync (Stage 4) ───────────────────────────────────────────────────────
+    // Applied from a remote peer's batch. These preserve the remote row's
+    // updatedAt verbatim (it's the whole point of last-write-wins — a local
+    // System.currentTimeMillis() stamp here would make every synced row look
+    // newer than it is) but still route through this repository, not the DAO
+    // directly, so widgetRefresher.refreshAll() still fires on the receiving
+    // side exactly as it does for a locally-made change.
+
+    suspend fun insertHabitFromSync(habit: Habit): Long =
+        habitDao.insertHabit(habit).also { widgetRefresher.refreshAll() }
+
+    suspend fun updateHabitFromSync(habit: Habit) {
+        habitDao.updateHabit(habit)
+        widgetRefresher.refreshAll()
+    }
+
+    suspend fun getHabitBySyncId(syncId: String): Habit? = habitDao.getHabitBySyncId(syncId)
+
+    suspend fun getHabitsUpdatedSince(since: Long): List<Habit> = habitDao.getHabitsUpdatedSince(since)
 
     /** Permanently removes from DB. */
     suspend fun hardDeleteHabit(habit: Habit) {
@@ -65,13 +86,35 @@ class HabitRepository constructor(
 
     // ── Completions ───────────────────────────────────────────────────────────
 
-    suspend fun markComplete(habitId: Long, date: String): Long =
-        habitDao.insertCompletion(HabitCompletion(habitId = habitId, dateCompleted = date))
-            .also { widgetRefresher.refreshAll() }
+    /**
+     * Revive-or-insert: a previously-unchecked day left a tombstoned row
+     * (see HabitCompletion.deletedAt) still occupying the unique (habitId,
+     * dateCompleted) slot, so a plain @Insert(IGNORE) would silently no-op
+     * on re-completing that day. Check for an existing row first — revive it
+     * if found (tombstoned or not, revive is idempotent), otherwise insert.
+     */
+    suspend fun markComplete(habitId: Long, date: String): Long {
+        val now = System.currentTimeMillis()
+        val existing = habitDao.getCompletionRaw(habitId, date)
+        return if (existing != null) {
+            habitDao.setCompletionSyncState(habitId, date, deletedAt = null, updatedAt = now)
+            widgetRefresher.refreshAll()
+            existing.id
+        } else {
+            habitDao.insertCompletion(HabitCompletion(habitId = habitId, dateCompleted = date, updatedAt = now))
+                .also { widgetRefresher.refreshAll() }
+        }
+    }
 
+    /** Soft-delete so the "uncheck" propagates to a sync peer instead of vanishing. */
     suspend fun markIncomplete(habitId: Long, date: String) {
-        habitDao.deleteCompletion(habitId, date)
+        val now = System.currentTimeMillis()
+        habitDao.setCompletionSyncState(habitId, date, deletedAt = now, updatedAt = now)
         widgetRefresher.refreshAll()
+    }
+
+    suspend fun purgeOldDeletedCompletions(olderThan: Long) {
+        habitDao.purgeDeletedCompletions(olderThan)
     }
 
     fun getCompletionsForHabit(habitId: Long): Flow<List<HabitCompletion>> =
@@ -82,6 +125,21 @@ class HabitRepository constructor(
 
     fun getCompletionsBetweenDates(startDate: String, endDate: String): Flow<List<HabitCompletion>> =
         habitDao.getCompletionsBetweenDates(startDate, endDate)
+
+    // ── Sync (Stage 4) ───────────────────────────────────────────────────────
+
+    suspend fun insertCompletionFromSync(completion: HabitCompletion): Long =
+        habitDao.insertCompletion(completion).also { widgetRefresher.refreshAll() }
+
+    /** Overwrites the existing row's deletedAt/updatedAt with the incoming (winning) row's state in one write. */
+    suspend fun updateCompletionFromSync(existing: HabitCompletion, incoming: HabitCompletion) {
+        habitDao.setCompletionSyncState(existing.habitId, existing.dateCompleted, incoming.deletedAt, incoming.updatedAt)
+        widgetRefresher.refreshAll()
+    }
+
+    suspend fun getCompletionBySyncId(syncId: String): HabitCompletion? = habitDao.getCompletionBySyncId(syncId)
+
+    suspend fun getCompletionsUpdatedSince(since: Long): List<HabitCompletion> = habitDao.getCompletionsUpdatedSince(since)
 
     // ── Checklist Items ───────────────────────────────────────────────────────
 

@@ -47,21 +47,52 @@ interface HabitDao {
     @Query("UPDATE habits SET reminderTime = :time WHERE id = :habitId")
     suspend fun updateReminderTime(habitId: Long, time: String?)
 
+    // ── Sync (Stage 4) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM habits WHERE syncId = :syncId")
+    suspend fun getHabitBySyncId(syncId: String): Habit?
+
+    @Query("SELECT * FROM habits WHERE updatedAt > :since")
+    suspend fun getHabitsUpdatedSince(since: Long): List<Habit>
+
+    @Query("SELECT * FROM habit_completions WHERE syncId = :syncId")
+    suspend fun getCompletionBySyncId(syncId: String): HabitCompletion?
+
+    @Query("SELECT * FROM habit_completions WHERE updatedAt > :since")
+    suspend fun getCompletionsUpdatedSince(since: Long): List<HabitCompletion>
+
+    @Query("DELETE FROM habit_completions WHERE deletedAt IS NOT NULL AND deletedAt < :olderThan")
+    suspend fun purgeDeletedCompletions(olderThan: Long)
+
     // ── Completions ───────────────────────────────────────────────────────────
 
+    // Deliberately NOT used for a plain "complete this habit" tap anymore —
+    // OnConflictStrategy.IGNORE silently no-ops if a tombstoned row (see
+    // HabitCompletion.deletedAt) still occupies the unique (habitId,
+    // dateCompleted) slot, which re-completing a previously-unchecked day
+    // does. HabitRepository.markComplete does a revive-or-insert using the
+    // two methods below instead; this stays for sync's fresh-row inserts and
+    // backup/restore, where no prior tombstone can exist.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCompletion(completion: HabitCompletion): Long
+
+    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND dateCompleted = :date")
+    suspend fun getCompletionRaw(habitId: Long, date: String): HabitCompletion?
+
+    /** Overwrites deletedAt/updatedAt exactly as given. A local soft-delete passes a non-null deletedAt; a local revive (re-completing a day) or applying a remote sync row passes whatever it says (null = active). */
+    @Query("UPDATE habit_completions SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE habitId = :habitId AND dateCompleted = :date")
+    suspend fun setCompletionSyncState(habitId: Long, date: String, deletedAt: Long?, updatedAt: Long)
 
     @Query("DELETE FROM habit_completions WHERE habitId = :habitId AND dateCompleted = :date")
     suspend fun deleteCompletion(habitId: Long, date: String)
 
-    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId ORDER BY dateCompleted DESC")
+    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND deletedAt IS NULL ORDER BY dateCompleted DESC")
     fun getCompletionsForHabit(habitId: Long): Flow<List<HabitCompletion>>
 
-    @Query("SELECT * FROM habit_completions WHERE dateCompleted = :date")
+    @Query("SELECT * FROM habit_completions WHERE dateCompleted = :date AND deletedAt IS NULL")
     fun getCompletionsByDate(date: String): Flow<List<HabitCompletion>>
 
-    @Query("SELECT * FROM habit_completions WHERE dateCompleted >= :startDate AND dateCompleted <= :endDate")
+    @Query("SELECT * FROM habit_completions WHERE dateCompleted >= :startDate AND dateCompleted <= :endDate AND deletedAt IS NULL")
     fun getCompletionsBetweenDates(startDate: String, endDate: String): Flow<List<HabitCompletion>>
 
     // ── Checklist Items ───────────────────────────────────────────────────────

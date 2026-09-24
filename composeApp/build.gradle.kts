@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -32,6 +33,23 @@ kotlin {
     jvm("desktop")
 
     sourceSets {
+        // Intermediate source set shared by the two real JVM targets
+        // (androidTarget + desktop) but not the dormant iOS targets — Ktor's
+        // CIO server engine has no iOS artifact, so it lives here rather
+        // than in commonMain. See the sync-engine plan (Stage 4).
+        val jvmMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.ktor.server.core)
+                implementation(libs.ktor.server.cio)
+                implementation(libs.ktor.server.websockets)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.cio)
+                implementation(libs.ktor.client.websockets)
+                implementation(libs.ktor.serialization.kotlinx.json)
+            }
+        }
+
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -55,6 +73,7 @@ kotlin {
             // Navigation (JetBrains multiplatform port; same androidx.navigation API)
             implementation(libs.jetbrains.navigation.compose)
         }
+        androidMain.configure { dependsOn(jvmMain) }
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.core.splashscreen)
@@ -105,12 +124,14 @@ kotlin {
             // WorkManager — periodic widget refresh
             implementation(libs.work.runtime.ktx)
         }
-        val desktopMain by getting
+        val desktopMain by getting {
+            dependsOn(jvmMain)
+        }
         desktopMain.dependencies {
-            // Everything else (Room KMP, Koin, coroutines-core, DataStore) is
-            // already visible here via commonMain's `implementation`/`api`
-            // deps — desktopMain sits under commonMain in the source-set
-            // hierarchy.
+            // Everything else (Room KMP, Koin, coroutines-core, DataStore,
+            // Ktor) is already visible here via commonMain's/jvmMain's
+            // `implementation`/`api` deps — desktopMain sits under jvmMain
+            // under commonMain in the source-set hierarchy.
             implementation(compose.desktop.currentOs)
 
             // Provides Dispatchers.Main backed by the Swing/AWT event thread

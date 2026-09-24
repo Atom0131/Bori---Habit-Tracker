@@ -9,6 +9,7 @@ import androidx.room.ConstructedBy
 import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import com.apagon.rhythm.core.time.System
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.HabitFrequency
@@ -380,9 +381,60 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
     }
 }
 
+// Adds sync bookkeeping (Stage 4 of the Linux desktop port's plan) to the two
+// entities the P2P sync engine covers: Habit and HabitCompletion. Every
+// pre-existing row needs a real syncId before it can be uniquely indexed —
+// SQLite has no UUID() builtin, so that part is a Kotlin-side backfill loop
+// (see backfillSyncIds below), not pure SQL.
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE habits ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE habits ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("ALTER TABLE habit_completions ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE habit_completions ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("ALTER TABLE habit_completions ADD COLUMN deletedAt INTEGER DEFAULT NULL")
+
+        // Baseline updatedAt: habits already have a createdAt to borrow from;
+        // completions don't, so "now" is the most honest available value —
+        // nothing has synced yet, so there's no earlier real timestamp to lose.
+        connection.execSQL("UPDATE habits SET updatedAt = createdAt WHERE updatedAt = 0")
+        connection.execSQL("UPDATE habit_completions SET updatedAt = ${System.currentTimeMillis()} WHERE updatedAt = 0")
+
+        backfillSyncIds(connection, "habits")
+        backfillSyncIds(connection, "habit_completions")
+
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_habits_syncId ON habits(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_habit_completions_syncId ON habit_completions(syncId)")
+    }
+}
+
+/**
+ * Mints a real UUID for every row in [table] still holding the migration's
+ * blank-string placeholder. `internal` (not `private`) so the desktop-only
+ * equivalent migration (DesktopHabitDatabase.kt, a different `@Database`
+ * class starting from its own version 1) can reuse it without duplicating
+ * this loop — both migrations run against the same shared Habit/
+ * HabitCompletion table shapes.
+ */
+@OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+internal fun backfillSyncIds(connection: SQLiteConnection, table: String) {
+    val ids = mutableListOf<Long>()
+    val statement = connection.prepare("SELECT id FROM $table WHERE syncId = ''")
+    try {
+        while (statement.step()) {
+            ids.add(statement.getLong(0))
+        }
+    } finally {
+        statement.close()
+    }
+    ids.forEach { id ->
+        connection.execSQL("UPDATE $table SET syncId = '${kotlin.uuid.Uuid.random()}' WHERE id = $id")
+    }
+}
+
 @Database(
     entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Reminder::class, CalendarEvent::class, Alarm::class, Timer::class, Todo::class, JournalEntry::class, Notebook::class, Note::class],
-    version = 33,
+    version = 34,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
