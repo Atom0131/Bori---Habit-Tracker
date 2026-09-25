@@ -26,6 +26,7 @@ import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedScreen
 import com.apagon.rhythm.ui.habit.DesktopHabitScreen
 import com.apagon.rhythm.ui.journal.DesktopJournalScreen
 import com.apagon.rhythm.ui.notes.DesktopNotesTab
+import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmTheme
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.todos.DesktopTodoScreen
@@ -92,13 +93,14 @@ fun main() {
 
 // Stage 7's minimal tab switcher — the desktop app's first navigation of any
 // kind (Stages 3-6 only ever showed one screen). A plain TabRow rather than
-// the real app's bottom NavigationBar/NavHost, which is Settings-adjacent
-// scaffolding (Stage 11) out of scope here; this just needs to make the
-// newly-ported Todo/Recently-Deleted screens reachable.
+// the real app's bottom NavigationBar/NavHost; Stage 11 adds Settings as a
+// 7th tab here rather than introducing a different nav pattern (drawer/gear
+// icon) just for it — desktop has no bottom-nav real-estate constraint
+// forcing that, and every other stage (7-10) landed the same way.
 @Composable
 private fun DesktopAppRoot() {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted")
+    val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted", "Settings")
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -117,6 +119,7 @@ private fun DesktopAppRoot() {
             3 -> DesktopJournalScreen()
             4 -> DesktopNotesTab()
             5 -> DesktopRecentlyDeletedScreen()
+            6 -> DesktopSettingsScreen()
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.apagon.rhythm.di
 
+import com.apagon.rhythm.data.backup.BackupManaging
+import com.apagon.rhythm.data.backup.DesktopBackupManager
 import com.apagon.rhythm.data.db.DesktopHabitDatabase
 import com.apagon.rhythm.data.db.buildDesktopHabitDatabase
 import com.apagon.rhythm.data.preferences.ThemePreferences
@@ -44,6 +46,7 @@ import com.apagon.rhythm.ui.notes.NoteEditorViewModel
 import com.apagon.rhythm.ui.notes.NotebookDetailViewModel
 import com.apagon.rhythm.ui.notes.NotesSearchViewModel
 import com.apagon.rhythm.ui.notes.NotesViewModel
+import com.apagon.rhythm.ui.settings.DesktopSettingsViewModel
 import com.apagon.rhythm.ui.todos.TodoViewModel
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -96,6 +99,10 @@ val desktopAppModule = module {
     viewModel { NotebookDetailViewModel(get()) }
     viewModel { NotesSearchViewModel(get()) }
     viewModel { NoteEditorViewModel(get(), get(), get()) }
+
+    // ── Stage 11: Settings ───────────────────────────────────────────────────
+    single<BackupManaging> { DesktopBackupManager(get(), get()) }
+    viewModel { DesktopSettingsViewModel(get(), get(), get(), get(), get(), get()) }
 
     // ── Stage 6: cross-cutting platform shims ───────────────────────────────
     single<LocaleFormatting> { DesktopLocaleFormatting() }

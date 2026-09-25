@@ -9,4 +9,10 @@ package com.apagon.rhythm.platform
  */
 interface FilePicker {
     fun pickImagePath(): String?
+
+    /** Native "save file" prompt for backup export. Returns the chosen absolute path, or null if cancelled. */
+    fun pickBackupExportPath(suggestedName: String): String?
+
+    /** Native "open file" prompt for backup import. Returns the chosen absolute path, or null if cancelled. */
+    fun pickBackupImportPath(): String?
 }
