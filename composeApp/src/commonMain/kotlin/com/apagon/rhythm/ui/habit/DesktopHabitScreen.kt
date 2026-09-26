@@ -23,9 +23,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.platform.QrCodeRenderer
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 // Stage 3's minimal desktop Habit screen — a plain list/add/complete UI
@@ -42,6 +46,8 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
     val peerAddress by viewModel.peerAddress.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     var newHabitName by remember { mutableStateOf("") }
+    var showQrCode by remember { mutableStateOf(false) }
+    val qrCodeRenderer = koinInject<QrCodeRenderer>()
     // Stage 9: tapping a habit navigates to DesktopHabitDetailScreen (Stats).
     // Plain local state, matching this project's existing showX/editingX
     // toggle pattern rather than a real navigation library (Stage 11 territory).
@@ -75,9 +81,33 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                 }
             }
 
-            // Stage 4b: local sync test UI — a Tailscale IP field replaces this
-            // "host:port" text field wholesale in Stage 4c; the sync engine
-            // underneath doesn't change.
+            // Stage 13: this device's own address, read-only — the user reads
+            // it off this line and types it into the phone's peer-address
+            // field (desktop is always the sync server). The QR toggle below
+            // is the easier path — same address, scanned instead of typed.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Your address: ${viewModel.ownSyncAddress}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { showQrCode = !showQrCode }) {
+                    Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
+                }
+            }
+            if (showQrCode) {
+                qrCodeRenderer.QrCodeImage(
+                    text = viewModel.ownSyncAddressForPairing,
+                    modifier = Modifier.size(200.dp).padding(top = 8.dp)
+                )
+            }
+
+            // Stage 4b: local sync test UI, still used for the reverse
+            // direction (desktop-initiates-sync) and local dev testing.
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

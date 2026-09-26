@@ -26,6 +26,8 @@ kotlinxCoroutinesCore = "1.9.0"
 kotlinxDatetime = "0.7.1"
 kotlinxSerialization = "1.9.0"
 ktor = "3.5.2"
+zxing = "3.5.3"
+zxingAndroidEmbedded = "4.3.0"
 [libraries]
 google-billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
 google-billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
@@ -79,6 +81,13 @@ ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref =
 ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktor-client-websockets = { group = "io.ktor", name = "ktor-client-websockets", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+# QR pairing (Stage 13 follow-up) — zxing-core generates the QR bit matrix on
+# desktop (pure Java, no Android dependency); zxing-android-embedded gives
+# Android a ready-made camera scanning activity rather than hand-building
+# CameraX + ML Kit for this one use case.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

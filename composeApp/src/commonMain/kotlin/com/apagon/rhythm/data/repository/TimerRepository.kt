@@ -17,4 +17,39 @@ class TimerRepository constructor(private val dao: TimerDao) {
     suspend fun purgeOldDeletedItems(olderThan: Long) {
         dao.purgeDeletedTimers(olderThan)
     }
+
+    /**
+     * Pomodoro phase state machine — transcribed from androidMain's
+     * TimerCompletionReceiver.nextPomoState (Stage 12). Only ever
+     * user-triggered ("tap Done to start break/work"), never automatic —
+     * matches Android's own design, where the alert's action is what
+     * advances the phase, not the completion itself.
+     */
+    suspend fun advancePomoPhase(timerId: Long) {
+        val timer = dao.getById(timerId) ?: return
+        val (nextPhase, nextSession) = when (timer.pomoPhase) {
+            "WORK" -> if (timer.pomoCurrentSession >= timer.pomoSessionsPerRound) {
+                "LONG_BREAK" to timer.pomoCurrentSession
+            } else {
+                "SHORT_BREAK" to timer.pomoCurrentSession
+            }
+            "SHORT_BREAK" -> "WORK" to timer.pomoCurrentSession + 1
+            "LONG_BREAK" -> "WORK" to 1
+            else -> "WORK" to 1
+        }
+        val nextDuration = when (nextPhase) {
+            "WORK" -> timer.pomoWorkSecs
+            "SHORT_BREAK" -> timer.pomoShortBreakSecs
+            else -> timer.pomoLongBreakSecs
+        }
+        dao.update(
+            timer.copy(
+                durationSeconds = nextDuration,
+                remainingSeconds = nextDuration,
+                endTimeMillis = System.currentTimeMillis() + nextDuration * 1000L,
+                pomoCurrentSession = nextSession,
+                pomoPhase = nextPhase
+            )
+        )
+    }
 }

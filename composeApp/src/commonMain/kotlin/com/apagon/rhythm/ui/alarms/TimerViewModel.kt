@@ -1,17 +1,13 @@
 package com.apagon.rhythm.ui.alarms
 
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apagon.rhythm.core.time.System
 import com.apagon.rhythm.data.model.Timer
-import com.apagon.rhythm.data.repository.TimerRepository
 import com.apagon.rhythm.data.preferences.ThemePreferences
-import com.apagon.rhythm.notifications.TimerCompletionReceiver
-import com.apagon.rhythm.notifications.TimerForegroundService
-import com.apagon.rhythm.widget.refreshAllWidgets
+import com.apagon.rhythm.data.repository.TimerRepository
+import com.apagon.rhythm.platform.ReminderScheduling
+import com.apagon.rhythm.platform.WidgetRefresher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,10 +22,23 @@ data class TimerUiState(
     val displayRemaining: Int,
     val pomoPhaseLabel: String? = null  // e.g. "Work 2/4", "Short Break", "Long Break"
 )
+
+// Moved from androidMain (Stage 12) — this is the last Alarms/Timers/Reminders
+// ViewModel to make the jump; AlarmViewModel/ReminderViewModel got there
+// ahead of schedule in an earlier stage. The AlarmManager/PendingIntent/
+// TimerForegroundService logic that used to live directly in this class
+// moved to AndroidReminderScheduling.scheduleTimerCompletion/
+// cancelTimerCompletion (androidMain) — this ViewModel now calls the
+// ReminderScheduling interface instead of touching Context/AlarmManager
+// itself, so it compiles for both platforms. Desktop's actual is a no-op:
+// DesktopAlarmClockService (desktopMain) polls the DB directly and doesn't
+// need a per-item registration to know a timer is running. This ViewModel's
+// own 500ms tick loop remains UI-display only either way.
 class TimerViewModel constructor(
     private val repository: TimerRepository,
     private val themePreferences: ThemePreferences,
-    private val context: Context
+    private val scheduler: ReminderScheduling,
+    private val widgetRefresher: WidgetRefresher
 ) : ViewModel() {
 
     val isPro: StateFlow<Boolean> = themePreferences.isPro
@@ -62,7 +71,6 @@ class TimerViewModel constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        // Keep tick running so UI stays accurate while any timer is active
         viewModelScope.launch {
             while (true) {
                 _tickMs.value = System.currentTimeMillis()
@@ -111,7 +119,6 @@ class TimerViewModel constructor(
     fun updateTimer(id: Long, label: String, durationSeconds: Int, soundUri: String = "", vibrationPatternId: String = "default") {
         viewModelScope.launch {
             val existing = timers.value.find { it.id == id } ?: return@launch
-            // If it's not running, we update remainingSeconds too
             val newRemaining = if (existing.endTimeMillis == 0L) durationSeconds else existing.remainingSeconds
             repository.updateTimer(
                 existing.copy(
@@ -166,9 +173,8 @@ class TimerViewModel constructor(
         val endTime = System.currentTimeMillis() + startRemaining * 1000L
         viewModelScope.launch {
             repository.updateTimer(timer.copy(endTimeMillis = endTime))
-            scheduleCompletionAlarm(timer.id, endTime)
-            context.startService(TimerForegroundService.startIntent(context, endTime, timer.label))
-            refreshAllWidgets(context)
+            scheduler.scheduleTimerCompletion(timer.id, endTime, timer.label)
+            widgetRefresher.refreshAll()
         }
     }
 
@@ -179,61 +185,25 @@ class TimerViewModel constructor(
             timer.remainingSeconds
         }
         viewModelScope.launch {
-            cancelCompletionAlarm(timer.id)
+            scheduler.cancelTimerCompletion(timer.id)
             repository.updateTimer(timer.copy(remainingSeconds = remaining, endTimeMillis = 0))
-            checkAndStopService()
-            refreshAllWidgets(context)
+            widgetRefresher.refreshAll()
         }
     }
 
     fun resetTimer(timer: Timer) {
         viewModelScope.launch {
-            cancelCompletionAlarm(timer.id)
+            scheduler.cancelTimerCompletion(timer.id)
             repository.updateTimer(timer.copy(remainingSeconds = timer.durationSeconds, endTimeMillis = 0))
-            checkAndStopService()
-            refreshAllWidgets(context)
+            widgetRefresher.refreshAll()
         }
     }
 
     fun deleteTimer(timer: Timer) {
         viewModelScope.launch {
-            cancelCompletionAlarm(timer.id)
+            scheduler.cancelTimerCompletion(timer.id)
             repository.deleteTimer(timer)
-            checkAndStopService()
-            refreshAllWidgets(context)
+            widgetRefresher.refreshAll()
         }
-    }
-
-    private fun scheduleCompletionAlarm(timerId: Long, endTimeMillis: Long) {
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = completionPendingIntent(timerId)
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endTimeMillis, pi)
-    }
-
-    private fun cancelCompletionAlarm(timerId: Long) {
-        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        am.cancel(completionPendingIntent(timerId))
-    }
-
-    private fun completionPendingIntent(timerId: Long): PendingIntent {
-        val intent = Intent(context, TimerCompletionReceiver::class.java).apply {
-            putExtra(TimerCompletionReceiver.EXTRA_TIMER_ID, timerId)
-        }
-        return PendingIntent.getBroadcast(
-            context, timerId.toInt(), intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private suspend fun checkAndStopService() {
-        val anyRunning = timers.value.any { it.endTimeMillis > 0 }
-        if (!anyRunning) {
-            context.startService(TimerForegroundService.stopIntent(context))
-        }
-    }
-
-    companion object {
-        @Suppress("unused")
-        private const val TIMER_NOTIF_ID_BASE = 900_000
     }
 }

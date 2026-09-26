@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
+import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
@@ -16,6 +17,8 @@ import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Notebook
+import com.apagon.rhythm.data.model.Reminder
+import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
 import kotlinx.coroutines.Dispatchers
 import java.io.File
@@ -31,8 +34,8 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class],
-    version = 6,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class],
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -42,6 +45,9 @@ abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun calendarEventDao(): CalendarEventDao
     abstract fun journalDao(): JournalDao
     abstract fun notesDao(): NotesDao
+    abstract fun alarmDao(): AlarmDao
+    abstract fun reminderDao(): ReminderDao
+    abstract fun timerDao(): TimerDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -207,6 +213,66 @@ val DESKTOP_HABIT_MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+// Stage 12: adds `alarms`, `reminders`, `timers` — brand-new on this database.
+// None of the three declares `indices`/`@ForeignKey`/`@ColumnInfo(defaultValue=...)`
+// in its @Entity annotation (confirmed by reading Alarm.kt/Reminder.kt/Timer.kt
+// directly, not inferred from a sibling migration — Stage 9's own lesson), so
+// this migration has no SQL DEFAULT clauses and no indices, matching
+// DESKTOP_HABIT_MIGRATION_3_4's shape (CalendarEvent) rather than
+// DESKTOP_HABIT_MIGRATION_2_3's (Todo, which does have defaultValue annotations).
+val DESKTOP_HABIT_MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS alarms (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                label              TEXT NOT NULL,
+                hour               INTEGER NOT NULL,
+                minute             INTEGER NOT NULL,
+                repeatDays         INTEGER NOT NULL,
+                isEnabled          INTEGER NOT NULL,
+                soundUri           TEXT NOT NULL,
+                vibrationPatternId TEXT NOT NULL,
+                createdAt          INTEGER NOT NULL,
+                deletedAt          INTEGER
+            )
+        """.trimIndent())
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS reminders (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                title       TEXT NOT NULL,
+                note        TEXT NOT NULL,
+                dateTime    TEXT NOT NULL,
+                isCompleted INTEGER NOT NULL,
+                completedAt INTEGER,
+                isActive    INTEGER NOT NULL,
+                createdAt   INTEGER NOT NULL,
+                soundUri    TEXT NOT NULL,
+                deletedAt   INTEGER
+            )
+        """.trimIndent())
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS timers (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                label                TEXT NOT NULL,
+                durationSeconds      INTEGER NOT NULL,
+                remainingSeconds     INTEGER NOT NULL,
+                endTimeMillis        INTEGER NOT NULL,
+                soundUri             TEXT NOT NULL,
+                vibrationPatternId   TEXT NOT NULL,
+                createdAt            INTEGER NOT NULL,
+                isPomo               INTEGER NOT NULL,
+                pomoWorkSecs         INTEGER NOT NULL,
+                pomoShortBreakSecs   INTEGER NOT NULL,
+                pomoLongBreakSecs    INTEGER NOT NULL,
+                pomoSessionsPerRound INTEGER NOT NULL,
+                pomoCurrentSession   INTEGER NOT NULL,
+                pomoPhase            TEXT NOT NULL,
+                deletedAt            INTEGER
+            )
+        """.trimIndent())
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -218,6 +284,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7)
         .build()
 }

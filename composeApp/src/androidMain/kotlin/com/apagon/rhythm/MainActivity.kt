@@ -46,6 +46,7 @@ import com.apagon.rhythm.ui.notes.NotebookDetailScreen
 import com.apagon.rhythm.ui.notes.NoteEditorScreen
 import com.apagon.rhythm.ui.notes.NotesSearchScreen
 import com.apagon.rhythm.ui.deleted.RecentlyDeletedScreen
+import com.apagon.rhythm.ui.sync.SyncScreen
 import com.apagon.rhythm.ui.reminders.ClockScreen
 import com.apagon.rhythm.ui.settings.SettingsScreen
 import com.apagon.rhythm.ui.stats.StatsScreen
@@ -423,11 +424,15 @@ private fun NavGraphBuilder.sharedRoutes(
         SettingsScreen(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToDeleted = { navController.navigate("deleted") },
+            onNavigateToSync = { navController.navigate("sync") },
             windowWidthSizeClass = windowWidthSizeClass
         )
     }
     composable("deleted") {
         RecentlyDeletedScreen(onNavigateBack = { navController.popBackStack() })
+    }
+    composable("sync") {
+        SyncScreen(onNavigateBack = { navController.popBackStack() })
     }
     composable("notes_search") {
         NotesSearchScreen(

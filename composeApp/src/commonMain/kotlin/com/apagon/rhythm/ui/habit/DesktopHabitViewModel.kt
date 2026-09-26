@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.repository.HabitRepository
+import com.apagon.rhythm.data.sync.LocalSyncAddress
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.ui.util.isScheduledForDate
@@ -40,10 +41,19 @@ data class DesktopHabitUiState(
 class DesktopHabitViewModel(
     private val repository: HabitRepository,
     private val syncCoordinator: SyncCoordinator,
-    private val syncPreferences: SyncPreferences
+    private val syncPreferences: SyncPreferences,
+    localSyncAddress: LocalSyncAddress
 ) : ViewModel() {
 
     private val today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
+    // Stage 13: this device's own address for a phone to sync against, shown
+    // read-only so the user can read it off this screen and type it into the
+    // phone's peer-address field (desktop is always the sync server; see
+    // ref_notes/plan_2026-09-25_stage13_tailscale_pairing.md's design
+    // decision on sync direction).
+    val ownSyncAddress: String = localSyncAddress.display
+    val ownSyncAddressForPairing: String = localSyncAddress.addressForPairing
 
     private val _peerAddress = MutableStateFlow("")
     val peerAddress: StateFlow<String> = _peerAddress.asStateFlow()

@@ -129,6 +129,10 @@ kotlin {
 
             // WorkManager — periodic widget refresh
             implementation(libs.work.runtime.ktx)
+
+            // QR pairing (Stage 13 follow-up) — camera scanning activity for
+            // reading the desktop's Tailscale address off its displayed QR code.
+            implementation(libs.zxing.android.embedded)
         }
         val desktopMain by getting {
             dependsOn(jvmMain)
@@ -146,6 +150,10 @@ kotlin {
             // Without this, viewModelScope.launch { } (which defaults to
             // Dispatchers.Main.immediate) throws at runtime on desktop.
             implementation(libs.kotlinx.coroutines.swing)
+
+            // QR pairing (Stage 13 follow-up) — pure-Java QR bit-matrix
+            // generation, no Android dependency needed for encoding.
+            implementation(libs.zxing.core)
         }
     }
 }

@@ -34,15 +34,18 @@ class DesktopHapticAlerter : HapticAlerter {
     override fun stop() {}
 }
 
-// Temporary desktop actual for ReminderScheduling — Stage 7 (Todos) needs
-// *something* wired here since TodoViewModel takes it as a hard constructor
-// dependency, but the real desktop scheduler (an in-process JVM timer plus
-// an OS-notification/window firing path — see ref_notes/) is Stage 12's
-// job, the largest single piece of net-new design in the full-port roadmap.
-// Until then, todos can be added/completed/deleted normally; only the
-// due-time alert itself doesn't fire. Replace this whole class wholesale
-// in Stage 12 rather than growing it method-by-method.
-class DesktopNoOpReminderScheduling : ReminderScheduling {
+// Desktop actual for ReminderScheduling (Stage 12). Deliberately still a
+// no-op: the real firing mechanism is DesktopAlarmClockService, a session-wide
+// poller that re-derives what's due by reading the DB directly every tick
+// rather than tracking individually-scheduled items — so there's nothing for
+// a per-item schedule/cancel call to actually do. (Stage 7's DB write from
+// AlarmViewModel/TimerViewModel/ReminderViewModel already persists the data
+// these calls would otherwise have needed to mirror into an OS scheduler.)
+// Habit-level daily reminders (scheduleReminder/cancelReminder) and Todo due
+// alerts (scheduleTodo/cancelTodo) are out of scope for Stage 12 — desktop's
+// Habit/Todo UI doesn't expose editing a reminder time yet, so there's
+// nothing to schedule even on Android's model.
+class DesktopReminderScheduling : ReminderScheduling {
     override fun scheduleReminder(habit: Habit) {}
     override fun cancelReminder(habitId: Long) {}
     override fun scheduleOneShot(reminder: Reminder) {}
@@ -51,4 +54,6 @@ class DesktopNoOpReminderScheduling : ReminderScheduling {
     override fun cancelAlarm(alarmId: Long) {}
     override fun scheduleTodo(todo: Todo) {}
     override fun cancelTodo(todoId: Long) {}
+    override fun scheduleTimerCompletion(timerId: Long, endTimeMillis: Long, label: String) {}
+    override fun cancelTimerCompletion(timerId: Long) {}
 }

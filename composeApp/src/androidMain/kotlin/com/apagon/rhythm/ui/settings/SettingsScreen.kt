@@ -144,6 +144,7 @@ private fun TutorialReplayRow(title: String, onReplay: () -> Unit) {
 fun SettingsScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToDeleted: () -> Unit = {},
+    onNavigateToSync: () -> Unit = {},
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     viewModel: SettingsViewModel = koinViewModel(),
     colorPickerViewModel: ColorPickerViewModel = koinViewModel()
@@ -971,6 +972,41 @@ fun SettingsScreen(
                                 },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Import") }
+                        }
+                    }
+                }
+
+                item { Spacer(Modifier.height(16.dp)) }
+
+                // Stage 13: sync with the desktop app over Tailscale
+                item {
+                    Text(
+                        text = "Sync",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    HabitCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToSync() }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Sync with Desktop", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "Connect over Tailscale to sync habits with the desktop app",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
                         }
                     }
                 }

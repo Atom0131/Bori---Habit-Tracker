@@ -64,13 +64,20 @@ import com.apagon.rhythm.ui.notes.NotesViewModel
 import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.settings.SettingsViewModel
 import com.apagon.rhythm.ui.stats.StatsViewModel
+import com.apagon.rhythm.ui.sync.SyncViewModel
 import com.apagon.rhythm.ui.todos.TodoViewModel
+import com.apagon.rhythm.data.sync.JvmSyncCoordinator
+import com.apagon.rhythm.data.sync.SyncClient
+import com.apagon.rhythm.data.sync.SyncCoordinator
+import com.apagon.rhythm.data.sync.SyncEngine
 import com.apagon.rhythm.platform.AndroidPurchaseLauncher
 import com.apagon.rhythm.platform.AndroidReminderScheduling
 import com.apagon.rhythm.platform.AndroidWidgetRefresher
 import com.apagon.rhythm.platform.PurchaseLauncher
 import com.apagon.rhythm.platform.ReminderScheduling
 import com.apagon.rhythm.platform.WidgetRefresher
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import com.apagon.rhythm.ui.util.ColorPickerViewModel
 import com.apagon.rhythm.ui.util.PaywallViewModel
 import com.apagon.rhythm.ui.util.TutorialViewModel
@@ -88,6 +95,12 @@ import org.koin.dsl.module
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 private val Context.securityDataStore: DataStore<Preferences> by preferencesDataStore(name = "security_prefs")
 private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStore(name = "sync_prefs")
+
+// Stage 13: diagnostic-only (SyncBatch.deviceId isn't an identity/dedup key,
+// per Stage 4b's own design), so regenerating per process/install is fine —
+// same reasoning as desktopMain's main.kt desktopDeviceId.
+@OptIn(ExperimentalUuidApi::class)
+private val androidDeviceId = "android-" + Uuid.random().toString().take(8)
 
 val appModule = module {
 
@@ -140,7 +153,7 @@ val appModule = module {
     single { SecurityRepository(androidContext().securityDataStore) }
 
     // ── Platform services ─────────────────────────────────────────────────────
-    single<ReminderScheduling> { AndroidReminderScheduling(androidContext()) }
+    single<ReminderScheduling> { AndroidReminderScheduling(androidContext(), get()) }
     single<WidgetRefresher> { AndroidWidgetRefresher(androidContext()) }
     single { AndroidPurchaseLauncher(get()) } bind PurchaseLauncher::class
     single<com.apagon.rhythm.platform.PhotoStorage> { com.apagon.rhythm.platform.AndroidPhotoStorage(androidContext()) }
@@ -155,7 +168,7 @@ val appModule = module {
     viewModel { HabitListViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { CalendarViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { TodoViewModel(get(), get(), get(), get()) }
-    viewModel { TimerViewModel(get(), get(), androidContext()) }
+    viewModel { TimerViewModel(get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
     viewModel { ReminderViewModel(get(), get()) }
     viewModel { JournalViewModel(get(), get(), get(), get(), get(), get()) }
@@ -169,4 +182,13 @@ val appModule = module {
     viewModel { PaywallViewModel(get()) }
     viewModel { ColorPickerViewModel(get()) }
     viewModel { TutorialViewModel(get()) }
+
+    // ── Stage 13: Tailscale + real phone pairing ────────────────────────────
+    // Wires the sync engine — already compiled here via jvmMain, just never
+    // called before this stage. Android is always the sync CLIENT (desktop
+    // always runs the server); see plan_2026-09-25_stage13_tailscale_pairing.md.
+    single { SyncEngine(get(), get()) }
+    single { SyncClient(get(), androidDeviceId) }
+    single<SyncCoordinator> { JvmSyncCoordinator(get()) }
+    viewModel { SyncViewModel(get(), get()) }
 }

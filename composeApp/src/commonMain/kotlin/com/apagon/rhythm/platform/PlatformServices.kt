@@ -19,6 +19,16 @@ interface ReminderScheduling {
     fun cancelAlarm(alarmId: Long)
     fun scheduleTodo(todo: Todo)
     fun cancelTodo(todoId: Long)
+
+    /**
+     * Schedules the OS-level completion alert for a running Timer. Android
+     * actual: AlarmManager (RTC_WAKEUP) + a foreground service so the
+     * countdown keeps firing even if the app is backgrounded/killed. Desktop
+     * actual: no-op — DesktopAlarmClockService (Stage 12) polls the DB
+     * directly and doesn't need a per-item registration.
+     */
+    fun scheduleTimerCompletion(timerId: Long, endTimeMillis: Long, label: String)
+    fun cancelTimerCompletion(timerId: Long)
 }
 
 /**

@@ -7,6 +7,7 @@ import com.apagon.rhythm.core.json.JSONObject
 import com.apagon.rhythm.core.time.now
 import kotlinx.datetime.LocalDate
 import com.apagon.rhythm.data.db.DesktopHabitDatabase
+import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
@@ -16,6 +17,8 @@ import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Notebook
+import com.apagon.rhythm.data.model.Reminder
+import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import kotlinx.coroutines.Dispatchers
@@ -23,21 +26,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 // Desktop-native counterpart to androidMain's BackupManager.kt — not a
-// straight port. That class is hard-typed to HabitDatabase's 12 entities
-// (habits/todos/calendar/notes/journal PLUS reminders/alarms/timers) and
-// calls Android-only ReminderScheduler post-import. DesktopHabitDatabase
-// (Stage 11) only has the 9 entities Stages 3/7/8/9/10 actually ported —
-// no reminder/alarm/timer tables exist yet (Stage 12) — so rather than
-// force nullable/no-op branches onto a database that structurally can't
-// have those tables, this covers exactly what's here. Same top-level JSON
-// keys/field layout as Android's exporter, minus reminders/alarms/timers.
-//
-// Cross-compatible in one direction: a desktop export imports cleanly on
-// Android (its importer already guards every array key with
-// `root.optJSONArray(...) ?: JSONArray()`, and the whole notebooks/
-// journalEntries block behind `root.has(...)`). An Android export imported
-// on desktop just silently drops reminders/alarms/timers — no data loss,
-// since desktop can't represent them yet.
+// straight port. That class calls Android-only ReminderScheduler post-import
+// (rescheduling AlarmManager entries), which desktop has no equivalent for —
+// DesktopAlarmClockService (Stage 12) re-derives what's due by polling the DB
+// on its own ticker, so there's nothing to explicitly reschedule after a
+// restore. As of Stage 12, DesktopHabitDatabase carries all the same entities
+// Android's exporter does (alarms/reminders/timers landed this stage), so the
+// JSON shape now matches Android's field-for-field.
 class DesktopBackupManager(
     private val db: DesktopHabitDatabase,
     private val themePreferences: ThemePreferences
@@ -68,6 +63,9 @@ class DesktopBackupManager(
         val calendarDao = db.calendarEventDao()
         val notesDao = db.notesDao()
         val journalDao = db.journalDao()
+        val alarmDao = db.alarmDao()
+        val reminderDao = db.reminderDao()
+        val timerDao = db.timerDao()
 
         val habits = habitDao.getAllHabitsForBackup()
         val completions = habitDao.getAllCompletionsForBackup()
@@ -78,6 +76,9 @@ class DesktopBackupManager(
         val notebooks = notesDao.getAllNotebooksForBackup()
         val notes = notesDao.getAllNotesForBackup()
         val journalEntries = journalDao.getAllForBackup()
+        val alarms = alarmDao.getAllAlarmsForBackup()
+        val reminders = reminderDao.getAllRemindersForBackup()
+        val timers = timerDao.getAllTimersForBackup()
         val preferences = themePreferences.exportPreferences()
 
         return JSONObject().apply {
@@ -92,6 +93,9 @@ class DesktopBackupManager(
             put("notebooks", notebooksToJson(notebooks))
             put("notes", notesToJson(notes))
             put("journalEntries", journalEntriesToJson(journalEntries))
+            put("alarms", alarmsToJson(alarms))
+            put("reminders", remindersToJson(reminders))
+            put("timers", timersToJson(timers))
             put("preferences", preferences)
         }.toString(2)
     }
@@ -105,6 +109,9 @@ class DesktopBackupManager(
             val calendarDao = db.calendarEventDao()
             val notesDao = db.notesDao()
             val journalDao = db.journalDao()
+            val alarmDao = db.alarmDao()
+            val reminderDao = db.reminderDao()
+            val timerDao = db.timerDao()
 
             habitDao.deleteAllChecklistItemCompletions()
             habitDao.deleteAllChecklistItems()
@@ -112,6 +119,9 @@ class DesktopBackupManager(
             habitDao.deleteAllHabits()
             calendarDao.deleteAll()
             todoDao.deleteAll()
+            alarmDao.deleteAll()
+            reminderDao.deleteAll()
+            timerDao.deleteAll()
 
             habitDao.insertAllHabits(jsonToHabits(root.optJSONArray("habits") ?: JSONArray()))
             habitDao.insertChecklistItems(jsonToChecklistItems(root.optJSONArray("checklistItems") ?: JSONArray()))
@@ -119,6 +129,9 @@ class DesktopBackupManager(
             habitDao.insertAllCompletions(jsonToCompletions(root.optJSONArray("habitCompletions") ?: JSONArray()))
             calendarDao.insertAll(jsonToCalendarEvents(root.optJSONArray("calendarEvents") ?: JSONArray()))
             todoDao.insertAll(jsonToTodos(root.optJSONArray("todos") ?: JSONArray()))
+            alarmDao.insertAll(jsonToAlarms(root.optJSONArray("alarms") ?: JSONArray()))
+            reminderDao.insertAll(jsonToReminders(root.optJSONArray("reminders") ?: JSONArray()))
+            timerDao.insertAll(jsonToTimers(root.optJSONArray("timers") ?: JSONArray()))
 
             if (root.has("notebooks")) {
                 notesDao.deleteAllNotes()
@@ -286,6 +299,62 @@ class DesktopBackupManager(
         }
     }
 
+    private fun alarmsToJson(alarms: List<Alarm>) = JSONArray().also { arr ->
+        alarms.forEach { a ->
+            arr.put(JSONObject().apply {
+                put("id", a.id)
+                put("label", a.label)
+                put("hour", a.hour)
+                put("minute", a.minute)
+                put("repeatDaysMask", a.repeatDaysMask)
+                put("isEnabled", a.isEnabled)
+                put("soundUri", a.soundUri)
+                put("vibrationPatternId", a.vibrationPatternId)
+                put("createdAt", a.createdAt)
+                put("deletedAt", a.deletedAt ?: JSONObject.NULL)
+            })
+        }
+    }
+
+    private fun remindersToJson(reminders: List<Reminder>) = JSONArray().also { arr ->
+        reminders.forEach { r ->
+            arr.put(JSONObject().apply {
+                put("id", r.id)
+                put("title", r.title)
+                put("note", r.note)
+                put("dateTime", r.dateTime)
+                put("isCompleted", r.isCompleted)
+                if (r.completedAt != null) put("completedAt", r.completedAt)
+                put("isActive", r.isActive)
+                put("createdAt", r.createdAt)
+                put("soundUri", r.soundUri)
+                put("deletedAt", r.deletedAt ?: JSONObject.NULL)
+            })
+        }
+    }
+
+    private fun timersToJson(timers: List<Timer>) = JSONArray().also { arr ->
+        timers.forEach { t ->
+            arr.put(JSONObject().apply {
+                put("id", t.id)
+                put("label", t.label)
+                put("durationSeconds", t.durationSeconds)
+                put("remainingSeconds", t.remainingSeconds)
+                put("endTimeMillis", 0L) // never restore a running state
+                put("soundUri", t.soundUri)
+                put("createdAt", t.createdAt)
+                put("isPomo", t.isPomo)
+                put("pomoWorkSecs", t.pomoWorkSecs)
+                put("pomoShortBreakSecs", t.pomoShortBreakSecs)
+                put("pomoLongBreakSecs", t.pomoLongBreakSecs)
+                put("pomoSessionsPerRound", t.pomoSessionsPerRound)
+                put("pomoCurrentSession", t.pomoCurrentSession)
+                put("pomoPhase", t.pomoPhase)
+                put("deletedAt", t.deletedAt ?: JSONObject.NULL)
+            })
+        }
+    }
+
     // ── Deserializers ─────────────────────────────────────────────────────────
 
     private fun jsonToHabits(arr: JSONArray) = (0 until arr.length()).map { i ->
@@ -424,6 +493,59 @@ class DesktopBackupManager(
             tags = o.optString("tags", ""),
             photoUris = o.optString("photoUris", ""),
             feelings = o.optString("feelings", ""),
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
+        )
+    }
+
+    private fun jsonToAlarms(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        Alarm(
+            id = o.getLong("id"),
+            label = o.optString("label", ""),
+            hour = o.getInt("hour"),
+            minute = o.getInt("minute"),
+            repeatDaysMask = o.optInt("repeatDaysMask", 0),
+            isEnabled = o.optBoolean("isEnabled", true),
+            soundUri = o.optString("soundUri", ""),
+            vibrationPatternId = o.optString("vibrationPatternId", "default"),
+            createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
+        )
+    }
+
+    private fun jsonToReminders(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        Reminder(
+            id = o.getLong("id"),
+            title = o.getString("title"),
+            note = o.optString("note", ""),
+            dateTime = o.getString("dateTime"),
+            isCompleted = o.optBoolean("isCompleted", false),
+            completedAt = if (o.isNull("completedAt")) null else o.optLong("completedAt"),
+            isActive = o.optBoolean("isActive", true),
+            createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+            soundUri = o.optString("soundUri", ""),
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
+        )
+    }
+
+    private fun jsonToTimers(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        Timer(
+            id = o.getLong("id"),
+            label = o.optString("label", ""),
+            durationSeconds = o.getInt("durationSeconds"),
+            remainingSeconds = o.optInt("remainingSeconds", o.getInt("durationSeconds")),
+            endTimeMillis = 0L,
+            soundUri = o.optString("soundUri", ""),
+            createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+            isPomo = o.optBoolean("isPomo", false),
+            pomoWorkSecs = o.optInt("pomoWorkSecs", 1500),
+            pomoShortBreakSecs = o.optInt("pomoShortBreakSecs", 300),
+            pomoLongBreakSecs = o.optInt("pomoLongBreakSecs", 900),
+            pomoSessionsPerRound = o.optInt("pomoSessionsPerRound", 4),
+            pomoCurrentSession = o.optInt("pomoCurrentSession", 1),
+            pomoPhase = o.optString("pomoPhase", "WORK"),
             deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
         )
     }
