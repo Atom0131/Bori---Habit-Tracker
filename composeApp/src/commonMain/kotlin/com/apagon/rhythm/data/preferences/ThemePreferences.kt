@@ -4,10 +4,13 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.apagon.rhythm.core.json.JSONObject
@@ -18,6 +21,19 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 // Controls dark-mode surface elevation / contrast via materialkolor contrastLevel parameter.
 // Standard=0.0 (M3 spec), Comfortable=0.3 (lifted surfaces), High=0.65 (max readability).
 enum class DarkReadability { STANDARD, COMFORTABLE, HIGH }
+
+// Mirrors the Android original's ThemeStyle/CrystalStyle/CrystalBackground/CrystalMesh —
+// see that file's KDoc for the full design rationale. Kept here verbatim so a backup exported
+// from either platform imports cleanly on the other.
+enum class ThemeStyle { MATERIAL3, EXPRESSIVE, CRYSTAL }
+enum class CrystalStyle { SHEER, TINTED }
+enum class CrystalBackground { MESH, SOLID }
+enum class CrystalMesh {
+    AURORA, EMBER, VERDANT, MIST, ROSE,
+    TIDE, INDIGO, ORCHID, DUNE, GRAPHITE,
+    CUSTOM
+}
+
 class ThemePreferences(
     private val dataStore: DataStore<Preferences>
 ) {
@@ -46,6 +62,23 @@ class ThemePreferences(
         val ENABLED_CALENDARS_KEY = stringSetPreferencesKey("enabled_calendar_ids")
         val NOTES_TOOLBAR_PINNED = booleanPreferencesKey("notes_toolbar_pinned")
         val DARK_READABILITY_KEY = stringPreferencesKey("dark_readability")
+        val THEME_STYLE_KEY = stringPreferencesKey("theme_style")
+        val CRYSTAL_STYLE_KEY = stringPreferencesKey("crystal_style")
+        val CRYSTAL_INTENSITY_KEY = floatPreferencesKey("crystal_intensity")
+        val CRYSTAL_BACKGROUND_KEY = stringPreferencesKey("crystal_background")
+        val CRYSTAL_MESH_KEY = stringPreferencesKey("crystal_mesh")
+        val CRYSTAL_BG_COLOR_KEY = intPreferencesKey("crystal_bg_color_index")
+        val CRYSTAL_BG_COLOR_ARGB_KEY = intPreferencesKey("crystal_bg_color_argb")
+        val CRYSTAL_MESH_CUSTOM_ARGB_KEY = intPreferencesKey("crystal_mesh_custom_argb")
+        val CRYSTAL_MESH_CUSTOM_CHROMA_KEY = floatPreferencesKey("crystal_mesh_custom_chroma")
+
+        /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
+        const val CRYSTAL_BG_NEUTRAL = -1
+
+        /** Dead centre of whichever Crystal band is active. */
+        const val DEFAULT_CRYSTAL_INTENSITY = 0.5f
+        const val DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA = 1.0f
+        const val MIN_CRYSTAL_MESH_CUSTOM_CHROMA = 0.18f
     }
 
     val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
@@ -155,6 +188,110 @@ class ThemePreferences(
         dataStore.edit { it[DARK_READABILITY_KEY] = mode.name }
     }
 
+    // Defaults to MATERIAL3 — an unknown or absent value must land on today's look.
+    val themeStyle: Flow<ThemeStyle> = dataStore.data.map { prefs ->
+        when (prefs[THEME_STYLE_KEY]) {
+            ThemeStyle.EXPRESSIVE.name -> ThemeStyle.EXPRESSIVE
+            ThemeStyle.CRYSTAL.name    -> ThemeStyle.CRYSTAL
+            else                       -> ThemeStyle.MATERIAL3
+        }
+    }
+
+    suspend fun setThemeStyle(style: ThemeStyle) {
+        dataStore.edit { it[THEME_STYLE_KEY] = style.name }
+    }
+
+    val crystalStyle: Flow<CrystalStyle> = dataStore.data.map { prefs ->
+        when (prefs[CRYSTAL_STYLE_KEY]) {
+            CrystalStyle.SHEER.name -> CrystalStyle.SHEER
+            else                    -> CrystalStyle.TINTED
+        }
+    }
+
+    suspend fun setCrystalStyle(style: CrystalStyle) {
+        dataStore.edit { it[CRYSTAL_STYLE_KEY] = style.name }
+    }
+
+    // Transient in-memory override used only while the Settings slider is under a thumb —
+    // avoids a DataStore disk write (and a full dataStore.data re-emit) on every drag frame.
+    // See the Android original's ThemePreferences.kt for the full rationale.
+    private val crystalIntensityPreview = MutableStateFlow<Float?>(null)
+
+    val crystalIntensity: Flow<Float> = combine(
+        dataStore.data.map { prefs -> prefs[CRYSTAL_INTENSITY_KEY] ?: DEFAULT_CRYSTAL_INTENSITY },
+        crystalIntensityPreview
+    ) { stored, preview -> (preview ?: stored).coerceIn(0f, 1f) }
+
+    fun previewCrystalIntensity(value: Float?) {
+        crystalIntensityPreview.value = value
+    }
+
+    suspend fun setCrystalIntensity(value: Float) {
+        dataStore.edit { it[CRYSTAL_INTENSITY_KEY] = value.coerceIn(0f, 1f) }
+        crystalIntensityPreview.value = null
+    }
+
+    val crystalBackground: Flow<CrystalBackground> = dataStore.data.map { prefs ->
+        when (prefs[CRYSTAL_BACKGROUND_KEY]) {
+            CrystalBackground.SOLID.name -> CrystalBackground.SOLID
+            else                         -> CrystalBackground.MESH
+        }
+    }
+
+    suspend fun setCrystalBackground(background: CrystalBackground) {
+        dataStore.edit { it[CRYSTAL_BACKGROUND_KEY] = background.name }
+    }
+
+    val crystalMesh: Flow<CrystalMesh> = dataStore.data.map { prefs ->
+        when (prefs[CRYSTAL_MESH_KEY]) {
+            CrystalMesh.EMBER.name    -> CrystalMesh.EMBER
+            CrystalMesh.VERDANT.name  -> CrystalMesh.VERDANT
+            CrystalMesh.MIST.name     -> CrystalMesh.MIST
+            CrystalMesh.ROSE.name     -> CrystalMesh.ROSE
+            CrystalMesh.TIDE.name     -> CrystalMesh.TIDE
+            CrystalMesh.INDIGO.name   -> CrystalMesh.INDIGO
+            CrystalMesh.ORCHID.name   -> CrystalMesh.ORCHID
+            CrystalMesh.DUNE.name     -> CrystalMesh.DUNE
+            CrystalMesh.GRAPHITE.name -> CrystalMesh.GRAPHITE
+            CrystalMesh.CUSTOM.name   -> CrystalMesh.CUSTOM
+            else                      -> CrystalMesh.AURORA
+        }
+    }
+
+    suspend fun setCrystalMesh(mesh: CrystalMesh) {
+        dataStore.edit { it[CRYSTAL_MESH_KEY] = mesh.name }
+    }
+
+    val crystalMeshCustomArgb: Flow<Int?> = dataStore.data.map { it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] }
+
+    val crystalMeshCustomChroma: Flow<Float> = dataStore.data.map { prefs ->
+        (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
+            .coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
+    }
+
+    suspend fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
+        dataStore.edit {
+            it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = argb
+            it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
+        }
+    }
+
+    val crystalBackgroundColorIndex: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[CRYSTAL_BG_COLOR_KEY] ?: CRYSTAL_BG_NEUTRAL
+    }
+
+    val crystalBackgroundColorArgb: Flow<Int?> = dataStore.data.map { prefs ->
+        prefs[CRYSTAL_BG_COLOR_ARGB_KEY]
+    }
+
+    suspend fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
+        dataStore.edit { prefs ->
+            prefs[CRYSTAL_BG_COLOR_KEY] = index
+            if (argb != null) prefs[CRYSTAL_BG_COLOR_ARGB_KEY] = argb
+            else prefs.remove(CRYSTAL_BG_COLOR_ARGB_KEY)
+        }
+    }
+
     val calendarIntegrationEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[CALENDAR_INTEGRATION_KEY] ?: false
     }
@@ -217,6 +354,18 @@ class ThemePreferences(
         val prefs = dataStore.data.first()
         return JSONObject().apply {
             put("themeMode", prefs[THEME_MODE_KEY] ?: ThemeMode.SYSTEM.name)
+            put("darkReadability", prefs[DARK_READABILITY_KEY] ?: DarkReadability.STANDARD.name)
+            put("themeStyle", prefs[THEME_STYLE_KEY] ?: ThemeStyle.MATERIAL3.name)
+            put("crystalStyle", prefs[CRYSTAL_STYLE_KEY] ?: CrystalStyle.TINTED.name)
+            // Stored as a string — this port's JSONObject (kotlinx.serialization-backed,
+            // see core/json/OrgJsonCompat.kt) has no getDouble/optDouble, unlike org.json.
+            put("crystalIntensity", (prefs[CRYSTAL_INTENSITY_KEY] ?: DEFAULT_CRYSTAL_INTENSITY).toString())
+            put("crystalBackground", prefs[CRYSTAL_BACKGROUND_KEY] ?: CrystalBackground.MESH.name)
+            put("crystalMesh", prefs[CRYSTAL_MESH_KEY] ?: CrystalMesh.AURORA.name)
+            put("crystalBgColorIndex", prefs[CRYSTAL_BG_COLOR_KEY] ?: CRYSTAL_BG_NEUTRAL)
+            prefs[CRYSTAL_BG_COLOR_ARGB_KEY]?.let { put("crystalBgColorArgb", it) }
+            prefs[CRYSTAL_MESH_CUSTOM_ARGB_KEY]?.let { put("crystalMeshCustomArgb", it) }
+            put("crystalMeshCustomChroma", (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).toString())
             put("amoledMode", prefs[AMOLED_MODE_KEY] ?: false)
             put("accentColorIndex", prefs[ACCENT_COLOR_KEY] ?: 0)
             prefs[ACCENT_COLOR_ARGB_KEY]?.let { put("accentColorArgb", it) }
@@ -245,6 +394,28 @@ class ThemePreferences(
     suspend fun importPreferences(json: JSONObject) {
         dataStore.edit { prefs ->
             prefs[THEME_MODE_KEY] = json.optString("themeMode", ThemeMode.SYSTEM.name)
+            prefs[DARK_READABILITY_KEY] = json.optString("darkReadability", DarkReadability.STANDARD.name)
+            prefs[THEME_STYLE_KEY] = json.optString("themeStyle", ThemeStyle.MATERIAL3.name)
+            prefs[CRYSTAL_STYLE_KEY] = json.optString("crystalStyle", CrystalStyle.TINTED.name)
+            prefs[CRYSTAL_INTENSITY_KEY] =
+                (json.optString("crystalIntensity", DEFAULT_CRYSTAL_INTENSITY.toString()).toFloatOrNull()
+                    ?: DEFAULT_CRYSTAL_INTENSITY).coerceIn(0f, 1f)
+            prefs[CRYSTAL_BACKGROUND_KEY] = json.optString("crystalBackground", CrystalBackground.MESH.name)
+            prefs[CRYSTAL_MESH_KEY] = json.optString("crystalMesh", CrystalMesh.AURORA.name)
+            prefs[CRYSTAL_BG_COLOR_KEY] = json.optInt("crystalBgColorIndex", CRYSTAL_BG_NEUTRAL)
+            if (json.has("crystalBgColorArgb")) {
+                prefs[CRYSTAL_BG_COLOR_ARGB_KEY] = json.getInt("crystalBgColorArgb")
+            } else {
+                prefs.remove(CRYSTAL_BG_COLOR_ARGB_KEY)
+            }
+            if (json.has("crystalMeshCustomArgb")) {
+                prefs[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = json.getInt("crystalMeshCustomArgb")
+            } else {
+                prefs.remove(CRYSTAL_MESH_CUSTOM_ARGB_KEY)
+            }
+            prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] =
+                (json.optString("crystalMeshCustomChroma", DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA.toString()).toFloatOrNull()
+                    ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
             prefs[AMOLED_MODE_KEY] = json.optBoolean("amoledMode", false)
             prefs[ACCENT_COLOR_KEY] = json.optInt("accentColorIndex", 0)
             if (json.has("accentColorArgb")) {
