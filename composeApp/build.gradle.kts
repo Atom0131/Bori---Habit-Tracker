@@ -1,11 +1,5 @@
-import java.util.Properties
-import java.io.FileInputStream
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.ksp)
@@ -13,30 +7,13 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-
-    iosArm64()
-    iosSimulatorArm64()
-
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-        }
-    }
-
     jvm("desktop")
 
     sourceSets {
-        // Intermediate source set shared by the two real JVM targets
-        // (androidTarget + desktop) but not the dormant iOS targets — Ktor's
-        // CIO server engine has no iOS artifact, so it lives here rather
-        // than in commonMain. See the sync-engine plan (Stage 4).
+        // Intermediate source set below desktopMain — kept as its own layer
+        // (rather than folded into commonMain) so a future JVM-based target
+        // could share it without dragging Ktor into commonMain. See the
+        // sync-engine plan (Stage 4).
         val jvmMain by creating {
             dependsOn(commonMain.get())
             dependencies {
@@ -80,63 +57,6 @@ kotlin {
             // Navigation (JetBrains multiplatform port; same androidx.navigation API)
             implementation(libs.jetbrains.navigation.compose)
         }
-        androidMain.configure { dependsOn(jvmMain) }
-        androidMain.dependencies {
-            implementation(libs.androidx.core.ktx)
-            implementation(libs.androidx.core.splashscreen)
-            implementation(libs.androidx.lifecycle.runtime.ktx)
-            implementation(libs.androidx.activity.compose)
-            implementation(project.dependencies.platform(libs.androidx.compose.bom))
-            implementation(libs.androidx.compose.ui)
-            implementation(libs.androidx.compose.ui.graphics)
-            implementation(libs.androidx.compose.ui.tooling.preview)
-            implementation(libs.androidx.compose.material3)
-            implementation(libs.androidx.compose.material3.windowsizeclass)
-            implementation(libs.androidx.compose.material.icons.core)
-            implementation(libs.androidx.compose.material.icons.extended)
-            implementation(libs.androidx.lifecycle.viewmodel.compose)
-            implementation(libs.androidx.biometric)
-            implementation(libs.androidx.fragment.ktx)
-
-            // Room (Android extras)
-            implementation(libs.room.ktx)
-
-            // Koin Android integration
-            implementation(libs.koin.android)
-
-            // Coil 3 — image loading (Android-only for now; journal photos use
-            // content:// URIs, so iOS needs its own photo storage in Phase 4/5)
-            implementation(libs.coil.compose)
-
-            // Coroutines
-            implementation(libs.kotlinx.coroutines.android)
-
-            // DataStore
-            implementation(libs.androidx.datastore.preferences)
-
-            // Google Play Billing
-            implementation(libs.google.billing)
-            implementation(libs.google.billing.ktx)
-
-            // Google Fonts for Compose — still used by ui/notes/NoteFonts.kt
-            // (the Notes custom-font picker). App-wide theme fonts (Type.kt)
-            // moved to Compose Resources in commonMain; see the theme port plan.
-            implementation(libs.androidx.compose.ui.text.google.fonts)
-
-            // Glance — home screen widgets
-            implementation(libs.glance.appwidget)
-            implementation(libs.glance.material3)
-
-            // WorkManager — periodic widget refresh
-            implementation(libs.work.runtime.ktx)
-
-            // QR pairing (Stage 13 follow-up) — camera scanning activity for
-            // reading the desktop's Tailscale address off its displayed QR code.
-            implementation(libs.zxing.android.embedded)
-
-            // Crystal theme (Stage 14) — real frosted-glass blur, Android-only.
-            implementation(libs.haze)
-        }
         val desktopMain by getting {
             dependsOn(jvmMain)
         }
@@ -161,71 +81,8 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.apagon.rhythm"
-    compileSdk = 36
-
-    val keystorePropertiesFile = rootProject.file("local.properties")
-    val keystoreProperties = Properties()
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-    }
-
-    signingConfigs {
-        create("release") {
-            storeFile = keystoreProperties["release.storeFile"]?.let { file(it.toString()) }
-            storePassword = keystoreProperties["release.storePassword"] as String?
-            keyAlias = keystoreProperties["release.keyAlias"] as String?
-            keyPassword = keystoreProperties["release.keyPassword"] as String?
-        }
-    }
-
-    defaultConfig {
-        // Deliberately distinct from the live Android app's applicationId
-        // (com.apagon.rhythm) so the dormant androidTarget here can never
-        // collide with a real install of production Rhythm on the same phone.
-        applicationId = "com.apagon.rhythm.desktop"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 74
-        versionName = "1.74.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            ndk {
-                debugSymbolLevel = "FULL"
-            }
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true
-    }
-    buildFeatures {
-        compose = true
-        buildConfig = true
-    }
-}
-
 dependencies {
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-    add("kspAndroid", libs.room.compiler)
-    add("kspIosArm64", libs.room.compiler)
-    add("kspIosSimulatorArm64", libs.room.compiler)
     add("kspDesktop", libs.room.compiler)
-    debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
 compose.desktop {
