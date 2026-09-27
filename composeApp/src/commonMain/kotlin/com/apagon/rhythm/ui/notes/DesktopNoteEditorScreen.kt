@@ -36,6 +36,11 @@ import androidx.compose.foundation.BorderStroke
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -89,6 +94,8 @@ fun DesktopNoteEditorScreen(
     var showStyleSheet by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = { Text("Edit Note", fontWeight = FontWeight.Bold) },
@@ -197,22 +204,30 @@ fun DesktopNoteEditorScreen(
     if (showMoveSheet) {
         val currentNotebookId = currentNote?.notebookId ?: notebookId
         val targetNotebooks = allNotebooks.filter { it.id != currentNotebookId }
-        ModalBottomSheet(onDismissRequest = { showMoveSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showMoveSheet = false },
+            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+        ) {
+            // Stage 14 invariant #2: this window is separate from the main one, so its inherited
+            // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
+            // scoped to this sheet.
+            CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Move to Notebook", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 if (targetNotebooks.isEmpty()) {
                     Text("No other notebooks available.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     targetNotebooks.forEach { nb ->
-                        Surface(
-                            onClick = { showMoveSheet = false; viewModel.moveNote(nb.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                        Box(
+                            modifier = Modifier.fillMaxWidth()
+                                .crystalTileSurface()
+                                .clickable { showMoveSheet = false; viewModel.moveNote(nb.id) }
                         ) {
                             Text(text = nb.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp))
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -578,7 +593,15 @@ private fun DesktopNoteStyleSheet(
     onSizeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface),
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
+        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
+        // scoped to this sheet.
+        CrystalWindowContent {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Text Style", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
@@ -588,6 +611,7 @@ private fun DesktopNoteStyleSheet(
                     FilterChip(selected = currentSizeKey == key, onClick = { onSizeSelected(key) }, label = { Text(label) })
                 }
             }
+        }
         }
     }
 }

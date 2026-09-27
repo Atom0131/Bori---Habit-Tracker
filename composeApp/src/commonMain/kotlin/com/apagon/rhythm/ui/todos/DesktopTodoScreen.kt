@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -26,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -45,7 +45,7 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -91,30 +91,26 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
 @Composable
 private fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onDelete: () -> Unit) {
     val dueDate = remember(todo.dueDate) { todo.getDueDateAsLocalDate() }
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            .crystalTileSurface().padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(checked = todo.isCompleted, onCheckedChange = { onToggle() })
-            Column(modifier = Modifier.weight(1f)) {
+        Checkbox(checked = todo.isCompleted, onCheckedChange = { onToggle() })
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                todo.title,
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (todo.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+            )
+            if (todo.dueDate.isNotEmpty() && dueDate != null) {
                 Text(
-                    todo.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    textDecoration = if (todo.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                    "Due $dueDate",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (todo.dueDate.isNotEmpty() && dueDate != null) {
-                    Text(
-                        "Due $dueDate",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
-            TextButton(onClick = onDelete) { Text("Delete") }
         }
+        TextButton(onClick = onDelete) { Text("Delete") }
     }
 }

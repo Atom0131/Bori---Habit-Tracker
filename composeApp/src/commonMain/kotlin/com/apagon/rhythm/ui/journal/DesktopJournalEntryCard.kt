@@ -20,6 +20,7 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.platform.ImageBitmapLoader
+import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlin.time.Instant
 import org.koin.compose.koinInject
@@ -48,10 +49,8 @@ fun DesktopJournalEntryCard(
         habits.firstOrNull { it.id == entry.habitId }
     }
 
-    ElevatedCard(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    Box(
+        modifier = modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onClick)
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(

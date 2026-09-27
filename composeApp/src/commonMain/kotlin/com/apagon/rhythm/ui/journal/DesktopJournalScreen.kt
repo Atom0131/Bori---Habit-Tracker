@@ -13,6 +13,10 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.repository.LockType
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalFabContainerColor
+import com.apagon.rhythm.ui.components.crystalFabContentColor
+import com.apagon.rhythm.ui.components.crystalFabElevation
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -49,7 +53,8 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
 
     Column(Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                .crystalCardSurface().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -107,7 +112,10 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
 
             FloatingActionButton(
                 onClick = { showNewEntry = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                containerColor = crystalFabContainerColor(),
+                contentColor = crystalFabContentColor(),
+                elevation = crystalFabElevation()
             ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
         }
     }

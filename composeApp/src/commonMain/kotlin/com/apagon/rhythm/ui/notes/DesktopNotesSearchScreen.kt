@@ -10,8 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
 import com.apagon.rhythm.core.json.JSONArray
 import com.apagon.rhythm.core.time.*
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -34,6 +38,8 @@ fun DesktopNotesSearchScreen(
     val results by viewModel.results.collectAsState()
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = {
@@ -93,7 +99,7 @@ private fun DesktopSearchResultCard(result: NoteSearchResult, onClick: () -> Uni
         Instant.ofEpochMilli(result.note.updatedAt).atZone(ZoneId.systemDefault()).toLocalDate()
             .format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
     }
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(

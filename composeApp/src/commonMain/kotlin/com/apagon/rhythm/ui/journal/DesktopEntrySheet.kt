@@ -26,6 +26,8 @@ import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -74,7 +76,11 @@ fun DesktopEntrySheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Surface(modifier = Modifier.fillMaxSize(), color = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
+            // Stage 14 invariant #2: this Dialog is a separate window from the main one, so its
+            // inherited blur field (if any) is unusable — CrystalWindowContent replaces it with a
+            // fresh one scoped to this dialog.
+            CrystalWindowContent {
             Column(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -247,6 +253,7 @@ fun DesktopEntrySheet(
                         }
                     }
                 }
+            }
             }
         }
     }

@@ -16,6 +16,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Notebook
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalFabContainerColor
+import com.apagon.rhythm.ui.components.crystalFabContentColor
+import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -76,6 +82,8 @@ fun DesktopNotesScreen(
     var editingNotebook by remember { mutableStateOf<Notebook?>(null) }
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = { Text("Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
@@ -85,7 +93,12 @@ fun DesktopNotesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddNotebook = true }) {
+            FloatingActionButton(
+                onClick = { showAddNotebook = true },
+                containerColor = crystalFabContainerColor(),
+                contentColor = crystalFabContentColor(),
+                elevation = crystalFabElevation()
+            ) {
                 Text("+", style = MaterialTheme.typography.headlineSmall)
             }
         }
@@ -147,7 +160,7 @@ private fun DesktopNotebookCard(
     val displayColor = resolveDisplayColor(notebook.colorIndex, notebook.colorArgb)
     var showMenu by remember { mutableStateOf(false) }
 
-    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onClick)) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Box(

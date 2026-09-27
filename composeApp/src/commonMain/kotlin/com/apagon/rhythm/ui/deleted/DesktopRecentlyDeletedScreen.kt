@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import org.koin.compose.viewmodel.koinViewModel
 
 // Stage 7's Recently Deleted screen — see DesktopRecentlyDeletedViewModel's
@@ -90,19 +89,14 @@ private fun DeletedSectionHeader(title: String) {
 
 @Composable
 private fun DesktopDeletedItemRow(title: String, onRestore: () -> Unit, onDelete: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    Row(
+        modifier = Modifier.fillMaxWidth().crystalTileSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            }
-            TextButton(onClick = onRestore) { Text("Restore") }
-            TextButton(onClick = onDelete) { Text("Delete") }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
         }
+        TextButton(onClick = onRestore) { Text("Restore") }
+        TextButton(onClick = onDelete) { Text("Delete") }
     }
 }

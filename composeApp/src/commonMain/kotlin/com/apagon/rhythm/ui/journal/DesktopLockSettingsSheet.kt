@@ -18,6 +18,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.repository.LockType
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 
 /**
  * Desktop port of AddReflectionSheet.kt's LockSettingsSheet. Biometrics and
@@ -41,7 +44,11 @@ fun DesktopLockSettingsSheet(
     var tempInput by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
+        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
+        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
+        // scoped to this sheet.
+        CrystalWindowContent {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -160,6 +167,7 @@ fun DesktopLockSettingsSheet(
                 }
             }
         }
+        }
     }
 }
 
@@ -196,18 +204,17 @@ private fun DesktopLockKeypad(tempInput: String, onDigit: (String) -> Unit, onCl
 
 @Composable
 private fun DesktopLockOptionRow(title: String, description: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+    Row(
         modifier = Modifier.fillMaxWidth()
+            .crystalTileSurface(fill = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            RadioButton(selected = selected, onClick = null)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        RadioButton(selected = selected, onClick = null)
     }
 }

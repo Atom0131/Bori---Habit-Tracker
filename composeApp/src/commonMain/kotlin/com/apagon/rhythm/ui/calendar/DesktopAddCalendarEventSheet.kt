@@ -9,7 +9,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +50,9 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalControlSurface
+import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
@@ -108,8 +109,13 @@ fun DesktopAddCalendarEventSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         modifier = Modifier.fillMaxHeight(),
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
+        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
+        // scoped to this sheet.
+        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -226,8 +232,15 @@ fun DesktopAddCalendarEventSheet(
                 Text(if (existing == null) "Create Event" else "Update Event")
             }
         }
+        }
     }
 
+    // Stage 14 gap, flagged not hidden: these AlertDialog/DatePickerDialog instances are stock M3
+    // and paint their own opaque container from outside any content slot CrystalWindowContent
+    // could reach — Crystal-izing them properly needs a custom dialog shell (the Android
+    // original's RhythmDatePickerDialog/RhythmDialPickerDialog), out of scope for this port pass.
+    // Render as plain Material here under every theme style — same accepted gap as
+    // DesktopAddAlarmSheet.kt's time picker.
     if (showStartDatePicker) {
         val initMillis = (startDate ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
@@ -305,21 +318,11 @@ fun DesktopAddCalendarEventSheet(
 
 @Composable
 private fun PickerSurface(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shadowElevation = 2.dp,
-        tonalElevation = 1.dp,
-        border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = modifier
+    Row(
+        modifier = modifier.crystalControlSurface().clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-        }
+        Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }

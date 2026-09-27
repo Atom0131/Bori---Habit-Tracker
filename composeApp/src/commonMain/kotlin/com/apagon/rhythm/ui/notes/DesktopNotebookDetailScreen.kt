@@ -1,6 +1,7 @@
 package com.apagon.rhythm.ui.notes
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,15 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.json.JSONArray
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.Note
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalFabContainerColor
+import com.apagon.rhythm.ui.components.crystalFabContentColor
+import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -61,6 +71,8 @@ fun DesktopNotebookDetailScreen(
     var noteToMove by remember { mutableStateOf<Note?>(null) }
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = {
@@ -99,7 +111,12 @@ fun DesktopNotebookDetailScreen(
         },
         floatingActionButton = {
             if (!isInSelectMode) {
-                FloatingActionButton(onClick = { showTemplatePicker = true }) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                FloatingActionButton(
+                    onClick = { showTemplatePicker = true },
+                    containerColor = crystalFabContainerColor(),
+                    contentColor = crystalFabContentColor(),
+                    elevation = crystalFabElevation()
+                ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
             }
         }
     ) { innerPadding ->
@@ -163,7 +180,11 @@ fun DesktopNotebookDetailScreen(
     }
 
     if (showSortSheet) {
-        ModalBottomSheet(onDismissRequest = { showSortSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showSortSheet = false },
+            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+        ) {
+            CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Sort Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 NoteSort.entries.forEach { mode ->
@@ -184,73 +205,87 @@ fun DesktopNotebookDetailScreen(
                     }
                 }
             }
+            }
         }
     }
 
     if (showTemplatePicker) {
-        ModalBottomSheet(onDismissRequest = { showTemplatePicker = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showTemplatePicker = false },
+            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+        ) {
+            CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Choose a Template", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 NoteTemplate.all.forEach { template ->
-                    Surface(
-                        onClick = {
-                            showTemplatePicker = false
-                            val templateArg = if (template == NoteTemplate.Blank) null else template.label
-                            onNavigateToNote(-1L, notebookId, templateArg)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .crystalTileSurface()
+                            .clickable {
+                                showTemplatePicker = false
+                                val templateArg = if (template == NoteTemplate.Blank) null else template.label
+                                onNavigateToNote(-1L, notebookId, templateArg)
+                            }
+                            .padding(vertical = 12.dp, horizontal = 8.dp)
                     ) {
-                        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp)) {
-                            Text(text = template.label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            val desc = when (template) {
-                                NoteTemplate.Blank -> "Empty note"
-                                NoteTemplate.MeetingNotes -> "Agenda · Decisions · Action items"
-                                NoteTemplate.BookNotes -> "Title · Chapter · Key ideas · Quotes"
-                                NoteTemplate.WeeklyPlan -> "Goals · Tasks · Blockers · Reflection"
-                                NoteTemplate.LectureNotes -> "Objectives · Key concepts · Questions"
-                                NoteTemplate.Brainstorm -> "Problem · Raw ideas · Next steps"
-                                else -> ""
-                            }
-                            if (desc.isNotBlank()) {
-                                Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                        Text(text = template.label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        val desc = when (template) {
+                            NoteTemplate.Blank -> "Empty note"
+                            NoteTemplate.MeetingNotes -> "Agenda · Decisions · Action items"
+                            NoteTemplate.BookNotes -> "Title · Chapter · Key ideas · Quotes"
+                            NoteTemplate.WeeklyPlan -> "Goals · Tasks · Blockers · Reflection"
+                            NoteTemplate.LectureNotes -> "Objectives · Key concepts · Questions"
+                            NoteTemplate.Brainstorm -> "Problem · Raw ideas · Next steps"
+                            else -> ""
+                        }
+                        if (desc.isNotBlank()) {
+                            Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
+            }
             }
         }
     }
 
     if (showMoveSheet) {
         val targetNotebooks = allNotebooks.filter { it.id != notebookId }
-        ModalBottomSheet(onDismissRequest = { showMoveSheet = false; noteToMove = null }) {
+        ModalBottomSheet(
+            onDismissRequest = { showMoveSheet = false; noteToMove = null },
+            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+        ) {
+            CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Move to Notebook", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 if (targetNotebooks.isEmpty()) {
                     Text("No other notebooks available.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     targetNotebooks.forEach { nb ->
-                        Surface(
-                            onClick = {
-                                showMoveSheet = false
-                                noteToMove?.let { viewModel.moveNote(it, nb.id) } ?: viewModel.moveSelectedNotes(nb.id)
-                                noteToMove = null
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                        Box(
+                            modifier = Modifier.fillMaxWidth()
+                                .crystalTileSurface()
+                                .clickable {
+                                    showMoveSheet = false
+                                    noteToMove?.let { viewModel.moveNote(it, nb.id) } ?: viewModel.moveSelectedNotes(nb.id)
+                                    noteToMove = null
+                                }
                         ) {
                             Text(text = nb.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp))
                         }
                     }
                 }
             }
+            }
         }
     }
 
     if (showBulkTagSheet) {
         var tagInput by remember { mutableStateOf("") }
-        ModalBottomSheet(onDismissRequest = { showBulkTagSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkTagSheet = false },
+            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+        ) {
+            CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Add Tag to Selected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 OutlinedTextField(value = tagInput, onValueChange = { tagInput = it }, label = { Text("Tag name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -259,6 +294,7 @@ fun DesktopNotebookDetailScreen(
                     enabled = tagInput.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Add Tag") }
+            }
             }
         }
     }
@@ -286,12 +322,13 @@ private fun DesktopNoteItem(
     val parsedPreview = remember(note.content) { parseNoteContent(note.content) }
     val noteTags = remember(note.tags) { note.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() } }
 
-    Card(
-        modifier = modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.surfaceContainerHighest
-        )
+    Box(
+        modifier = modifier.fillMaxWidth()
+            .crystalCardSurface(
+                fill = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {

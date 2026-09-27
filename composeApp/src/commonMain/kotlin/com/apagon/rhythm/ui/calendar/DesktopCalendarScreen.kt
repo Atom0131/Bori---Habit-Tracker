@@ -14,7 +14,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +34,12 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalFabContainerColor
+import com.apagon.rhythm.ui.components.crystalFabContentColor
+import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
@@ -59,6 +64,8 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
     val onDayClick = remember(viewModel) { viewModel::selectDay }
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = { Text("Calendar") },
@@ -70,7 +77,12 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddEventSheet = true }) {
+            FloatingActionButton(
+                onClick = { showAddEventSheet = true },
+                containerColor = crystalFabContainerColor(),
+                contentColor = crystalFabContentColor(),
+                elevation = crystalFabElevation()
+            ) {
                 Text("+", style = MaterialTheme.typography.headlineSmall)
             }
         }
@@ -338,13 +350,7 @@ private fun CalendarEventRow(event: CalendarEvent, onEdit: () -> Unit, onDelete:
 
 @Composable
 private fun EventCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 0.dp,
-        tonalElevation = 0.dp,
-        modifier = modifier
-    ) { content() }
+    Box(modifier = modifier.crystalCardSurface()) { content() }
 }
 
 /** Local stand-in for androidMain's internal String.toFormattedTime/formatTime (not visible cross-source-set). */
