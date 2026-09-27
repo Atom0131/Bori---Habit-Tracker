@@ -2,6 +2,7 @@ package com.apagon.rhythm.ui.habit
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.QrCodeRenderer
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -59,11 +64,13 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
     }
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Rhythm — ${state.date}") }) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -86,7 +93,8 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
             // field (desktop is always the sync server). The QR toggle below
             // is the easier path — same address, scanned instead of typed.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                    .crystalCardSurface().padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -109,7 +117,8 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
             // Stage 4b: local sync test UI, still used for the reverse
             // direction (desktop-initiates-sync) and local dev testing.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                    .crystalCardSurface().padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -137,7 +146,8 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                     items(state.habits, key = { it.id }) { habit ->
                         val isDone = habit.id in state.completedHabitIds
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                .crystalTileSurface().padding(horizontal = 12.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(

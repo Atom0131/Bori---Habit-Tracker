@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -71,7 +72,11 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     var showArchivedTodos by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
+    Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
+        topBar = { TopAppBar(title = { Text("Settings") }) }
+    ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -263,12 +268,11 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-        ) {
-            Box(modifier = Modifier.padding(16.dp)) { content() }
-        }
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(16.dp)
+        ) { content() }
     }
 }
 

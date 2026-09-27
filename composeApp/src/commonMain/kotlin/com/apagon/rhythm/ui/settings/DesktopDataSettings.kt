@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -25,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalCardSurface
 
 // Desktop counterpart to androidMain's DataSettings.kt (Stage 11). Swaps
 // IconButton(Icons.Default.Restore) for a plain text "Unarchive" TextButton,
@@ -42,6 +42,7 @@ fun DesktopArchivedHabitsSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -71,9 +72,9 @@ fun DesktopArchivedHabitsSheet(
                 ) {
                     items(habits.size) { index ->
                         val habit = habits[index]
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        Box(
+                            modifier = Modifier.fillMaxWidth()
+                                .crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -99,6 +100,7 @@ fun DesktopArchivedHabitsSheet(
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
         }
+        }
     }
 }
 
@@ -113,6 +115,7 @@ fun DesktopArchivedTodosSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -142,9 +145,9 @@ fun DesktopArchivedTodosSheet(
                 ) {
                     items(todos.size) { index ->
                         val todo = todos[index]
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        Box(
+                            modifier = Modifier.fillMaxWidth()
+                                .crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -171,6 +174,7 @@ fun DesktopArchivedTodosSheet(
             Spacer(Modifier.height(16.dp))
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
+        }
         }
     }
 }

@@ -101,6 +101,13 @@ class ThemePreferences(
         prefs[ACCENT_COLOR_ARGB_KEY]
     }
 
+    /** Key-absence, not equality-with-default — otherwise someone deliberately choosing the same
+     * value the default would have picked is indistinguishable from someone who never looked. Used
+     * by `accentSeed` (Theme.kt) to decide whether a Crystal mesh field may supply the seed. */
+    val accentColorIsDefault: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[ACCENT_COLOR_KEY] == null && prefs[ACCENT_COLOR_ARGB_KEY] == null
+    }
+
     val swipeSectionsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[SWIPE_SECTIONS_KEY] ?: false
     }

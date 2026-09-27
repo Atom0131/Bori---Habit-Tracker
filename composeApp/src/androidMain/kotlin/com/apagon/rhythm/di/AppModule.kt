@@ -159,6 +159,7 @@ val appModule = module {
     single<com.apagon.rhythm.platform.PhotoStorage> { com.apagon.rhythm.platform.AndroidPhotoStorage(androidContext()) }
     single<com.apagon.rhythm.platform.LocaleFormatting> { com.apagon.rhythm.platform.AndroidLocaleFormatting(androidContext()) }
     single<com.apagon.rhythm.platform.HapticAlerter> { com.apagon.rhythm.platform.AndroidHapticAlerter(androidContext()) }
+    single<com.apagon.rhythm.platform.GlassBlur> { com.apagon.rhythm.platform.AndroidGlassBlur() }
 
     // ── Managers ──────────────────────────────────────────────────────────────
     single { BackupManager(get(), get(), androidContext()) }

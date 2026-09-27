@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Timer
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalSheetColor
 
 // Desktop counterpart to androidMain's AddTimerSheet.kt (Stage 12) — new
 // plain-M3 sheet, not a move: the Android original uses compose.animation
@@ -47,7 +49,11 @@ fun DesktopAddTimerSheet(
     var longBreakMin by remember { mutableStateOf(((existing?.pomoLongBreakSecs ?: 900) / 60).toString()) }
     var sessions by remember { mutableStateOf((existing?.pomoSessionsPerRound ?: 4).toString()) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    ) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -120,6 +126,7 @@ fun DesktopAddTimerSheet(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
+        }
         }
     }
 }

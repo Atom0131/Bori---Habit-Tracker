@@ -133,6 +133,9 @@ kotlin {
             // QR pairing (Stage 13 follow-up) — camera scanning activity for
             // reading the desktop's Tailscale address off its displayed QR code.
             implementation(libs.zxing.android.embedded)
+
+            // Crystal theme (Stage 14) — real frosted-glass blur, Android-only.
+            implementation(libs.haze)
         }
         val desktopMain by getting {
             dependsOn(jvmMain)

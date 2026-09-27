@@ -31,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalSheetColor
 import org.koin.compose.koinInject
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -57,7 +59,14 @@ fun DesktopAddAlarmSheet(
     var repeatMask by remember { mutableIntStateOf(existing?.repeatDaysMask ?: 0) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    ) {
+        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
+        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
+        // scoped to this sheet.
+        CrystalWindowContent {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -124,8 +133,13 @@ fun DesktopAddAlarmSheet(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
         }
+        }
     }
 
+    // Stage 14 gap, flagged not hidden: this AlertDialog is stock M3 and paints its own opaque
+    // container from outside any content slot CrystalWindowContent could reach — Crystal-izing it
+    // properly needs a custom dialog shell (the Android original's RhythmAlertDialog), which is
+    // out of scope for this port pass. Renders as plain Material here under every theme style.
     if (showTimePicker) {
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = is24Hour)
         AlertDialog(

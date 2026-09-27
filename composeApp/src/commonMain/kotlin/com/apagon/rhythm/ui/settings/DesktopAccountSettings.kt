@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.ImageBitmapLoader
+import com.apagon.rhythm.ui.components.CrystalWindowContent
 import org.koin.compose.koinInject
 
 // Desktop counterpart to androidMain's AccountSettings.kt (Stage 11). Drops
@@ -55,6 +56,7 @@ fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,6 +107,7 @@ fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
                 shape = RoundedCornerShape(16.dp)
             ) { Text("I Understand") }
         }
+        }
     }
 }
 
@@ -148,6 +151,7 @@ fun DesktopEditProfileSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -247,6 +251,7 @@ fun DesktopEditProfileSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) { Text("Save") }
+        }
         }
     }
 }

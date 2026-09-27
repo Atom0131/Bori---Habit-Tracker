@@ -1,6 +1,5 @@
 package com.apagon.rhythm
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Tab
@@ -23,8 +22,6 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.apagon.rhythm.data.preferences.DarkReadability
-import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.repository.TimerRepository
 import com.apagon.rhythm.data.sync.DEFAULT_SYNC_PORT
@@ -43,8 +40,7 @@ import com.apagon.rhythm.ui.journal.DesktopJournalScreen
 import com.apagon.rhythm.ui.notes.DesktopNotesTab
 import com.apagon.rhythm.ui.reminders.DesktopClockScreen
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
-import com.apagon.rhythm.ui.theme.RhythmTheme
-import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.theme.RhythmThemedRoot
 import com.apagon.rhythm.ui.todos.DesktopTodoScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -87,28 +83,8 @@ fun main() {
     application {
         Window(onCloseRequest = ::exitApplication, title = "Rhythm") {
             val themePreferences = koinInject<ThemePreferences>()
-            val themeMode by themePreferences.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-            val amoledMode by themePreferences.amoledMode.collectAsState(initial = false)
-            val accentColorIndex by themePreferences.accentColorIndex.collectAsState(initial = 0)
-            val accentColorArgb by themePreferences.accentColorArgb.collectAsState(initial = null)
-            val darkReadability by themePreferences.darkReadability.collectAsState(initial = DarkReadability.STANDARD)
 
-            val isDark = when (themeMode) {
-                ThemeMode.LIGHT  -> false
-                ThemeMode.DARK   -> true
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-            }
-
-            RhythmTheme(
-                darkTheme = isDark,
-                isAmoled = amoledMode,
-                seedColor = resolveDisplayColor(accentColorIndex.coerceAtLeast(0), accentColorArgb),
-                darkContrastLevel = when (darkReadability) {
-                    DarkReadability.STANDARD    -> 0.0
-                    DarkReadability.COMFORTABLE -> 0.3
-                    DarkReadability.HIGH        -> 0.65
-                }
-            ) {
+            RhythmThemedRoot(themePreferences = themePreferences) {
                 DesktopAppRoot()
             }
         }

@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +36,9 @@ import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.DesktopAddAlarmSheet
 import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
 import com.apagon.rhythm.ui.alarms.TimerViewModel
+import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import org.koin.compose.viewmodel.koinViewModel
 
 // Desktop counterpart to androidMain's ClockScreen.kt (Stage 12) — the
@@ -52,7 +53,11 @@ fun DesktopClockScreen() {
     var section by remember { mutableIntStateOf(0) }
     val sections = listOf("Alarms", "Timers", "Reminders")
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Clock") }) }) { padding ->
+    Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
+        topBar = { TopAppBar(title = { Text("Clock") }) }
+    ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             TabRow(selectedTabIndex = section) {
                 sections.forEachIndexed { index, label ->
@@ -80,7 +85,7 @@ private fun DesktopAlarmsSection(viewModel: AlarmViewModel = koinViewModel()) {
         } else {
             LazyColumn(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(alarms, key = { it.id }) { alarm ->
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -127,7 +132,7 @@ private fun DesktopTimersSection(viewModel: TimerViewModel = koinViewModel()) {
             LazyColumn(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(timerStates, key = { it.timer.id }) { state ->
                     val timer = state.timer
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column {
@@ -209,7 +214,7 @@ private fun DesktopRemindersSection(viewModel: ReminderViewModel = koinViewModel
 
 @Composable
 private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+    Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,

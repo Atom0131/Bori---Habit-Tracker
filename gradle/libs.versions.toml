@@ -12,7 +12,7 @@ coroutines = "1.9.0"
 lifecycle = "2.8.7"
 navigation = "2.9.2"
 datastore = "1.1.7"
-materialkolor = "2.0.0"
+materialkolor = "5.0.0"
 coil = "3.5.0"
 biometric = "1.1.0"
 fragmentKtx = "1.8.6"
@@ -28,6 +28,7 @@ kotlinxSerialization = "1.9.0"
 ktor = "3.5.2"
 zxing = "3.5.3"
 zxingAndroidEmbedded = "4.3.0"
+haze = "1.5.3"
 [libraries]
 google-billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
 google-billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
@@ -88,6 +89,14 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 # CameraX + ML Kit for this one use case.
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
+
+# Crystal theme (Stage 14) — the one third-party rendering dependency, and only
+# Crystal's glass-blur surfaces use it. Android-only: it compiles against an
+# older Compose ABI than this project resolves, verified compatible via a
+# javap symbol check (see AndroidGlassBlur.kt) rather than trusted from a
+# clean compile alone. No desktop equivalent — DesktopGlassBlur uses the same
+# translucent-tint fallback Crystal already falls back to below API 32.
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -11,7 +11,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -36,9 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.apagon.rhythm.data.billing.BillingRepository
-import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemePreferences
-import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.habit.HabitListScreen
 import com.apagon.rhythm.ui.onboarding.OnboardingScreen
 import com.apagon.rhythm.ui.notes.NotesScreen
@@ -50,8 +47,7 @@ import com.apagon.rhythm.ui.sync.SyncScreen
 import com.apagon.rhythm.ui.reminders.ClockScreen
 import com.apagon.rhythm.ui.settings.SettingsScreen
 import com.apagon.rhythm.ui.stats.StatsScreen
-import com.apagon.rhythm.data.preferences.DarkReadability
-import com.apagon.rhythm.ui.theme.RhythmTheme
+import com.apagon.rhythm.ui.theme.RhythmThemedRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -121,32 +117,11 @@ class MainActivity : FragmentActivity() {
             val windowSizeClass = calculateWindowSizeClass(this)
             val useNavRail = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-            val themeMode by themePreferences.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-            val amoledMode by themePreferences.amoledMode.collectAsState(initial = false)
-            val accentColorIndex by themePreferences.accentColorIndex.collectAsState(initial = 0)
-            val accentColorArgb by themePreferences.accentColorArgb.collectAsState(initial = null)
-            val darkReadability by themePreferences.darkReadability.collectAsState(initial = DarkReadability.STANDARD)
             LaunchedEffect(Unit) {
                 isLoading = false
             }
 
-            val systemDark = isSystemInDarkTheme()
-            val isDark = when (themeMode) {
-                ThemeMode.LIGHT  -> false
-                ThemeMode.DARK   -> true
-                ThemeMode.SYSTEM -> systemDark
-            }
-
-            RhythmTheme(
-                darkTheme = isDark,
-                isAmoled = amoledMode,
-                seedColor = resolveDisplayColor(accentColorIndex.coerceAtLeast(0), accentColorArgb),
-                darkContrastLevel = when (darkReadability) {
-                    DarkReadability.STANDARD    -> 0.0
-                    DarkReadability.COMFORTABLE -> 0.3
-                    DarkReadability.HIGH        -> 0.65
-                }
-            ) {
+            RhythmThemedRoot(themePreferences = themePreferences) {
                 val hasSeenOnboarding by themePreferences.hasSeenOnboarding.collectAsState(initial = false)
                 val coroutineScope = rememberCoroutineScope()
 

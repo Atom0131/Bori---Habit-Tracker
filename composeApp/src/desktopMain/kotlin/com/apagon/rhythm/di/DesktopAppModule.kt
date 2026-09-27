@@ -122,6 +122,7 @@ val desktopAppModule = module {
     single<QrCodeRenderer> { DesktopQrCodeRenderer() }
     single<ImageBitmapLoader> { DesktopImageBitmapLoader() }
     single<FilePicker> { DesktopFilePickerService() }
+    single<com.apagon.rhythm.platform.GlassBlur> { com.apagon.rhythm.platform.DesktopGlassBlur() }
     viewModel { DesktopHabitViewModel(get(), get(), get(), get()) }
     viewModel { TodoViewModel(get(), get(), get(), get()) }
     viewModel { DesktopRecentlyDeletedViewModel(get(), get()) }
