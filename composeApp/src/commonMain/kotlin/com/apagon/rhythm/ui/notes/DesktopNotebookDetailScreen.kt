@@ -26,7 +26,10 @@ import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
@@ -84,6 +87,8 @@ fun DesktopNotebookDetailScreen(
                             onValueChange = { viewModel.setSearchQuery(it) },
                             placeholder = { Text("Search notes…") },
                             singleLine = true,
+                            colors = crystalTextFieldColors(),
+                            shape = crystalTextFieldShape(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else if (isInSelectMode) {
@@ -290,10 +295,19 @@ fun DesktopNotebookDetailScreen(
             CrystalWindowContent {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Add Tag to Selected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                OutlinedTextField(value = tagInput, onValueChange = { tagInput = it }, label = { Text("Tag name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = tagInput,
+                    onValueChange = { tagInput = it },
+                    label = { Text("Tag name") },
+                    singleLine = true,
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Button(
                     onClick = { viewModel.addTagToSelectedNotes(tagInput); showBulkTagSheet = false },
                     enabled = tagInput.isNotBlank(),
+                    colors = crystalButtonColors(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Add Tag") }
             }

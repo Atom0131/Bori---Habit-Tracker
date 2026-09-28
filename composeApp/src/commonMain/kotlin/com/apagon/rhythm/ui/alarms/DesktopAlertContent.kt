@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
+import com.apagon.rhythm.ui.components.crystalButtonColors
 
 // Content for Stage 12's always-on-top alert window (main.kt) — the desktop
 // stand-in for Android's full-screen AlarmAlertActivity/TimerAlertActivity/
@@ -56,7 +57,7 @@ fun DesktopAlertContent(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (onStartNextPhase != null) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Dismiss") }
-                    Button(onClick = onStartNextPhase, modifier = Modifier.weight(1f)) { Text("Start Next Phase") }
+                    Button(onClick = onStartNextPhase, colors = crystalButtonColors(), modifier = Modifier.weight(1f)) { Text("Start Next Phase") }
                 } else {
                     Button(
                         onClick = onDismiss,

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.repository.LockType
+import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
@@ -68,6 +69,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
+                colors = crystalBareTextFieldColors(),
                 singleLine = true
             )
             Spacer(Modifier.width(8.dp))

@@ -33,8 +33,11 @@ import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalControlSurface
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
 import kotlin.time.Instant
@@ -83,24 +86,28 @@ fun DesktopAddReminderSheet(
                 onValueChange = { title = it },
                 label = { Text("Title") },
                 singleLine = true,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Note") },
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
-                    modifier = Modifier.weight(1f).crystalControlSurface().clickable(onClick = { showDatePicker = true }),
+                    modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = { showDatePicker = true }),
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(date.format(dateFmt), modifier = Modifier.padding(16.dp))
                 }
                 Row(
-                    modifier = Modifier.weight(1f).crystalControlSurface().clickable(onClick = { showTimePicker = true }),
+                    modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = { showTimePicker = true }),
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text("%02d:%02d".format(hour, minute), modifier = Modifier.padding(16.dp))
@@ -113,6 +120,7 @@ fun DesktopAddReminderSheet(
                     onSave(title, note, dateTime)
                 },
                 enabled = title.isNotBlank(),
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
         }

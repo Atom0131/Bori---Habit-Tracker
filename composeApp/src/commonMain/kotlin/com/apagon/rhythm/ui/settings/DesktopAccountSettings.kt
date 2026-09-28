@@ -40,7 +40,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import org.koin.compose.koinInject
 
 // Desktop counterpart to androidMain's AccountSettings.kt (Stage 11). Drops
@@ -105,6 +108,7 @@ fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
 
             Button(
                 onClick = onDismiss,
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) { Text("I Understand") }
@@ -219,16 +223,18 @@ fun DesktopEditProfileSheet(
                 onValueChange = { name = it },
                 label = { Text("Full Name") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
+                modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = nickname,
                 onValueChange = { nickname = it },
                 label = { Text("Nickname") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
+                modifier = Modifier.fillMaxWidth()
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
@@ -236,8 +242,9 @@ fun DesktopEditProfileSheet(
                     onValueChange = { age = it },
                     label = { Text("Age") },
                     singleLine = true,
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 OutlinedTextField(
@@ -245,12 +252,14 @@ fun DesktopEditProfileSheet(
                     onValueChange = { pronouns = it },
                     label = { Text("Pronouns") },
                     singleLine = true,
-                    modifier = Modifier.weight(1.5f),
-                    shape = RoundedCornerShape(16.dp)
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
+                    modifier = Modifier.weight(1.5f)
                 )
             }
             Button(
                 onClick = { onSave(name.trim(), nickname.trim(), age.trim(), pronouns.trim()) },
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) { Text("Save") }

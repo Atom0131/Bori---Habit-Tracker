@@ -19,7 +19,10 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.repository.LockType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.components.crystalTileSurface
 
 /**
@@ -112,11 +115,14 @@ fun DesktopLockSettingsSheet(
                         value = tempInput,
                         onValueChange = { tempInput = it },
                         label = { Text("New password") },
+                        colors = crystalTextFieldColors(),
+                        shape = crystalTextFieldShape(),
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
                         onClick = { onSavePassword(tempInput); onDismiss() },
                         enabled = tempInput.length >= 4,
+                        colors = crystalButtonColors(),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Save Password") }
                     TextButton(onClick = { mode = "MAIN" }, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
@@ -152,7 +158,14 @@ fun DesktopLockSettingsSheet(
                             }
                         )
                     } else {
-                        OutlinedTextField(value = tempInput, onValueChange = { tempInput = it }, label = { Text("Enter password") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(
+                            value = tempInput,
+                            onValueChange = { tempInput = it },
+                            label = { Text("Enter password") },
+                            colors = crystalTextFieldColors(),
+                            shape = crystalTextFieldShape(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
                         Button(
                             onClick = {
@@ -160,6 +173,7 @@ fun DesktopLockSettingsSheet(
                                 else { error = "Incorrect Password"; tempInput = "" }
                             },
                             enabled = tempInput.isNotBlank(),
+                            colors = crystalButtonColors(),
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Disable Lock") }
                     }

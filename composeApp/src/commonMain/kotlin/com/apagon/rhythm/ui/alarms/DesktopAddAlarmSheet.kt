@@ -31,7 +31,10 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import org.koin.compose.koinInject
 
@@ -97,6 +100,8 @@ fun DesktopAddAlarmSheet(
                 onValueChange = { label = it },
                 label = { Text("Label") },
                 singleLine = true,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -130,6 +135,7 @@ fun DesktopAddAlarmSheet(
 
             Button(
                 onClick = { onSave(label, hour, minute, repeatMask) },
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
         }

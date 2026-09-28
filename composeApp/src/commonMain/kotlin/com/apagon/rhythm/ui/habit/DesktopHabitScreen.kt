@@ -30,10 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.QrCodeRenderer
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -79,12 +81,16 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                     value = newHabitName,
                     onValueChange = { newHabitName = it },
                     label = { Text("New habit") },
+                    colors = crystalBareTextFieldColors(),
                     modifier = Modifier.weight(1f)
                 )
-                Button(onClick = {
-                    viewModel.addHabit(newHabitName)
-                    newHabitName = ""
-                }) {
+                Button(
+                    colors = crystalButtonColors(),
+                    onClick = {
+                        viewModel.addHabit(newHabitName)
+                        newHabitName = ""
+                    }
+                ) {
                     Text("Add")
                 }
             }
@@ -127,9 +133,10 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                     value = peerAddress,
                     onValueChange = { viewModel.updatePeerAddress(it) },
                     label = { Text("Peer address (host:port)") },
+                    colors = crystalBareTextFieldColors(),
                     modifier = Modifier.weight(1f)
                 )
-                Button(onClick = { viewModel.syncNow() }) {
+                Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
                     Text("Sync")
                 }
             }

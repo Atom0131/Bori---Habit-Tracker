@@ -23,7 +23,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,9 +48,12 @@ import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalControlSurface
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
@@ -104,7 +106,7 @@ fun DesktopAddCalendarEventSheet(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden })
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -137,6 +139,8 @@ fun DesktopAddCalendarEventSheet(
                 onValueChange = { title = it },
                 label = { Text("Title") },
                 singleLine = true,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -146,6 +150,8 @@ fun DesktopAddCalendarEventSheet(
                 label = { Text("Note (optional)") },
                 singleLine = false,
                 maxLines = 3,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -228,6 +234,7 @@ fun DesktopAddCalendarEventSheet(
                     )
                 },
                 enabled = canSave,
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (existing == null) "Create Event" else "Update Event")
@@ -314,7 +321,7 @@ fun DesktopAddCalendarEventSheet(
 @Composable
 private fun PickerSurface(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.crystalControlSurface().clickable(onClick = onClick).padding(16.dp),
+        modifier = modifier.crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {

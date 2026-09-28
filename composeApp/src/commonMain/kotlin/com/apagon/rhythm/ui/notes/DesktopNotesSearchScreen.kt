@@ -16,6 +16,8 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -48,6 +50,8 @@ fun DesktopNotesSearchScreen(
                         onValueChange = { viewModel.setQuery(it) },
                         placeholder = { Text("Search all notes...") },
                         singleLine = true,
+                        colors = crystalTextFieldColors(),
+                        shape = crystalTextFieldShape(),
                         modifier = Modifier.fillMaxWidth()
                     )
                 },

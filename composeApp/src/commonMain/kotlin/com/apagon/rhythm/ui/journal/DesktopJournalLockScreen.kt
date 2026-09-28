@@ -18,6 +18,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.apagon.rhythm.data.repository.LockType
+import com.apagon.rhythm.ui.components.crystalButtonColors
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 
 /**
  * Desktop port of JournalLockScreen.kt. Biometrics dropped entirely
@@ -106,11 +109,13 @@ fun DesktopJournalLockScreen(
                     label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                 )
                 Button(
                     onClick = { onUnlock(enteredCredential) },
                     enabled = enteredCredential.isNotBlank(),
+                    colors = crystalButtonColors(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Unlock") }
             }

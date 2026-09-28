@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CheckboxColors
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -15,8 +17,10 @@ import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -168,11 +172,15 @@ fun Modifier.crystalCardSurface(
     fill: Color = MaterialTheme.colorScheme.surfaceContainer
 ): Modifier = this.crystalSurface(shape = MaterialTheme.shapes.large, fill = fill, crystalElevation = CARD_ELEVATION)
 
+/** [shape] defaults to the tier's own `small` radius, but a date/time picker trigger row sitting
+ * directly under a large-radius text field (e.g. the New Event sheet) needs to match that field's
+ * shape, not the tier default, to avoid the same "boxy next to pill" clash `crystalTextFieldShape()`
+ * fixes for text fields — pass `MaterialTheme.shapes.large` there. */
 @Composable
 fun Modifier.crystalControlSurface(
-    fill: Color = MaterialTheme.colorScheme.surfaceContainerHighest
+    fill: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    shape: Shape = MaterialTheme.shapes.small
 ): Modifier {
-    val shape = MaterialTheme.shapes.small
     return this
         .crystalSurface(shape = shape, fill = fill, elevation = SMALL_OBJECT_ELEVATION, crystalElevation = SMALL_OBJECT_ELEVATION)
         .then(
@@ -276,6 +284,91 @@ fun crystalCheckboxColors(): CheckboxColors = if (isCrystal()) {
     )
 } else {
     CheckboxDefaults.colors()
+}
+
+/**
+ * An `OutlinedTextField`'s colours. The container goes to glass and the indicator follows the accent.
+ * Ported from the Android original for the handful of real `OutlinedTextField`s in this desktop port
+ * (the habit-entry field, the sync peer-address field) that would otherwise stay stock Material.
+ */
+@Composable
+fun crystalTextFieldColors(): TextFieldColors = if (isCrystal()) {
+    OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+        unfocusedContainerColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+    )
+} else {
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+    )
+}
+
+/**
+ * An `OutlinedTextField`'s colours for the case [crystalTextFieldColors] doesn't cover: a field
+ * that already sits inside another `crystalCardSurface()`/`crystalTileSurface()` row (an inline
+ * "type here, then tap this button" row). Giving it its own glass fill *and* border there paints a
+ * second, smaller box nested inside the row's box — under Crystal this goes fully transparent, so
+ * the field reads as plain text sitting on the parent's glass, the closest this desktop port gets
+ * to the Android original's `FluidTextField` (a glass box around a transparent field) without
+ * porting that whole composable.
+ */
+@Composable
+fun crystalBareTextFieldColors(): TextFieldColors = if (isCrystal()) {
+    OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = Color.Transparent,
+        unfocusedContainerColor = Color.Transparent,
+        focusedBorderColor = Color.Transparent,
+        unfocusedBorderColor = Color.Transparent,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+    )
+} else {
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+    )
+}
+
+/**
+ * An `OutlinedTextField`'s shape, to go with [crystalTextFieldColors]. `TextFieldColors` has no
+ * shape slot, and a plain `OutlinedTextField` does **not** pick up `MaterialTheme.shapes` the way
+ * stock Material surfaces do — its own default is the much tighter `extraSmall`, which next to this
+ * kit's `large`-radius cards (`crystalCardSurface()`) reads as a plain boxy rectangle instead of the
+ * soft, almost-pill glass field the Android original uses. Large, to match. Under the two Material
+ * styles this returns `medium` rather than the stock default too — several call sites already hand-set
+ * `RoundedCornerShape(16.dp)` for those (Material3's `medium` token, exactly), so routing through here
+ * instead keeps that look while making it theme-aware rather than a hardcoded literal.
+ */
+@Composable
+fun crystalTextFieldShape(): Shape =
+    if (isCrystal()) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
+
+/**
+ * A filled `Button`'s colours — **transparent under Crystal**, because the glass is already painted
+ * by the caller's surrounding `crystalCardSurface()`/`crystalControlSurface()` and the accent moves
+ * to the label instead of painting a second, opaque slab on top of the glass. Ported from the
+ * Android original.
+ */
+@Composable
+fun crystalButtonColors(): ButtonColors = if (isCrystal()) {
+    ButtonDefaults.buttonColors(
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.primary,
+        disabledContainerColor = Color.Transparent,
+        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+} else {
+    ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 /** A glyph etched into the glass — a dark+light offset pair behind the tinted icon, the bevel a

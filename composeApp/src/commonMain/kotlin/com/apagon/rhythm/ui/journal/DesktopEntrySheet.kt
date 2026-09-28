@@ -28,6 +28,8 @@ import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.coroutines.launch
@@ -135,7 +137,8 @@ fun DesktopEntrySheet(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Entry title...", style = MaterialTheme.typography.titleLarge) },
                     textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    shape = RoundedCornerShape(16.dp)
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                 )
 
                 OutlinedTextField(
@@ -144,7 +147,8 @@ fun DesktopEntrySheet(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("What happened today? How did it feel?") },
                     minLines = 6,
-                    shape = RoundedCornerShape(16.dp)
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,12 +199,13 @@ fun DesktopEntrySheet(
                         onValueChange = { tagInput = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Add tag...") },
+                        colors = crystalTextFieldColors(),
+                        shape = crystalTextFieldShape(),
                         trailingIcon = {
                             TextButton(onClick = { if (tagInput.isNotBlank()) { tags.add(tagInput.trim()); tagInput = "" } }) {
                                 Text("+")
                             }
-                        },
-                        shape = RoundedCornerShape(16.dp)
+                        }
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                         tags.forEachIndexed { index, tag ->

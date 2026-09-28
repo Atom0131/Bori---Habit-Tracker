@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
@@ -54,6 +55,7 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
                 value = newTitle,
                 onValueChange = { newTitle = it },
                 label = { Text("New to-do") },
+                colors = crystalBareTextFieldColors(),
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = {

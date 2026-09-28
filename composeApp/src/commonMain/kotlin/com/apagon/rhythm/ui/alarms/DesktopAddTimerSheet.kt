@@ -25,8 +25,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 
 // Desktop counterpart to androidMain's AddTimerSheet.kt (Stage 12) — new
 // plain-M3 sheet, not a move: the Android original uses compose.animation
@@ -70,6 +73,8 @@ fun DesktopAddTimerSheet(
                 onValueChange = { label = it },
                 label = { Text("Label") },
                 singleLine = true,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -86,32 +91,43 @@ fun DesktopAddTimerSheet(
                 OutlinedTextField(
                     value = workMin, onValueChange = { workMin = it }, label = { Text("Work (min)") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = shortBreakMin, onValueChange = { shortBreakMin = it }, label = { Text("Short break (min)") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = longBreakMin, onValueChange = { longBreakMin = it }, label = { Text("Long break (min)") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = sessions, onValueChange = { sessions = it }, label = { Text("Sessions per round") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
                 OutlinedTextField(
                     value = minutes, onValueChange = { minutes = it }, label = { Text("Duration (min)") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = crystalTextFieldColors(),
+                    shape = crystalTextFieldShape(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
             Button(
+                colors = crystalButtonColors(),
                 onClick = {
                     if (isPomo) {
                         onSavePomo(

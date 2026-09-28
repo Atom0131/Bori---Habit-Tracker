@@ -18,7 +18,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.theme.habitColorPalette
 
 /**
@@ -58,6 +61,8 @@ fun DesktopAddNotebookSheet(
                 onValueChange = { name = it },
                 label = { Text("Notebook name") },
                 singleLine = true,
+                colors = crystalTextFieldColors(),
+                shape = crystalTextFieldShape(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -84,6 +89,7 @@ fun DesktopAddNotebookSheet(
             Button(
                 onClick = { onSave(name, colorIndex, colorArgb); onDismiss() },
                 enabled = name.isNotBlank(),
+                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save Notebook") }
         }

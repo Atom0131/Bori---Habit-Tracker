@@ -36,6 +36,7 @@ import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.DesktopAddAlarmSheet
 import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
 import com.apagon.rhythm.ui.alarms.TimerViewModel
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
@@ -80,7 +81,7 @@ private fun DesktopAlarmsSection(viewModel: AlarmViewModel = koinViewModel()) {
     var showAdd by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = { showAdd = true }) { Text("+ Alarm") }
+        Button(onClick = { showAdd = true }, colors = crystalButtonColors()) { Text("+ Alarm") }
         if (alarms.isEmpty()) {
             Text("No alarms yet.", modifier = Modifier.padding(top = 24.dp))
         } else {
@@ -126,7 +127,7 @@ private fun DesktopTimersSection(viewModel: TimerViewModel = koinViewModel()) {
     var showAdd by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = { showAdd = true }) { Text("+ Timer") }
+        Button(onClick = { showAdd = true }, colors = crystalButtonColors()) { Text("+ Timer") }
         if (timerStates.isEmpty()) {
             Text("No timers yet.", modifier = Modifier.padding(top = 24.dp))
         } else {
@@ -189,7 +190,7 @@ private fun DesktopRemindersSection(viewModel: ReminderViewModel = koinViewModel
     var showAdd by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = { showAdd = true }) { Text("+ Reminder") }
+        Button(onClick = { showAdd = true }, colors = crystalButtonColors()) { Text("+ Reminder") }
         val all = upcoming + past + completed
         if (all.isEmpty()) {
             Text("No reminders yet.", modifier = Modifier.padding(top = 24.dp))
