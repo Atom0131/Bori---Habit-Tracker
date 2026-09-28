@@ -3,6 +3,8 @@ package com.apagon.rhythm.ui.habit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -14,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.apagon.rhythm.data.repository.HabitRepository
+import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.stats.DesktopHabitStatsContent
 import org.koin.compose.koinInject
 
@@ -41,6 +45,8 @@ fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
     val stat by viewModel.habitStat.collectAsState()
 
     Scaffold(
+        containerColor = crystalScaffoldColor(),
+        contentColor = crystalScaffoldContentColor(),
         topBar = {
             TopAppBar(
                 title = { Text(stat?.habit?.name ?: "") },
@@ -48,7 +54,7 @@ fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             stat?.let { DesktopHabitStatsContent(it) }
         }
     }

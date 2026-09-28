@@ -18,6 +18,7 @@ import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalFabSurface
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -114,7 +115,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
 
             FloatingActionButton(
                 onClick = { showNewEntry = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).crystalFabSurface(),
                 containerColor = crystalFabContainerColor(),
                 contentColor = crystalFabContentColor(),
                 elevation = crystalFabElevation()

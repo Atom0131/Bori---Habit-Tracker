@@ -77,6 +77,14 @@ kotlin {
             // QR pairing (Stage 13 follow-up) — pure-Java QR bit-matrix
             // generation, no Android dependency needed for encoding.
             implementation(libs.zxing.core)
+
+            // Crystal's real backdrop blur. The multiplatform `haze` coordinate (not
+            // `haze-android`) resolves to the `haze-jvm` artifact for this source set,
+            // which ships a real Skia-backed RenderEffect blur for non-Android targets —
+            // verified via javap against the actual downloaded jar before wiring this up;
+            // DesktopGlassBlur.kt previously assumed this didn't exist and stubbed out to
+            // a flat-tint-only fallback permanently.
+            implementation(libs.haze)
         }
     }
 }

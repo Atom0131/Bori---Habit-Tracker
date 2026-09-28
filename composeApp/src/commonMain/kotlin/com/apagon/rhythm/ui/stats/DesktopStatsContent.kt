@@ -14,6 +14,7 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
+import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.isScheduledForDate
 import kotlin.time.Instant
@@ -111,48 +112,54 @@ internal fun DesktopHabitStatsContent(stat: HabitYearStats) {
         progressStats.completedPeriods.toFloat() / progressStats.totalPeriods else 0f
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = stat.habit.name,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = habitColor
-        )
-        if (stat.habit.description.isNotBlank()) {
-            Text(text = stat.habit.description, style = MaterialTheme.typography.bodyMedium, color = habitColor.copy(alpha = 0.7f))
+        Column(
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stat.habit.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = habitColor
+            )
+            if (stat.habit.description.isNotBlank()) {
+                Text(text = stat.habit.description, style = MaterialTheme.typography.bodyMedium, color = habitColor.copy(alpha = 0.7f))
+            }
         }
 
-        HorizontalDivider()
-        DesktopDetailField(label = "Schedule", value = scheduleLabel(stat.habit))
+        Column(
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            DesktopDetailField(label = "Schedule", value = scheduleLabel(stat.habit))
 
-        if (stat.habit.durationDays > 0) {
-            val daysSinceStart = remember(stat.habit.createdAt) {
-                ChronoUnit.DAYS.between(
-                    Instant.ofEpochMilli(stat.habit.createdAt).atZone(ZoneId.systemDefault()).toLocalDate(),
-                    today
-                ).toInt()
+            if (stat.habit.durationDays > 0) {
+                val daysSinceStart = remember(stat.habit.createdAt) {
+                    ChronoUnit.DAYS.between(
+                        Instant.ofEpochMilli(stat.habit.createdAt).atZone(ZoneId.systemDefault()).toLocalDate(),
+                        today
+                    ).toInt()
+                }
+                val daysLeft = (stat.habit.durationDays - daysSinceStart).coerceAtLeast(0)
+                DesktopDetailField(label = "Goal", value = "$daysLeft days left (${stat.habit.durationDays} day goal)")
+            } else {
+                DesktopDetailField(
+                    label = "This year",
+                    value = "${progressStats.completedPeriods} of ${progressStats.totalPeriods} ${progressStats.periodLabel} completed ($pct%)"
+                )
             }
-            val daysLeft = (stat.habit.durationDays - daysSinceStart).coerceAtLeast(0)
-            DesktopDetailField(label = "Goal", value = "$daysLeft days left (${stat.habit.durationDays} day goal)")
-        } else {
-            DesktopDetailField(
-                label = "This year",
-                value = "${progressStats.completedPeriods} of ${progressStats.totalPeriods} ${progressStats.periodLabel} completed ($pct%)"
+
+            LinearProgressIndicator(
+                progress = { fillFraction },
+                modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
+                color = habitColor,
+                trackColor = habitColor.copy(alpha = 0.2f),
+                strokeCap = StrokeCap.Round
             )
         }
-
-        HorizontalDivider()
-        Spacer(Modifier.height(4.dp))
-
-        LinearProgressIndicator(
-            progress = { fillFraction },
-            modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
-            color = habitColor,
-            trackColor = habitColor.copy(alpha = 0.2f),
-            strokeCap = StrokeCap.Round
-        )
     }
 }
 

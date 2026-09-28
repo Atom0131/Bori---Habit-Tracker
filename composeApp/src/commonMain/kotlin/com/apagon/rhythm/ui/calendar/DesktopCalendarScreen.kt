@@ -35,9 +35,11 @@ import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalControlColor
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
@@ -79,6 +81,7 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddEventSheet = true },
+                modifier = Modifier.crystalFabSurface(),
                 containerColor = crystalFabContainerColor(),
                 contentColor = crystalFabContentColor(),
                 elevation = crystalFabElevation()
@@ -235,7 +238,7 @@ private fun DayCell(
     val isSelected = selectedDayProvider() == date
     val primary = MaterialTheme.colorScheme.primary
     val bubbleBg = when {
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
+        isSelected -> crystalControlColor(MaterialTheme.colorScheme.primaryContainer)
         isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
     }

@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -30,8 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.platform.LocaleFormatting
+import androidx.compose.foundation.clickable
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
+import com.apagon.rhythm.ui.components.crystalChipSurface
+import com.apagon.rhythm.ui.components.crystalControlSurface
+import com.apagon.rhythm.ui.components.crystalSelectedChipColor
+import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
@@ -80,19 +83,19 @@ fun DesktopAddAlarmSheet(
                 fontWeight = FontWeight.Bold
             )
 
-            Surface(
-                onClick = { showTimePicker = true },
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .crystalControlSurface(shape = MaterialTheme.shapes.medium)
+                    .clickable(onClick = { showTimePicker = true })
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        "%02d:%02d".format(hour, minute),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    "%02d:%02d".format(hour, minute),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             OutlinedTextField(
@@ -111,15 +114,18 @@ fun DesktopAddAlarmSheet(
                     DAY_LABELS.forEachIndexed { index, day ->
                         val bit = 1 shl index
                         val selected = (repeatMask and bit) != 0
-                        Surface(
-                            onClick = { repeatMask = repeatMask xor bit },
-                            shape = CircleShape,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
+                        Box(
+                            modifier = Modifier
+                                .crystalChipSurface(
+                                    fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                                .clickable(onClick = { repeatMask = repeatMask xor bit })
                         ) {
                             Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp), contentAlignment = Alignment.Center) {
                                 Text(
                                     day.take(1),
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }

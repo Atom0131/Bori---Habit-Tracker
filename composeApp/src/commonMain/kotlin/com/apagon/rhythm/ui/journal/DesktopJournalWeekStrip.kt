@@ -18,6 +18,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalSelectedChipColor
+import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -172,9 +174,9 @@ fun DesktopDayChip(
     showDayLabel: Boolean = true,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val bgColor = if (isSelected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary) else Color.Transparent
     val labelColor = when {
-        isSelected -> MaterialTheme.colorScheme.onPrimary
+        isSelected -> crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary)
         isToday -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }

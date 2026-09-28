@@ -24,6 +24,7 @@ import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
+import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalButtonColors
@@ -120,6 +121,7 @@ fun DesktopNotebookDetailScreen(
             if (!isInSelectMode) {
                 FloatingActionButton(
                     onClick = { showTemplatePicker = true },
+                    modifier = Modifier.crystalFabSurface(),
                     containerColor = crystalFabContainerColor(),
                     contentColor = crystalFabContentColor(),
                     elevation = crystalFabElevation()

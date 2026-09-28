@@ -9,17 +9,22 @@ import androidx.compose.ui.unit.dp
 /**
  * Abstracts Crystal's frosted-glass blur (Stage 14) behind the same
  * DI-interface pattern as QrCodeRenderer/ImageBitmapLoader — commonMain can't
- * see the Android-only `dev.chrisbanes.haze` library directly.
+ * see the platform-specific `dev.chrisbanes.haze` API surface directly (real
+ * blur is a Skia `RenderEffect` on Android, a Skiko one on desktop — same
+ * library, different backend per `AndroidGlassBlur`/`DesktopGlassBlur`).
  *
- * Real backdrop blur (`RenderEffect`, API 32+) only exists on Android — see
- * the Android original's CLAUDE.md "Haze cannot blur across windows" section
- * and its three-way branch (real blur / Solid pre-composite / old-API alpha
- * fallback). Branch (a), real blur, is unreachable on desktop by
- * construction: `DesktopGlassBlur` only ever implements branch (c), the
- * translucent alpha-compensation fallback Crystal already falls back to
- * below API 32 today. Branch (b), Solid pre-compositing, does not go through
- * this interface at all on either platform — it is a separate code path in
- * the surface-tier kit (Phase 4).
+ * See the Android original's CLAUDE.md "Haze cannot blur across windows" section
+ * for the three-way branch (real blur / Solid pre-composite / old-API alpha
+ * fallback) both platforms share. **Branch (a), real blur, is NOT unreachable on
+ * desktop** — this was assumed during the initial port and left unverified; the
+ * `dev.chrisbanes.haze:haze` (not `-android`) multiplatform coordinate resolves to
+ * a real `haze-jvm` artifact with its own Skiko-backed `RenderEffect` blur path,
+ * confirmed via `javap` against the actual downloaded jar. `DesktopGlassBlur` now
+ * uses it. Branch (c) (the translucent alpha-compensation fallback) is still what
+ * both platforms use when there is no blur field in scope at all (e.g. a Solid
+ * background) — that part of the assumption was correct. Branch (b), Solid
+ * pre-compositing, does not go through this interface at all on either platform —
+ * it is a separate code path in the surface-tier kit (Phase 4).
  */
 interface GlassBlur {
     /** Creates the per-window blur field. Null means "no blur source" (e.g. a Solid background). */
@@ -44,5 +49,5 @@ interface GlassBlur {
     ): Modifier
 }
 
-/** Opaque per-platform blur-field handle — a real `HazeState` on Android, a no-op marker on desktop. */
+/** Opaque per-platform blur-field handle — wraps a real `HazeState` on both Android and desktop. */
 interface GlassBlurField
