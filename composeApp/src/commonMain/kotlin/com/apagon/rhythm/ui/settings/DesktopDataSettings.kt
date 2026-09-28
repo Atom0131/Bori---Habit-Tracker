@@ -25,6 +25,7 @@ import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalSheetColor
 
 // Desktop counterpart to androidMain's DataSettings.kt (Stage 11). Swaps
 // IconButton(Icons.Default.Restore) for a plain text "Unarchive" TextButton,
@@ -40,7 +41,8 @@ fun DesktopArchivedHabitsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
     ) {
         CrystalWindowContent {
         Column(
@@ -113,7 +115,8 @@ fun DesktopArchivedTodosSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
     ) {
         CrystalWindowContent {
         Column(

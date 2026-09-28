@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -53,7 +51,10 @@ import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalControlSurface
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.theme.habitColorPalette
+import com.apagon.rhythm.ui.util.RhythmAlertDialog
+import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
@@ -163,7 +164,7 @@ fun DesktopAddCalendarEventSheet(
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text("All day", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                Switch(checked = allDay, onCheckedChange = { allDay = it })
+                Switch(checked = allDay, onCheckedChange = { allDay = it }, colors = crystalSwitchColors())
             }
 
             AnimatedVisibility(
@@ -235,16 +236,10 @@ fun DesktopAddCalendarEventSheet(
         }
     }
 
-    // Stage 14 gap, flagged not hidden: these AlertDialog/DatePickerDialog instances are stock M3
-    // and paint their own opaque container from outside any content slot CrystalWindowContent
-    // could reach — Crystal-izing them properly needs a custom dialog shell (the Android
-    // original's RhythmDatePickerDialog/RhythmDialPickerDialog), out of scope for this port pass.
-    // Render as plain Material here under every theme style — same accepted gap as
-    // DesktopAddAlarmSheet.kt's time picker.
     if (showStartDatePicker) {
         val initMillis = (startDate ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
-        DatePickerDialog(
+        RhythmDatePickerDialog(
             onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
@@ -257,13 +252,13 @@ fun DesktopAddCalendarEventSheet(
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") } }
-        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(todayDateBorderColor = Color.Transparent)) }
+        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(containerColor = Color.Transparent, todayDateBorderColor = Color.Transparent)) }
     }
 
     if (showEndDatePicker) {
         val initMillis = (endDate ?: startDate ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
-        DatePickerDialog(
+        RhythmDatePickerDialog(
             onDismissRequest = { showEndDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
@@ -274,12 +269,12 @@ fun DesktopAddCalendarEventSheet(
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") } }
-        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(todayDateBorderColor = Color.Transparent)) }
+        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(containerColor = Color.Transparent, todayDateBorderColor = Color.Transparent)) }
     }
 
     if (showStartTimePicker) {
         val state = rememberTimePickerState(initialHour = startHour, initialMinute = startMinute, is24Hour = is24Hour)
-        AlertDialog(
+        RhythmAlertDialog(
             onDismissRequest = { showStartTimePicker = false },
             confirmButton = {
                 TextButton(onClick = {
@@ -300,7 +295,7 @@ fun DesktopAddCalendarEventSheet(
 
     if (showEndTimePicker) {
         val state = rememberTimePickerState(initialHour = endHour, initialMinute = endMinute, is24Hour = is24Hour)
-        AlertDialog(
+        RhythmAlertDialog(
             onDismissRequest = { showEndTimePicker = false },
             confirmButton = {
                 TextButton(onClick = {

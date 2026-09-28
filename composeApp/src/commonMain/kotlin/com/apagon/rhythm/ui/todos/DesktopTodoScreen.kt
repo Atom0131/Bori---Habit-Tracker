@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 import org.koin.compose.viewmodel.koinViewModel
@@ -96,7 +97,7 @@ private fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onDelete: () -> Uni
             .crystalTileSurface().padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = todo.isCompleted, onCheckedChange = { onToggle() })
+        Checkbox(checked = todo.isCompleted, onCheckedChange = { onToggle() }, colors = crystalCheckboxColors())
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 todo.title,

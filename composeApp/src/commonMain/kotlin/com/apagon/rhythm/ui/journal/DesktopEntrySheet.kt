@@ -28,6 +28,7 @@ import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -236,7 +237,7 @@ fun DesktopEntrySheet(
                             }
                         }
 
-                        DropdownMenu(expanded = habitDropdownExpanded, onDismissRequest = { habitDropdownExpanded = false }) {
+                        RhythmDropdownMenu(expanded = habitDropdownExpanded, onDismissRequest = { habitDropdownExpanded = false }) {
                             DropdownMenuItem(text = { Text("None") }, onClick = { selectedHabitId = null; habitDropdownExpanded = false })
                             habits.forEach { h ->
                                 DropdownMenuItem(

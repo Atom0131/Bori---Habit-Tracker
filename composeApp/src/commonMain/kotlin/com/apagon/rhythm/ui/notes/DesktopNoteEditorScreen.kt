@@ -37,12 +37,14 @@ import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -104,7 +106,7 @@ fun DesktopNoteEditorScreen(
                     TextButton(onClick = { clipboard.setText(AnnotatedString(viewModel.exportMarkdown())) }) { Text("Copy") }
                     Box {
                         TextButton(onClick = { showOverflowMenu = true }) { Text("⋮") }
-                        DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                        RhythmDropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showOverflowMenu = false; showMoveSheet = true })
                             DropdownMenuItem(
                                 text = { Text("Copy as Markdown") },
@@ -263,7 +265,7 @@ private fun DesktopFormattingToolbar(
 
             Box {
                 TextButton(onClick = { if (hasActiveBlock) showBlockTypeMenu = true }, enabled = hasActiveBlock) { Text("¶") }
-                DropdownMenu(expanded = showBlockTypeMenu, onDismissRequest = { showBlockTypeMenu = false }) {
+                RhythmDropdownMenu(expanded = showBlockTypeMenu, onDismissRequest = { showBlockTypeMenu = false }) {
                     listOf(
                         BlockType.TEXT to "Text", BlockType.HEADER to "Header", BlockType.QUOTE to "Quote",
                         BlockType.BULLET_LIST to "Bullet List", BlockType.NUMBERED_LIST to "Numbered List",
@@ -406,7 +408,7 @@ private fun DesktopBlockItem(
             var tfv by remember(block.id) { mutableStateOf(TextFieldValue(block.content)) }
             LaunchedEffect(block.content) { if (tfv.text != block.content) tfv = tfv.copy(text = block.content) }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = block.isChecked, onCheckedChange = { onUpdate(block.copy(isChecked = it)) })
+                Checkbox(checked = block.isChecked, onCheckedChange = { onUpdate(block.copy(isChecked = it)) }, colors = crystalCheckboxColors())
                 TextField(
                     value = tfv,
                     onValueChange = { v -> tfv = v; onUpdate(block.copy(content = v.text)); onSelectionChanged(v.selection) },
@@ -624,7 +626,7 @@ private fun DesktopBlockDropdownMenu(
     onAddImage: () -> Unit,
     onDelete: () -> Unit
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    RhythmDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         DropdownMenuItem(text = { Text("Text") }, onClick = { onAddAfter(BlockType.TEXT); onDismiss() })
         DropdownMenuItem(text = { Text("Header") }, onClick = { onAddAfter(BlockType.HEADER); onDismiss() })
         DropdownMenuItem(text = { Text("Checklist") }, onClick = { onAddAfter(BlockType.CHECKLIST); onDismiss() })

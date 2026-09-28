@@ -28,6 +28,8 @@ import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
+import com.apagon.rhythm.ui.util.RhythmAlertDialog
+import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -170,7 +172,7 @@ fun DesktopNotebookDetailScreen(
 
     if (showDeleteConfirm) {
         val count = selectedNoteIds.size
-        AlertDialog(
+        RhythmAlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete $count ${if (count == 1) "note" else "notes"}?") },
             text = { Text("This can't be undone.") },
@@ -353,7 +355,7 @@ private fun DesktopNoteItem(
                 if (!isInSelectMode) {
                     Box {
                         TextButton(onClick = { showMenu = true }) { Text("⋮") }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(text = { Text(if (note.isPinned) "Unpin" else "Pin") }, onClick = { showMenu = false; onTogglePin() })
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showMenu = false; onMove() })
                             DropdownMenuItem(text = { Text("Copy to clipboard") }, onClick = { showMenu = false; onExport() })

@@ -23,6 +23,7 @@ import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -171,7 +172,7 @@ private fun DesktopNotebookCard(
                 }
                 Box {
                     TextButton(onClick = { showMenu = true }) { Text("⋮") }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit() })
                         DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete() })
                     }

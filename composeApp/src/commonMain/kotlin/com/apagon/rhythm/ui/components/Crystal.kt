@@ -8,15 +8,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CheckboxColors
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -31,8 +40,12 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import com.apagon.rhythm.data.preferences.CrystalBackground
 import com.apagon.rhythm.data.preferences.CrystalMesh
 import com.apagon.rhythm.data.preferences.CrystalStyle
@@ -238,6 +251,32 @@ fun crystalSelectedChipContentColor(fallback: Color): Color =
 fun crystalAddTileFill(): Color =
     if (isCrystal()) MaterialTheme.colorScheme.surfaceContainerHighest
     else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+
+// ── Stock Material control colours — ported from the Android original's Crystal.kt ──────────────
+
+/** A `Switch`'s colours: glass track when unchecked, accent when checked. */
+@Composable
+fun crystalSwitchColors(): SwitchColors = if (isCrystal()) {
+    SwitchDefaults.colors(
+        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        uncheckedTrackColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+        uncheckedBorderColor = MaterialTheme.colorScheme.outline
+    )
+} else {
+    SwitchDefaults.colors()
+}
+
+/** A `Checkbox`'s colours: glass box when unchecked, accent when checked. */
+@Composable
+fun crystalCheckboxColors(): CheckboxColors = if (isCrystal()) {
+    CheckboxDefaults.colors(
+        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        checkedColor = MaterialTheme.colorScheme.primary,
+        checkmarkColor = MaterialTheme.colorScheme.onPrimary
+    )
+} else {
+    CheckboxDefaults.colors()
+}
 
 /** A glyph etched into the glass — a dark+light offset pair behind the tinted icon, the bevel a
  * real piece of glass has. Under the two Material styles, a plain `Icon`. */
@@ -497,3 +536,57 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
         }
     }
 }
+
+/**
+ * The field for a `DropdownMenu`, ported from the Android original's `crystalMenuField` — the one
+ * exception to [CrystalWindowContent]'s "paint at local bounds" rule (that file's header comment).
+ * M3 puts 8dp of padding *outside* the clipping scroll container `DropdownMenu`'s content lambda
+ * draws into, but still inside the `Surface`'s own `clip(shape)` — so a field painted from inside
+ * the content lambda (the [CrystalWindowContent] way) can never reach that padding strip, leaving a
+ * visible gap. The field has to go on the `modifier` handed to `DropdownMenu` itself instead, where
+ * `Surface` forwards it down into its content slot ahead of the padding.
+ *
+ * **Sampling a slice of the enclosing window's field, not painting a fresh small one, avoids "a
+ * rainbow in a menu."** A menu is typically much smaller than a sheet or dialog — squeezing the same
+ * five-hue corner-to-corner mesh into a small popup (what [CrystalWindowContent]'s local-bounds
+ * approach would produce here) reads as a miniature rainbow rather than a plausible patch of glass.
+ * Instead this samples the correctly-scaled/positioned slice of the *enclosing window's* field —
+ * [LocalWindowInfo]'s `containerSize` standing in for Android's `displayMetrics` (this port's own
+ * "no meaningful absolute screen position" reasoning doesn't apply here: a `DropdownMenu` popup
+ * renders as an overlay within its triggering window's own composition, not a separate window, so
+ * "position in window" is exactly the right reference frame) and `positionInWindow()` standing in
+ * for Android's `positionOnScreen()`.
+ *
+ * A no-op off Crystal, and under Solid — there the shell's own flat container colour is already the
+ * field, so there is nothing a gradient would add.
+ */
+@Composable
+fun Modifier.crystalMenuField(): Modifier {
+    if (!isCrystal() || isSolidField) return this
+    val dark = isDark
+    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    val blobs = crystalFieldBlobs(LocalCrystalMesh.current, dark)
+    val windowSize = LocalWindowInfo.current.containerSize.toSize()
+    // Unspecified until the popup has been laid out. `onGloballyPositioned` runs after the first
+    // composition, so on the opening frame there is no offset to draw with — and a field that
+    // visibly jumps as the menu opens is worse than the miniature it replaces.
+    var origin by remember { mutableStateOf(Offset.Unspecified) }
+    val tint = MaterialTheme.colorScheme.surfaceContainer
+    val tintAlpha = crystalSurfaceAlpha(LocalCrystalStyle.current, dark, LocalCrystalIntensity.current)
+    return this
+        .onGloballyPositioned { origin = it.positionInWindow() }
+        .drawBehind {
+            if (origin.isUnspecified) return@drawBehind
+            drawCrystalMeshField(base, blobs, dark, fieldSize = windowSize, origin = origin)
+            drawRect(tint.copy(alpha = tintAlpha))
+        }
+}
+
+/**
+ * The container colour for a shell whose field is supplied by [crystalMenuField]. Transparent under
+ * a mesh so the field behind it shows through; off Crystal, and under Solid, it stays [fallback].
+ */
+@Composable
+@ReadOnlyComposable
+fun crystalMenuContainerColor(fallback: Color): Color =
+    if (isCrystal() && !isSolidField) Color.Transparent else crystalSheetColor(fallback)

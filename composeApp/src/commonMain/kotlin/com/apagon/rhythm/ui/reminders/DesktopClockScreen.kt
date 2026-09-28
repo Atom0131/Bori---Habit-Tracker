@@ -38,6 +38,7 @@ import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
 import com.apagon.rhythm.ui.alarms.TimerViewModel
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -99,7 +100,7 @@ private fun DesktopAlarmsSection(viewModel: AlarmViewModel = koinViewModel()) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Switch(checked = alarm.isEnabled, onCheckedChange = { viewModel.toggleEnabled(alarm) })
+                            Switch(checked = alarm.isEnabled, onCheckedChange = { viewModel.toggleEnabled(alarm) }, colors = crystalSwitchColors())
                             TextButton(onClick = { viewModel.deleteAlarm(alarm) }) { Text("Delete") }
                         }
                     }

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.components.crystalSwitchColors
 
 // Desktop counterpart to androidMain's AddTimerSheet.kt (Stage 12) — new
 // plain-M3 sheet, not a move: the Android original uses compose.animation
@@ -78,7 +79,7 @@ fun DesktopAddTimerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Pomodoro", style = MaterialTheme.typography.bodyLarge)
-                Switch(checked = isPomo, onCheckedChange = { isPomo = it })
+                Switch(checked = isPomo, onCheckedChange = { isPomo = it }, colors = crystalSwitchColors())
             }
 
             if (isPomo) {

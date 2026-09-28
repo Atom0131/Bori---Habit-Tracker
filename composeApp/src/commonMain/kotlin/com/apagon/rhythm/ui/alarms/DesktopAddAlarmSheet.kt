@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +32,7 @@ import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import org.koin.compose.koinInject
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -136,13 +136,9 @@ fun DesktopAddAlarmSheet(
         }
     }
 
-    // Stage 14 gap, flagged not hidden: this AlertDialog is stock M3 and paints its own opaque
-    // container from outside any content slot CrystalWindowContent could reach — Crystal-izing it
-    // properly needs a custom dialog shell (the Android original's RhythmAlertDialog), which is
-    // out of scope for this port pass. Renders as plain Material here under every theme style.
     if (showTimePicker) {
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = is24Hour)
-        AlertDialog(
+        RhythmAlertDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = {
                 TextButton(onClick = {

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalSheetColor
 import org.koin.compose.koinInject
 
 // Desktop counterpart to androidMain's AccountSettings.kt (Stage 11). Drops
@@ -54,7 +55,8 @@ import org.koin.compose.koinInject
 fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
     ) {
         CrystalWindowContent {
         Column(
@@ -149,7 +151,8 @@ fun DesktopEditProfileSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
     ) {
         CrystalWindowContent {
         Column(

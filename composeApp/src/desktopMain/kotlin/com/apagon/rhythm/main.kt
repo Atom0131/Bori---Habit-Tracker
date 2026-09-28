@@ -2,6 +2,7 @@ package com.apagon.rhythm
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -16,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
@@ -39,6 +41,7 @@ import com.apagon.rhythm.ui.habit.DesktopHabitScreen
 import com.apagon.rhythm.ui.journal.DesktopJournalScreen
 import com.apagon.rhythm.ui.notes.DesktopNotesTab
 import com.apagon.rhythm.ui.reminders.DesktopClockScreen
+import com.apagon.rhythm.ui.components.crystalChromeSurface
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmThemedRoot
 import com.apagon.rhythm.ui.todos.DesktopTodoScreen
@@ -116,16 +119,19 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
             alwaysOnTop = true,
             state = rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), width = 380.dp, height = 220.dp)
         ) {
-            DesktopAlertContent(
-                alert = alert,
-                onDismiss = { activeAlert = null },
-                onStartNextPhase = if (alert.kind == FiredAlertKind.TIMER && alert.isPomo) {
-                    {
-                        scope.launch { timerRepository.advancePomoPhase(alert.sourceId) }
-                        activeAlert = null
-                    }
-                } else null
-            )
+            val themePreferences = koinInject<ThemePreferences>()
+            RhythmThemedRoot(themePreferences = themePreferences) {
+                DesktopAlertContent(
+                    alert = alert,
+                    onDismiss = { activeAlert = null },
+                    onStartNextPhase = if (alert.kind == FiredAlertKind.TIMER && alert.isPomo) {
+                        {
+                            scope.launch { timerRepository.advancePomoPhase(alert.sourceId) }
+                            activeAlert = null
+                        }
+                    } else null
+                )
+            }
         }
     }
 }
@@ -142,12 +148,18 @@ private fun DesktopAppRoot() {
     val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted", "Clock", "Settings")
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = selectedTab) {
+        TabRow(
+            selectedTabIndex = selectedTab,
+            modifier = Modifier.crystalChromeSurface(),
+            containerColor = Color.Transparent
+        ) {
             tabs.forEachIndexed { index, label ->
                 Tab(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
-                    text = { Text(label) }
+                    text = { Text(label) },
+                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.QrCodeRenderer
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
@@ -152,7 +153,8 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
                         ) {
                             Checkbox(
                                 checked = isDone,
-                                onCheckedChange = { viewModel.toggleCompletion(habit.id, isDone) }
+                                onCheckedChange = { viewModel.toggleCompletion(habit.id, isDone) },
+                                colors = crystalCheckboxColors()
                             )
                             Text(
                                 habit.name,

@@ -35,6 +35,7 @@ import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import org.koin.compose.viewmodel.koinViewModel
@@ -123,7 +124,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                             }
                         }
                         SettingsRow("AMOLED Black") {
-                            Switch(checked = amoledMode, onCheckedChange = { viewModel.setAmoledMode(it) })
+                            Switch(checked = amoledMode, onCheckedChange = { viewModel.setAmoledMode(it) }, colors = crystalSwitchColors())
                         }
                         SettingsRow("Dark Readability") {
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -164,10 +165,10 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                 SettingsSection("Layout") {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         SettingsRow("Calendar as home view") {
-                            Switch(checked = homeViewCalendar, onCheckedChange = { viewModel.setHomeViewCalendar(it) })
+                            Switch(checked = homeViewCalendar, onCheckedChange = { viewModel.setHomeViewCalendar(it) }, colors = crystalSwitchColors())
                         }
                         SettingsRow("Swipeable sections") {
-                            Switch(checked = swipeSectionsEnabled, onCheckedChange = { viewModel.setSwipeSectionsEnabled(it) })
+                            Switch(checked = swipeSectionsEnabled, onCheckedChange = { viewModel.setSwipeSectionsEnabled(it) }, colors = crystalSwitchColors())
                         }
                     }
                 }
@@ -177,7 +178,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                 SettingsSection("Calendar Integration") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SettingsRow("Enable device calendars") {
-                            Switch(checked = calendarIntegrationEnabled, onCheckedChange = { viewModel.setCalendarIntegrationEnabled(it) })
+                            Switch(checked = calendarIntegrationEnabled, onCheckedChange = { viewModel.setCalendarIntegrationEnabled(it) }, colors = crystalSwitchColors())
                         }
                         if (calendarIntegrationEnabled) {
                             Text(

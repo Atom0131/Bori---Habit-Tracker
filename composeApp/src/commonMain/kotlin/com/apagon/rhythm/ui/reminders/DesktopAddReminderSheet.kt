@@ -1,19 +1,18 @@
 package com.apagon.rhythm.ui.reminders
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -26,12 +25,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.components.CrystalWindowContent
+import com.apagon.rhythm.ui.components.crystalControlSurface
+import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.util.RhythmAlertDialog
+import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -61,7 +66,8 @@ fun DesktopAddReminderSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
+        CrystalWindowContent {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -87,19 +93,15 @@ fun DesktopAddReminderSheet(
             )
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(
-                    onClick = { showDatePicker = true },
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier.weight(1f).crystalControlSurface().clickable(onClick = { showDatePicker = true }),
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Text(date.format(dateFmt), modifier = Modifier.padding(16.dp))
                 }
-                Surface(
-                    onClick = { showTimePicker = true },
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier.weight(1f).crystalControlSurface().clickable(onClick = { showTimePicker = true }),
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Text("%02d:%02d".format(hour, minute), modifier = Modifier.padding(16.dp))
                 }
@@ -114,12 +116,13 @@ fun DesktopAddReminderSheet(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
         }
+        }
     }
 
     if (showDatePicker) {
         val initMillis = date.atStartOfDay(TimeZone.UTC).toEpochMilli()
         val state = rememberDatePickerState(initialSelectedDateMillis = initMillis)
-        DatePickerDialog(
+        RhythmDatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
@@ -130,12 +133,12 @@ fun DesktopAddReminderSheet(
                 }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
-        ) { DatePicker(state = state) }
+        ) { DatePicker(state = state, colors = DatePickerDefaults.colors(containerColor = Color.Transparent)) }
     }
 
     if (showTimePicker) {
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = is24Hour)
-        AlertDialog(
+        RhythmAlertDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = {
                 TextButton(onClick = {
