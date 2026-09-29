@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -137,10 +136,12 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
             ) {
                 SettingsSection.entries.forEach { section ->
                     val isSelected = section == selectedSection
+                    // Stage 17a: no pre-clip — see main.kt's SidebarItem for why (crystalTileSurface
+                    // draws its own shadow with its own shape; a mismatched outer clip lets it escape
+                    // on one edge).
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
                             .then(
                                 if (isSelected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
                                 else Modifier

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,7 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -206,10 +204,14 @@ private fun DesktopAppRoot() {
 
 @Composable
 private fun SidebarItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    // Stage 17a: no pre-clip here — crystalTileSurface() draws its own background/rim/shadow
+    // using its own internal shape (MaterialTheme.shapes.medium), which doesn't match an outer
+    // RoundedCornerShape(10.dp) clip. The mismatch let the tile's own shadow escape the outer
+    // clip on one edge (a visible dark sliver on the left of the selected pill). Matches the
+    // already-correct pattern in DesktopNotesScreen.kt's NotebookRail, which never had this bug.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
             .then(
                 if (selected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
                 else Modifier
