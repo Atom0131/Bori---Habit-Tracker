@@ -2,6 +2,7 @@ package com.apagon.rhythm.ui.reminders
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -32,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Alarm
-import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.DesktopAddAlarmSheet
 import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
@@ -45,73 +45,77 @@ import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
-import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
-import com.apagon.rhythm.ui.util.SectionHeaderTier
 import org.koin.compose.viewmodel.koinViewModel
 
-// Desktop counterpart to androidMain's ClockScreen.kt (Stage 12), rewritten in the layout-parity
-// round to match the phone app's single stacked "Schedule" page instead of a sub-TabRow — Android's
-// ClockScreen.kt (L67-241) drops Scaffold's tab pattern in favor of one scrollable page combining
-// Alarms/Timers/Reminders. This port keeps that single-page shape but deliberately does NOT port the
-// phone's responsive card grid, tap-to-view detail sheets, or unified add-type picker — desktop's
-// existing row-style cards and per-section inline "+" buttons stay as they are; only the tab
-// structure changes.
+// Stage 17d: rebuilt to match the real Android ui/reminders/ClockScreen.kt (titled "Alarms &
+// Timers") instead of the earlier collapsible-accordion guess. Mobile has no collapse behavior at
+// all — three always-open responsive grids (Scheduled Alarms, Active Timers, Pomodoro, split by
+// Timer.isPomo) — and Reminders isn't part of this screen on mobile; it lives on the Today/
+// Calendar day-detail screen instead (moved there in Stage 17e). gridColumns computed the same
+// way mobile does it (GRID_MIN_CARD_WIDTH/GRID_HORIZONTAL_PADDING, coerced 2-4), chunked rows
+// instead of a true LazyVerticalGrid so a Pomodoro-vs-regular split and per-section headers stay
+// simple inside one scrollable column.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesktopClockScreen(
     alarmViewModel: AlarmViewModel = koinViewModel(),
-    timerViewModel: TimerViewModel = koinViewModel(),
-    reminderViewModel: ReminderViewModel = koinViewModel()
+    timerViewModel: TimerViewModel = koinViewModel()
 ) {
     val alarms by alarmViewModel.alarms.collectAsState()
     val timerStates by timerViewModel.timerUiStates.collectAsState()
-    val upcoming by reminderViewModel.upcomingReminders.collectAsState()
-    val past by reminderViewModel.pastReminders.collectAsState()
-    val completed by reminderViewModel.completedReminders.collectAsState()
+    val regularTimers = remember(timerStates) { timerStates.filter { !it.timer.isPomo } }
+    val pomoTimers = remember(timerStates) { timerStates.filter { it.timer.isPomo } }
 
     var showAddAlarm by remember { mutableStateOf(false) }
     var showAddTimer by remember { mutableStateOf(false) }
-    var showAddReminder by remember { mutableStateOf(false) }
-    var alarmsExpanded by remember { mutableStateOf(true) }
-    var timersExpanded by remember { mutableStateOf(true) }
-    var remindersExpanded by remember { mutableStateOf(true) }
 
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Schedule") }, colors = crystalTopAppBarColors()) }
     ) { padding ->
-        // Stage 15g: same content cap as To-dos — this screen is the other remaining single-column
-        // list with no natural detail pane to split against. Stage 16b: sourced from DesktopLayout.
         Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
-            alarmsSection(
-                alarms = alarms,
-                expanded = alarmsExpanded,
-                onToggleExpanded = { alarmsExpanded = !alarmsExpanded },
-                onAdd = { showAddAlarm = true },
-                onToggleEnabled = alarmViewModel::toggleEnabled,
-                onDelete = alarmViewModel::deleteAlarm
-            )
-            timersSection(
-                timerStates = timerStates,
-                expanded = timersExpanded,
-                onToggleExpanded = { timersExpanded = !timersExpanded },
-                onAdd = { showAddTimer = true },
-                onStart = timerViewModel::startTimer,
-                onPause = timerViewModel::pauseTimer,
-                onReset = timerViewModel::resetTimer,
-                onDelete = timerViewModel::deleteTimer
-            )
-            remindersSection(
-                reminders = upcoming + past + completed,
-                expanded = remindersExpanded,
-                onToggleExpanded = { remindersExpanded = !remindersExpanded },
-                onAdd = { showAddReminder = true },
-                onToggle = reminderViewModel::toggleCompletion,
-                onDelete = reminderViewModel::deleteReminder
-            )
-        }
+            BoxWithConstraints(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
+                val gridColumns = ((maxWidth - DesktopLayout.screenPadding * 2) / GRID_MIN_CARD_WIDTH)
+                    .toInt()
+                    .coerceIn(2, 4)
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    alarmsSection(
+                        alarms = alarms,
+                        gridColumns = gridColumns,
+                        onAdd = { showAddAlarm = true },
+                        onToggleEnabled = alarmViewModel::toggleEnabled,
+                        onDelete = alarmViewModel::deleteAlarm
+                    )
+                    timersSection(
+                        title = "Active Timers",
+                        addLabel = "+ Timer",
+                        emptyLabel = "No timers yet.",
+                        timerStates = regularTimers,
+                        gridColumns = gridColumns,
+                        onAdd = { showAddTimer = true },
+                        onStart = timerViewModel::startTimer,
+                        onPause = timerViewModel::pauseTimer,
+                        onReset = timerViewModel::resetTimer,
+                        onDelete = timerViewModel::deleteTimer
+                    )
+                    if (pomoTimers.isNotEmpty()) {
+                        timersSection(
+                            title = "Pomodoro",
+                            addLabel = "+ Timer",
+                            emptyLabel = "No Pomodoro timers yet.",
+                            timerStates = pomoTimers,
+                            gridColumns = gridColumns,
+                            onAdd = { showAddTimer = true },
+                            onStart = timerViewModel::startTimer,
+                            onPause = timerViewModel::pauseTimer,
+                            onReset = timerViewModel::resetTimer,
+                            onDelete = timerViewModel::deleteTimer,
+                            showAddButton = false
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -138,30 +142,31 @@ fun DesktopClockScreen(
             }
         )
     }
+}
 
-    if (showAddReminder) {
-        DesktopAddReminderSheet(
-            onDismiss = { showAddReminder = false },
-            onSave = { title, note, dateTime ->
-                reminderViewModel.addReminder(title, note, dateTime)
-                showAddReminder = false
-            }
-        )
-    }
+// Wider than mobile's 170dp: mobile's cards use compact icon buttons (no icon library on
+// desktop), so desktop's text-labelled "Pause/Start  Reset  Delete" row needs more room to avoid
+// clipping the last button.
+private val GRID_MIN_CARD_WIDTH = 260.dp
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
+    )
 }
 
 private fun LazyListScope.alarmsSection(
     alarms: List<Alarm>,
-    expanded: Boolean,
-    onToggleExpanded: () -> Unit,
+    gridColumns: Int,
     onAdd: () -> Unit,
     onToggleEnabled: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit
 ) {
-    item(key = "alarms_header") {
-        CollapsibleSectionHeader(title = "Alarms", expanded = expanded, onToggle = onToggleExpanded, tier = SectionHeaderTier.Primary)
-    }
-    if (!expanded) return
+    item(key = "alarms_header") { SectionHeader("Scheduled Alarms") }
 
     item(key = "alarms_add") {
         Button(
@@ -175,146 +180,120 @@ private fun LazyListScope.alarmsSection(
             Text("No alarms yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
         }
     } else {
-        items(alarms, key = { "alarm_${it.id}" }) { alarm ->
-            Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text("%02d:%02d".format(alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (alarm.label.isNotBlank()) alarm.label else if (alarm.repeatDaysMask == 0) "One-time" else "Repeats weekly",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(checked = alarm.isEnabled, onCheckedChange = { onToggleEnabled(alarm) }, colors = crystalSwitchColors())
-                    TextButton(onClick = { onDelete(alarm) }) { Text("Delete") }
-                }
-            }
-        }
-    }
-}
-
-private fun LazyListScope.timersSection(
-    timerStates: List<TimerUiState>,
-    expanded: Boolean,
-    onToggleExpanded: () -> Unit,
-    onAdd: () -> Unit,
-    onStart: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    onPause: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    onReset: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit
-) {
-    item(key = "timers_header") {
-        CollapsibleSectionHeader(title = "Timers", expanded = expanded, onToggle = onToggleExpanded, tier = SectionHeaderTier.Primary)
-    }
-    if (!expanded) return
-
-    item(key = "timers_add") {
-        Button(
-            onClick = onAdd,
-            colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-        ) { Text("+ Timer") }
-    }
-    if (timerStates.isEmpty()) {
-        item(key = "timers_empty") {
-            Text("No timers yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
-        }
-    } else {
-        items(timerStates, key = { "timer_${it.timer.id}" }) { state ->
-            val timer = state.timer
-            Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Text(
-                                timer.label.ifBlank { "Timer" },
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            state.pomoPhaseLabel?.let {
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        Text(formatDuration(state.displayRemaining), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    }
-                    if (timer.durationSeconds > 0) {
-                        LinearProgressIndicator(
-                            progress = { 1f - (state.displayRemaining.toFloat() / timer.durationSeconds.toFloat()).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                        )
-                    }
-                    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (state.isRunning) {
-                            TextButton(onClick = { onPause(timer) }) { Text("Pause") }
-                        } else {
-                            TextButton(onClick = { onStart(timer) }) { Text("Start") }
-                        }
-                        TextButton(onClick = { onReset(timer) }) { Text("Reset") }
-                        TextButton(onClick = { onDelete(timer) }) { Text("Delete") }
+        items(alarms.chunked(gridColumns), key = { it.first().id }) { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing)
+            ) {
+                row.forEach { alarm ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        AlarmCard(alarm, onToggleEnabled = { onToggleEnabled(alarm) }, onDelete = { onDelete(alarm) })
                     }
                 }
-            }
-        }
-    }
-}
-
-private fun LazyListScope.remindersSection(
-    reminders: List<Reminder>,
-    expanded: Boolean,
-    onToggleExpanded: () -> Unit,
-    onAdd: () -> Unit,
-    onToggle: (Reminder) -> Unit,
-    onDelete: (Reminder) -> Unit
-) {
-    item(key = "reminders_header") {
-        CollapsibleSectionHeader(title = "Reminders", expanded = expanded, onToggle = onToggleExpanded, tier = SectionHeaderTier.Primary)
-    }
-    if (!expanded) return
-
-    item(key = "reminders_add") {
-        Button(
-            onClick = onAdd,
-            colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-        ) { Text("+ Reminder") }
-    }
-    if (reminders.isEmpty()) {
-        item(key = "reminders_empty") {
-            Text("No reminders yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
-        }
-    } else {
-        items(reminders, key = { "reminder_${it.id}" }) { reminder ->
-            Box(Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)) {
-                DesktopReminderRow(reminder, onToggle = { onToggle(reminder) }, onDelete = { onDelete(reminder) })
+                repeat(gridColumns - row.size) { Box(modifier = Modifier.weight(1f)) }
             }
         }
     }
 }
 
 @Composable
-private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
+private fun AlarmCard(alarm: Alarm, onToggleEnabled: () -> Unit, onDelete: () -> Unit) {
     Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f, fill = false)) {
-                Text(reminder.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(reminder.dateTime, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (reminder.note.isNotBlank()) {
-                    Text(reminder.note, style = MaterialTheme.typography.bodySmall)
-                }
+        Column(modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding)) {
+            Text("%02d:%02d".format(alarm.hour, alarm.minute), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                if (alarm.label.isNotBlank()) alarm.label else if (alarm.repeatDaysMask == 0) "One-time" else "Repeats weekly",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Switch(checked = alarm.isEnabled, onCheckedChange = { onToggleEnabled() }, colors = crystalSwitchColors())
+                TextButton(onClick = onDelete) { Text("Delete") }
             }
-            TextButton(onClick = onToggle) { Text(if (reminder.isCompleted) "Undo" else "Complete") }
-            TextButton(onClick = onDelete) { Text("Delete") }
+        }
+    }
+}
+
+private fun LazyListScope.timersSection(
+    title: String,
+    addLabel: String,
+    emptyLabel: String,
+    timerStates: List<TimerUiState>,
+    gridColumns: Int,
+    onAdd: () -> Unit,
+    onStart: (com.apagon.rhythm.data.model.Timer) -> Unit,
+    onPause: (com.apagon.rhythm.data.model.Timer) -> Unit,
+    onReset: (com.apagon.rhythm.data.model.Timer) -> Unit,
+    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit,
+    showAddButton: Boolean = true
+) {
+    item(key = "${title}_header") { SectionHeader(title) }
+
+    if (showAddButton) {
+        item(key = "${title}_add") {
+            Button(
+                onClick = onAdd,
+                colors = crystalButtonColors(),
+                modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
+            ) { Text(addLabel) }
+        }
+    }
+    if (timerStates.isEmpty()) {
+        item(key = "${title}_empty") {
+            Text(emptyLabel, modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
+        }
+    } else {
+        items(timerStates.chunked(gridColumns), key = { "${title}_${it.first().timer.id}" }) { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing)
+            ) {
+                row.forEach { state ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        TimerCard(state, onStart = { onStart(state.timer) }, onPause = { onPause(state.timer) }, onReset = { onReset(state.timer) }, onDelete = { onDelete(state.timer) })
+                    }
+                }
+                repeat(gridColumns - row.size) { Box(modifier = Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimerCard(state: TimerUiState, onStart: () -> Unit, onPause: () -> Unit, onReset: () -> Unit, onDelete: () -> Unit) {
+    val timer = state.timer
+    Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding)) {
+            Text(
+                timer.label.ifBlank { "Timer" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            state.pomoPhaseLabel?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(formatDuration(state.displayRemaining), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            if (timer.durationSeconds > 0) {
+                LinearProgressIndicator(
+                    progress = { 1f - (state.displayRemaining.toFloat() / timer.durationSeconds.toFloat()).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                )
+            }
+            Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.isRunning) {
+                    TextButton(onClick = onPause) { Text("Pause") }
+                } else {
+                    TextButton(onClick = onStart) { Text("Start") }
+                }
+                TextButton(onClick = onReset) { Text("Reset") }
+                TextButton(onClick = onDelete) { Text("Delete") }
+            }
         }
     }
 }
