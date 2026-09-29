@@ -49,8 +49,10 @@ import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmThemedRoot
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.compose.koinInject
 import org.koin.core.context.startKoin
+import rhythm.composeapp.generated.resources.Res
 
 // Stage 4b checkpoint: adds the local loopback sync engine (Ktor WebSocket
 // server + client) on top of Stage 3's Habit list/add/complete screen. See
@@ -58,7 +60,36 @@ import org.koin.core.context.startKoin
 // Stage 5 checkpoint: wires the real RhythmTheme (materialkolor dynamic
 // color, bundled fonts, dark/AMOLED/contrast) in place of a bare
 // MaterialTheme, driven by the same ThemePreferences DataStore as Android.
+/**
+ * Stage 18b: Compose Multiplatform's `FontFamily(fontA, fontB, ...)` fallback list only picks the
+ * single closest weight/style match for layout — it does NOT fall back to a sibling entry for a
+ * glyph the chosen typeface doesn't cover, unlike Android's font-fallback chain. So bundling
+ * NotoColorEmoji as another `FontFamily` entry (see `ui/theme/Type.kt`) alone still rendered every
+ * emoji (streak flame, notebook, lock/unlock, pin, journal feelings, note templates) as a "MISSING
+ * GLYPH" tofu box on any machine with no system color-emoji font — confirmed live on this one via
+ * `fc-list | grep -i emoji` returning nothing. What actually resolves it is Skia's own *system*
+ * font-fallback (via fontconfig on Linux), which only sees fonts fontconfig knows about. This
+ * installs the same bundled resource into the user's fontconfig font dir on first run (idempotent
+ * — skipped once present) so every target machine self-heals the same way this one was fixed
+ * manually, without requiring the user to install a font themselves.
+ */
+@OptIn(ExperimentalResourceApi::class)
+private fun ensureEmojiFontInstalled() {
+    if (System.getProperty("os.name")?.lowercase()?.contains("linux") != true) return
+    val fontDir = java.io.File(System.getProperty("user.home"), ".local/share/fonts")
+    val fontFile = java.io.File(fontDir, "rhythm-noto-color-emoji.ttf")
+    if (fontFile.exists()) return
+    runCatching {
+        fontDir.mkdirs()
+        val bytes = kotlinx.coroutines.runBlocking { Res.readBytes("font/noto_color_emoji.ttf") }
+        fontFile.writeBytes(bytes)
+        ProcessBuilder("fc-cache", "-f", fontDir.absolutePath).start().waitFor()
+    }
+}
+
 fun main() {
+    ensureEmojiFontInstalled()
+
     val koinApp = startKoin {
         modules(desktopAppModule)
     }

@@ -13,6 +13,7 @@ import rhythm.composeapp.generated.resources.Res
 import rhythm.composeapp.generated.resources.inter_bold
 import rhythm.composeapp.generated.resources.inter_medium
 import rhythm.composeapp.generated.resources.inter_regular
+import rhythm.composeapp.generated.resources.noto_color_emoji
 import rhythm.composeapp.generated.resources.plus_jakarta_sans_bold
 import rhythm.composeapp.generated.resources.plus_jakarta_sans_semibold
 
@@ -20,10 +21,27 @@ import rhythm.composeapp.generated.resources.plus_jakarta_sans_semibold
 // Bundled via Compose Multiplatform Resources (commonMain/composeResources/font/)
 // instead of Android's Google-Fonts-provider — works on every target, not just
 // Android, and doesn't depend on GMS being present at runtime.
+//
+// This Linux environment has no color-emoji system font installed at all
+// (`fc-list | grep -i emoji` returns nothing), so every emoji glyph used
+// throughout the app (streak flame, notebook, lock/unlock, pin, journal
+// feelings, note templates) renders as an invisible tofu box. Rather than
+// replace every emoji usage with a vector icon (blocked anyway — see the
+// abandoned material-icons-extended attempt: this project's Compose 1.11.x
+// stack has no compatible fetchable version under this environment's
+// TLS/clock constraints), each font family appends Android Studio's bundled
+// NotoColorEmoji.ttf as a fallback: Compose resolves a glyph missing from the
+// primary typeface by walking to the next Font in the family, so this fixes
+// every emoji everywhere in one place instead of piecemeal.
+@Composable
+fun emojiFallback(weight: FontWeight): Font = Font(Res.font.noto_color_emoji, weight = weight)
+
 @Composable
 fun plusJakartaSansFamily(): FontFamily = FontFamily(
     Font(Res.font.plus_jakarta_sans_semibold, weight = FontWeight.SemiBold),
     Font(Res.font.plus_jakarta_sans_bold, weight = FontWeight.Bold),
+    emojiFallback(FontWeight.SemiBold),
+    emojiFallback(FontWeight.Bold),
 )
 
 @Composable
@@ -31,6 +49,9 @@ fun interFamily(): FontFamily = FontFamily(
     Font(Res.font.inter_regular, weight = FontWeight.Normal),
     Font(Res.font.inter_medium, weight = FontWeight.Medium),
     Font(Res.font.inter_bold, weight = FontWeight.Bold),
+    emojiFallback(FontWeight.Normal),
+    emojiFallback(FontWeight.Medium),
+    emojiFallback(FontWeight.Bold),
 )
 
 // ── Typography Scale ──────────────────────────────────────────────────────────
