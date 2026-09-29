@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,7 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +31,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,13 +56,27 @@ import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalSliderColors
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.components.drawCrystalMeshField
+import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedScreen
 import com.apagon.rhythm.ui.theme.AmbientBaseDark
 import com.apagon.rhythm.ui.theme.AmbientBaseLight
 import com.apagon.rhythm.ui.theme.crystalFieldBlobs
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import kotlin.math.roundToInt
 import org.koin.compose.viewmodel.koinViewModel
+
+/** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
+ * every settings card stacked one after another. "Recently Deleted" moves here from the top-level
+ * app sidebar (Stage 15a) per the confirmed decision that trash is secondary nav, not primary. */
+private enum class SettingsSection(val label: String) {
+    PROFILE("Profile"),
+    APPEARANCE("Appearance"),
+    LAYOUT("Layout & Calendar"),
+    DATA("Data"),
+    RECENTLY_DELETED("Recently Deleted"),
+    ABOUT("About")
+}
 
 // Desktop counterpart to androidMain's SettingsScreen.kt (Stage 11) — a
 // LazyColumn of sections rather than that 1512-line screen's full layout
@@ -103,46 +122,197 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     var showArchivedTodos by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
 
+    var selectedSection by remember { mutableStateOf(SettingsSection.PROFILE) }
+
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Settings") }) }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            item {
-                SettingsSection("Profile") {
+        Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                modifier = Modifier.width(200.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 8.dp)
+            ) {
+                SettingsSection.entries.forEach { section ->
+                    val isSelected = section == selectedSection
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { showEditProfile = true },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Text(
-                                userNickname.ifBlank { userName.ifBlank { "Add your name" } },
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .then(
+                                if (isSelected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
+                                else Modifier
                             )
-                            if (userPronouns.isNotBlank() || userAge.isNotBlank()) {
-                                Text(
-                                    listOf(userPronouns, userAge).filter { it.isNotBlank() }.joinToString(" • "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        TextButton(onClick = { showEditProfile = true }) { Text("Edit") }
+                            .clickable { selectedSection = section }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            section.label,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
 
-            item {
-                SettingsSection("Appearance") {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            VerticalDivider()
+
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                when (selectedSection) {
+                    SettingsSection.RECENTLY_DELETED -> DesktopRecentlyDeletedScreen()
+                    else -> Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        when (selectedSection) {
+                            SettingsSection.PROFILE -> ProfileSectionContent(
+                                userNickname = userNickname,
+                                userName = userName,
+                                userPronouns = userPronouns,
+                                userAge = userAge,
+                                onEdit = { showEditProfile = true }
+                            )
+                            SettingsSection.APPEARANCE -> AppearanceSectionContent(
+                                viewModel = viewModel,
+                                themeMode = themeMode,
+                                amoledMode = amoledMode,
+                                darkReadability = darkReadability,
+                                accentColorIndex = accentColorIndex,
+                                themeStyle = themeStyle,
+                                crystalStyle = crystalStyle,
+                                crystalIntensity = crystalIntensity,
+                                crystalBackground = crystalBackground,
+                                crystalMesh = crystalMesh,
+                                crystalBgColorIndex = crystalBgColorIndex,
+                                themeStyleExpanded = themeStyleExpanded,
+                                onToggleThemeStyleExpanded = { themeStyleExpanded = !themeStyleExpanded },
+                                crystalBackgroundExpanded = crystalBackgroundExpanded,
+                                onToggleCrystalBackgroundExpanded = { crystalBackgroundExpanded = !crystalBackgroundExpanded },
+                                crystalGlassExpanded = crystalGlassExpanded,
+                                onToggleCrystalGlassExpanded = { crystalGlassExpanded = !crystalGlassExpanded }
+                            )
+                            SettingsSection.LAYOUT -> LayoutSectionContent(
+                                viewModel = viewModel,
+                                homeViewCalendar = homeViewCalendar,
+                                swipeSectionsEnabled = swipeSectionsEnabled,
+                                calendarIntegrationEnabled = calendarIntegrationEnabled
+                            )
+                            SettingsSection.DATA -> DataSectionContent(
+                                viewModel = viewModel,
+                                backupState = backupState,
+                                archivedHabits = archivedHabits,
+                                archivedTodos = archivedTodos,
+                                onShowArchivedHabits = { showArchivedHabits = true },
+                                onShowArchivedTodos = { showArchivedTodos = true }
+                            )
+                            SettingsSection.ABOUT -> AboutSectionContent(onShowPrivacyPolicy = { showPrivacyPolicy = true })
+                            SettingsSection.RECENTLY_DELETED -> Unit
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showEditProfile) {
+        DesktopEditProfileSheet(
+            currentName = userName,
+            currentNickname = userNickname,
+            currentAge = userAge,
+            currentPronouns = userPronouns,
+            profilePictureUri = profilePictureUri,
+            onDismiss = { showEditProfile = false },
+            onPickPhoto = { viewModel.pickAndSetProfilePicture() },
+            onRemovePhoto = { viewModel.setProfilePictureUri(null) },
+            onSave = { name, nickname, age, pronouns ->
+                viewModel.setUserName(name)
+                viewModel.setUserNickname(nickname)
+                viewModel.setUserAge(age)
+                viewModel.setUserPronouns(pronouns)
+                showEditProfile = false
+            }
+        )
+    }
+
+    if (showArchivedHabits) {
+        DesktopArchivedHabitsSheet(
+            habits = archivedHabits,
+            onDismiss = { showArchivedHabits = false },
+            onUnarchive = { viewModel.unarchiveHabit(it) }
+        )
+    }
+
+    if (showArchivedTodos) {
+        DesktopArchivedTodosSheet(
+            todos = archivedTodos,
+            onDismiss = { showArchivedTodos = false },
+            onUnarchive = { viewModel.unarchiveTodo(it) }
+        )
+    }
+
+    if (showPrivacyPolicy) {
+        DesktopPrivacyPolicySheet(onDismiss = { showPrivacyPolicy = false })
+    }
+}
+
+@Composable
+private fun ProfileSectionContent(
+    userNickname: String,
+    userName: String,
+    userPronouns: String,
+    userAge: String,
+    onEdit: () -> Unit
+) {
+    SettingsSection("Profile") {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    userNickname.ifBlank { userName.ifBlank { "Add your name" } },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (userPronouns.isNotBlank() || userAge.isNotBlank()) {
+                    Text(
+                        listOf(userPronouns, userAge).filter { it.isNotBlank() }.joinToString(" • "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            TextButton(onClick = onEdit) { Text("Edit") }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSectionContent(
+    viewModel: DesktopSettingsViewModel,
+    themeMode: ThemeMode,
+    amoledMode: Boolean,
+    darkReadability: DarkReadability,
+    accentColorIndex: Int,
+    themeStyle: ThemeStyle,
+    crystalStyle: CrystalStyle,
+    crystalIntensity: Float,
+    crystalBackground: CrystalBackground,
+    crystalMesh: CrystalMesh,
+    crystalBgColorIndex: Int,
+    themeStyleExpanded: Boolean,
+    onToggleThemeStyleExpanded: () -> Unit,
+    crystalBackgroundExpanded: Boolean,
+    onToggleCrystalBackgroundExpanded: () -> Unit,
+    crystalGlassExpanded: Boolean,
+    onToggleCrystalGlassExpanded: () -> Unit
+) {
+    SettingsSection("Appearance") {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SettingsRow("Theme") {
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 ThemeMode.entries.forEach { mode ->
@@ -189,15 +359,13 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 }
                             }
                         }
-                    }
-                }
-            }
+        }
+    }
 
-            item {
-                SettingsExpandableCard(
+    SettingsExpandableCard(
                     title = "Theme Style",
                     expanded = themeStyleExpanded,
-                    onToggle = { themeStyleExpanded = !themeStyleExpanded },
+                    onToggle = onToggleThemeStyleExpanded,
                     summary = when (themeStyle) {
                         ThemeStyle.MATERIAL3 -> "Material 3"
                         ThemeStyle.EXPRESSIVE -> "Expressive"
@@ -241,14 +409,12 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                         }
                     }
                 }
-            }
 
-            if (themeStyle == ThemeStyle.CRYSTAL) {
-                item {
+    if (themeStyle == ThemeStyle.CRYSTAL) {
                     SettingsExpandableCard(
                         title = "Crystal Background",
                         expanded = crystalBackgroundExpanded,
-                        onToggle = { crystalBackgroundExpanded = !crystalBackgroundExpanded },
+                        onToggle = onToggleCrystalBackgroundExpanded,
                         summary = when (crystalBackground) {
                             CrystalBackground.MESH -> crystalMeshLabel(crystalMesh)
                             CrystalBackground.SOLID -> "Solid"
@@ -324,13 +490,11 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                             }
                         }
                     }
-                }
 
-                item {
                     SettingsExpandableCard(
                         title = "Glass",
                         expanded = crystalGlassExpanded,
-                        onToggle = { crystalGlassExpanded = !crystalGlassExpanded },
+                        onToggle = onToggleCrystalGlassExpanded,
                         summary = when (crystalStyle) {
                             CrystalStyle.SHEER -> "Sheer"
                             CrystalStyle.TINTED -> "Tinted"
@@ -409,110 +573,80 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                             }
                         }
                     }
-                }
-            }
+    }
+}
 
-            item {
-                SettingsSection("Layout") {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        SettingsRow("Calendar as home view") {
-                            Switch(checked = homeViewCalendar, onCheckedChange = { viewModel.setHomeViewCalendar(it) }, colors = crystalSwitchColors())
-                        }
-                        SettingsRow("Swipeable sections") {
-                            Switch(checked = swipeSectionsEnabled, onCheckedChange = { viewModel.setSwipeSectionsEnabled(it) }, colors = crystalSwitchColors())
-                        }
-                    }
-                }
+@Composable
+private fun LayoutSectionContent(
+    viewModel: DesktopSettingsViewModel,
+    homeViewCalendar: Boolean,
+    swipeSectionsEnabled: Boolean,
+    calendarIntegrationEnabled: Boolean
+) {
+    SettingsSection("Layout") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SettingsRow("Calendar as home view") {
+                Switch(checked = homeViewCalendar, onCheckedChange = { viewModel.setHomeViewCalendar(it) }, colors = crystalSwitchColors())
             }
-
-            item {
-                SettingsSection("Calendar Integration") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SettingsRow("Enable device calendars") {
-                            Switch(checked = calendarIntegrationEnabled, onCheckedChange = { viewModel.setCalendarIntegrationEnabled(it) }, colors = crystalSwitchColors())
-                        }
-                        if (calendarIntegrationEnabled) {
-                            Text(
-                                "No calendars found on this device.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                SettingsSection("Data Management") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { viewModel.exportBackup() }) { Text("Export Backup") }
-                            TextButton(onClick = { viewModel.importBackup() }) { Text("Import Backup") }
-                        }
-                        when (val state = backupState) {
-                            is DesktopBackupState.Success -> Text(state.message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-                            is DesktopBackupState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            DesktopBackupState.Idle -> {}
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { showArchivedHabits = true }) { Text("Archived Habits (${archivedHabits.size})") }
-                            TextButton(onClick = { showArchivedTodos = true }) { Text("Archived To-dos (${archivedTodos.size})") }
-                        }
-                    }
-                }
-            }
-
-            item {
-                SettingsSection("About") {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Rhythm", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { showPrivacyPolicy = true }, modifier = Modifier.padding(start = 0.dp)) {
-                            Text("Privacy Policy")
-                        }
-                    }
-                }
+            SettingsRow("Swipeable sections") {
+                Switch(checked = swipeSectionsEnabled, onCheckedChange = { viewModel.setSwipeSectionsEnabled(it) }, colors = crystalSwitchColors())
             }
         }
     }
 
-    if (showEditProfile) {
-        DesktopEditProfileSheet(
-            currentName = userName,
-            currentNickname = userNickname,
-            currentAge = userAge,
-            currentPronouns = userPronouns,
-            profilePictureUri = profilePictureUri,
-            onDismiss = { showEditProfile = false },
-            onPickPhoto = { viewModel.pickAndSetProfilePicture() },
-            onRemovePhoto = { viewModel.setProfilePictureUri(null) },
-            onSave = { name, nickname, age, pronouns ->
-                viewModel.setUserName(name)
-                viewModel.setUserNickname(nickname)
-                viewModel.setUserAge(age)
-                viewModel.setUserPronouns(pronouns)
-                showEditProfile = false
+    SettingsSection("Calendar Integration") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsRow("Enable device calendars") {
+                Switch(checked = calendarIntegrationEnabled, onCheckedChange = { viewModel.setCalendarIntegrationEnabled(it) }, colors = crystalSwitchColors())
             }
-        )
+            if (calendarIntegrationEnabled) {
+                Text(
+                    "No calendars found on this device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
+}
 
-    if (showArchivedHabits) {
-        DesktopArchivedHabitsSheet(
-            habits = archivedHabits,
-            onDismiss = { showArchivedHabits = false },
-            onUnarchive = { viewModel.unarchiveHabit(it) }
-        )
+@Composable
+private fun DataSectionContent(
+    viewModel: DesktopSettingsViewModel,
+    backupState: DesktopBackupState,
+    archivedHabits: List<*>,
+    archivedTodos: List<*>,
+    onShowArchivedHabits: () -> Unit,
+    onShowArchivedTodos: () -> Unit
+) {
+    SettingsSection("Data Management") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { viewModel.exportBackup() }) { Text("Export Backup") }
+                TextButton(onClick = { viewModel.importBackup() }) { Text("Import Backup") }
+            }
+            when (backupState) {
+                is DesktopBackupState.Success -> Text(backupState.message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                is DesktopBackupState.Error -> Text(backupState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                DesktopBackupState.Idle -> {}
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onShowArchivedHabits) { Text("Archived Habits (${archivedHabits.size})") }
+                TextButton(onClick = onShowArchivedTodos) { Text("Archived To-dos (${archivedTodos.size})") }
+            }
+        }
     }
+}
 
-    if (showArchivedTodos) {
-        DesktopArchivedTodosSheet(
-            todos = archivedTodos,
-            onDismiss = { showArchivedTodos = false },
-            onUnarchive = { viewModel.unarchiveTodo(it) }
-        )
-    }
-
-    if (showPrivacyPolicy) {
-        DesktopPrivacyPolicySheet(onDismiss = { showPrivacyPolicy = false })
+@Composable
+private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit) {
+    SettingsSection("About") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Rhythm", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
+                Text("Privacy Policy")
+            }
+        }
     }
 }
 
