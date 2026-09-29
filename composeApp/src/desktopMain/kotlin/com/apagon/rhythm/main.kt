@@ -2,9 +2,10 @@ package com.apagon.rhythm
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,16 +143,24 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
 // 7th tab here rather than introducing a different nav pattern (drawer/gear
 // icon) just for it — desktop has no bottom-nav real-estate constraint
 // forcing that, and every other stage (7-10) landed the same way.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DesktopAppRoot() {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted", "Clock", "Settings")
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(
+        // ScrollableTabRow, not TabRow — TabRow gives every tab the SAME width (total/tab count)
+        // and never lets one shrink below another, so at 8 tabs a narrow window forces each label
+        // to wrap one letter per line rather than truncate. Scrollable tabs keep their own natural
+        // width and the row scrolls horizontally instead, which is what actually degrades cleanly
+        // on resize — this is the layout-parity round's resize-misalignment fix for the one thing
+        // on screen at every width, not a per-row Arrangement.SpaceBetween case like the others.
+        ScrollableTabRow(
             selectedTabIndex = selectedTab,
             modifier = Modifier.crystalChromeSurface(),
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
+            edgePadding = 8.dp
         ) {
             tabs.forEachIndexed { index, label ->
                 Tab(

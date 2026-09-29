@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.apagon.rhythm.data.backup.BackupManaging
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.data.preferences.CrystalBackground
+import com.apagon.rhythm.data.preferences.CrystalMesh
+import com.apagon.rhythm.data.preferences.CrystalStyle
 import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemePreferences
+import com.apagon.rhythm.data.preferences.ThemeStyle
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.repository.TodoRepository
 import com.apagon.rhythm.platform.FilePicker
@@ -55,6 +59,52 @@ class DesktopSettingsViewModel(
     val accentColorIndex = themePreferences.accentColorIndex
     val accentColorArgb = themePreferences.accentColorArgb
     val swipeSectionsEnabled = themePreferences.swipeSectionsEnabled
+
+    // Crystal theme settings — the data layer (ThemePreferences) and the rendering kit
+    // (Crystal.kt/CrystalMeshField.kt) were already fully ported; this screen just never exposed
+    // them. See ref_notes for the layout-parity round these were activated in.
+    val themeStyle: StateFlow<ThemeStyle> = themePreferences.themeStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeStyle.MATERIAL3)
+    val crystalStyle: StateFlow<CrystalStyle> = themePreferences.crystalStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CrystalStyle.TINTED)
+    val crystalIntensity: StateFlow<Float> = themePreferences.crystalIntensity
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.5f)
+    val crystalBackground: StateFlow<CrystalBackground> = themePreferences.crystalBackground
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CrystalBackground.MESH)
+    val crystalMesh: StateFlow<CrystalMesh> = themePreferences.crystalMesh
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CrystalMesh.AURORA)
+    val crystalBackgroundColorIndex: StateFlow<Int> = themePreferences.crystalBackgroundColorIndex
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val crystalBackgroundColorArgb: StateFlow<Int?> = themePreferences.crystalBackgroundColorArgb
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun setThemeStyle(style: ThemeStyle) {
+        viewModelScope.launch { themePreferences.setThemeStyle(style) }
+    }
+
+    fun setCrystalStyle(style: CrystalStyle) {
+        viewModelScope.launch { themePreferences.setCrystalStyle(style) }
+    }
+
+    fun previewCrystalIntensity(value: Float) {
+        themePreferences.previewCrystalIntensity(value)
+    }
+
+    fun setCrystalIntensity(value: Float) {
+        viewModelScope.launch { themePreferences.setCrystalIntensity(value) }
+    }
+
+    fun setCrystalBackground(background: CrystalBackground) {
+        viewModelScope.launch { themePreferences.setCrystalBackground(background) }
+    }
+
+    fun setCrystalMesh(mesh: CrystalMesh) {
+        viewModelScope.launch { themePreferences.setCrystalMesh(mesh) }
+    }
+
+    fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
+        viewModelScope.launch { themePreferences.setCrystalBackgroundColor(index, argb) }
+    }
     val homeViewCalendar: StateFlow<Boolean> = themePreferences.homeViewCalendar
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val calendarListMode: StateFlow<Boolean> = themePreferences.calendarListMode

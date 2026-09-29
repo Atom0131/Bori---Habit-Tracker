@@ -18,6 +18,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButtonColors
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextFieldColors
@@ -284,6 +288,30 @@ fun crystalCheckboxColors(): CheckboxColors = if (isCrystal()) {
     )
 } else {
     CheckboxDefaults.colors()
+}
+
+/** A `RadioButton`'s colours. Strokes rather than a fill, so this only needs the accent pinned. */
+@Composable
+fun crystalRadioButtonColors(): RadioButtonColors = if (isCrystal()) {
+    RadioButtonDefaults.colors(
+        selectedColor = MaterialTheme.colorScheme.primary,
+        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+} else {
+    RadioButtonDefaults.colors()
+}
+
+/**
+ * A `Slider`'s colours. The inactive track is the part that matters — left at Material's default
+ * it is the flattest object on a Crystal settings screen.
+ */
+@Composable
+fun crystalSliderColors(): SliderColors = if (isCrystal()) {
+    SliderDefaults.colors(
+        inactiveTrackColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest)
+    )
+} else {
+    SliderDefaults.colors()
 }
 
 /**

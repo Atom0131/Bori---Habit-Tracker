@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,15 +8,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,15 +36,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.preferences.CrystalBackground
+import com.apagon.rhythm.data.preferences.CrystalMesh
+import com.apagon.rhythm.data.preferences.CrystalStyle
 import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
+import com.apagon.rhythm.data.preferences.ThemeStyle
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalRadioButtonColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalSliderColors
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.drawCrystalMeshField
+import com.apagon.rhythm.ui.theme.AmbientBaseDark
+import com.apagon.rhythm.ui.theme.AmbientBaseLight
+import com.apagon.rhythm.ui.theme.crystalFieldBlobs
 import com.apagon.rhythm.ui.theme.habitColorPalette
+import kotlin.math.roundToInt
 import org.koin.compose.viewmodel.koinViewModel
 
 // Desktop counterpart to androidMain's SettingsScreen.kt (Stage 11) — a
@@ -59,6 +78,17 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     val amoledMode by viewModel.amoledMode.collectAsState(initial = false)
     val darkReadability by viewModel.darkReadability.collectAsState(initial = DarkReadability.STANDARD)
     val accentColorIndex by viewModel.accentColorIndex.collectAsState(initial = 0)
+
+    val themeStyle by viewModel.themeStyle.collectAsState()
+    val crystalStyle by viewModel.crystalStyle.collectAsState()
+    val crystalIntensity by viewModel.crystalIntensity.collectAsState()
+    val crystalBackground by viewModel.crystalBackground.collectAsState()
+    val crystalMesh by viewModel.crystalMesh.collectAsState()
+    val crystalBgColorIndex by viewModel.crystalBackgroundColorIndex.collectAsState()
+
+    var themeStyleExpanded by remember { mutableStateOf(false) }
+    var crystalBackgroundExpanded by remember { mutableStateOf(false) }
+    var crystalGlassExpanded by remember { mutableStateOf(false) }
 
     val swipeSectionsEnabled by viewModel.swipeSectionsEnabled.collectAsState(initial = false)
     val homeViewCalendar by viewModel.homeViewCalendar.collectAsState()
@@ -89,11 +119,13 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
                                 userNickname.ifBlank { userName.ifBlank { "Add your name" } },
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             if (userPronouns.isNotBlank() || userAge.isNotBlank()) {
                                 Text(
@@ -155,6 +187,225 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                             .clickable { viewModel.setAccentColor(index) }
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsExpandableCard(
+                    title = "Theme Style",
+                    expanded = themeStyleExpanded,
+                    onToggle = { themeStyleExpanded = !themeStyleExpanded },
+                    summary = when (themeStyle) {
+                        ThemeStyle.MATERIAL3 -> "Material 3"
+                        ThemeStyle.EXPRESSIVE -> "Expressive"
+                        ThemeStyle.CRYSTAL -> "Crystal"
+                    }
+                ) {
+                    ThemeStyle.entries.forEachIndexed { i, style ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { viewModel.setThemeStyle(style) }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                colors = crystalRadioButtonColors(),
+                                selected = themeStyle == style,
+                                onClick = { viewModel.setThemeStyle(style) }
+                            )
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                Text(
+                                    when (style) {
+                                        ThemeStyle.MATERIAL3 -> "Material 3"
+                                        ThemeStyle.EXPRESSIVE -> "Material 3 Expressive"
+                                        ThemeStyle.CRYSTAL -> "Crystal"
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    when (style) {
+                                        ThemeStyle.MATERIAL3 -> "The classic Rhythm look"
+                                        ThemeStyle.EXPRESSIVE -> "Flat and bold, with a punchier palette"
+                                        ThemeStyle.CRYSTAL -> "Frosted glass panels over a soft colour field"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (i < ThemeStyle.entries.size - 1) {
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
+                    }
+                }
+            }
+
+            if (themeStyle == ThemeStyle.CRYSTAL) {
+                item {
+                    SettingsExpandableCard(
+                        title = "Crystal Background",
+                        expanded = crystalBackgroundExpanded,
+                        onToggle = { crystalBackgroundExpanded = !crystalBackgroundExpanded },
+                        summary = when (crystalBackground) {
+                            CrystalBackground.MESH -> crystalMeshLabel(crystalMesh)
+                            CrystalBackground.SOLID -> "Solid"
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { viewModel.setCrystalBackground(CrystalBackground.MESH) }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                colors = crystalRadioButtonColors(),
+                                selected = crystalBackground == CrystalBackground.MESH,
+                                onClick = { viewModel.setCrystalBackground(CrystalBackground.MESH) }
+                            )
+                            Text("Colour Field", style = MaterialTheme.typography.bodyLarge)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CrystalMesh.entries.filter { it != CrystalMesh.CUSTOM }.forEach { mesh ->
+                                CrystalMeshSwatch(
+                                    mesh = mesh,
+                                    selected = crystalBackground == CrystalBackground.MESH && crystalMesh == mesh,
+                                    onClick = {
+                                        viewModel.setCrystalBackground(CrystalBackground.MESH)
+                                        viewModel.setCrystalMesh(mesh)
+                                    }
+                                )
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable {
+                                    viewModel.setCrystalBackground(CrystalBackground.SOLID)
+                                    viewModel.setCrystalBackgroundColor(0, null)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                colors = crystalRadioButtonColors(),
+                                selected = crystalBackground == CrystalBackground.SOLID,
+                                onClick = {
+                                    viewModel.setCrystalBackground(CrystalBackground.SOLID)
+                                    viewModel.setCrystalBackgroundColor(0, null)
+                                }
+                            )
+                            Text("Solid", style = MaterialTheme.typography.bodyLarge)
+                        }
+                        if (crystalBackground == CrystalBackground.SOLID) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                habitColorPalette.forEachIndexed { index, color ->
+                                    val isSelected = crystalBgColorIndex == index
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (isSelected) 36.dp else 32.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .then(
+                                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                                else Modifier
+                                            )
+                                            .clickable { viewModel.setCrystalBackgroundColor(index, null) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsExpandableCard(
+                        title = "Glass",
+                        expanded = crystalGlassExpanded,
+                        onToggle = { crystalGlassExpanded = !crystalGlassExpanded },
+                        summary = when (crystalStyle) {
+                            CrystalStyle.SHEER -> "Sheer"
+                            CrystalStyle.TINTED -> "Tinted"
+                        }
+                    ) {
+                        CrystalStyle.entries.forEachIndexed { i, style ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { viewModel.setCrystalStyle(style) }
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    colors = crystalRadioButtonColors(),
+                                    selected = crystalStyle == style,
+                                    onClick = { viewModel.setCrystalStyle(style) }
+                                )
+                                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                    Text(
+                                        when (style) {
+                                            CrystalStyle.SHEER -> "Sheer"
+                                            CrystalStyle.TINTED -> "Tinted"
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        when (style) {
+                                            CrystalStyle.SHEER -> "More transparent — more of the colour field shows through"
+                                            CrystalStyle.TINTED -> "More opaque — easier to read, with richer depth"
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (i < CrystalStyle.entries.size - 1) {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "Glass Intensity",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "${(crystalIntensity * 100).roundToInt()}%",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Slider(
+                                colors = crystalSliderColors(),
+                                value = crystalIntensity,
+                                onValueChange = { viewModel.previewCrystalIntensity(it) },
+                                onValueChangeFinished = { viewModel.setCrystalIntensity(crystalIntensity) },
+                                valueRange = 0f..1f,
+                                steps = 19,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    "Clearer",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "Frostier",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -284,7 +535,93 @@ private fun SettingsRow(label: String, trailing: @Composable () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
         trailing()
+    }
+}
+
+/**
+ * Desktop port of the Android app's `SettingsExpandableCard` (`ui/settings/SettingsScreen.kt`) — a
+ * collapsed-by-default card with an optional one-line summary, replacing the always-expanded
+ * [SettingsSection] for the Crystal theme controls added in the layout-parity round. Desktop has no
+ * `material-icons-extended` dependency, so the expand/collapse chevron is a plain glyph via `Text`
+ * rather than `Icons.Default.ExpandMore`/`ExpandLess`, matching the convention already established
+ * in `DesktopJournalWeekStrip.kt`.
+ */
+@Composable
+private fun SettingsExpandableCard(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    summary: String? = null,
+    content: @Composable () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth().crystalCardSurface()) {
+        Column(Modifier.animateContentSize()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (!expanded && summary != null) {
+                    Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(
+                    if (expanded) "▴" else "▾",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Column(modifier = Modifier.padding(bottom = 4.dp)) { content() }
+            }
+        }
+    }
+}
+
+private fun crystalMeshLabel(mesh: CrystalMesh): String = when (mesh) {
+    CrystalMesh.AURORA -> "Aurora"
+    CrystalMesh.EMBER -> "Ember"
+    CrystalMesh.VERDANT -> "Verdant"
+    CrystalMesh.MIST -> "Mist"
+    CrystalMesh.ROSE -> "Rose"
+    CrystalMesh.TIDE -> "Tide"
+    CrystalMesh.INDIGO -> "Indigo"
+    CrystalMesh.ORCHID -> "Orchid"
+    CrystalMesh.DUNE -> "Dune"
+    CrystalMesh.GRAPHITE -> "Graphite"
+    CrystalMesh.CUSTOM -> "Custom"
+}
+
+/** One mesh swatch, drawn with the same [drawCrystalMeshField] the real ambient field uses, so a
+ * swatch cannot drift from what tapping it produces. */
+@Composable
+private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () -> Unit) {
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    val blobs = crystalFieldBlobs(mesh, dark)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .then(
+                    if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    else Modifier
+                )
+                .clickable(onClick = onClick)
+        ) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCrystalMeshField(base = base, blobs = blobs, dark = dark)
+            }
+        }
     }
 }

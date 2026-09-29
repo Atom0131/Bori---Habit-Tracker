@@ -53,6 +53,7 @@ import com.apagon.rhythm.ui.alarms.TimerViewModel
 import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
 import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedViewModel
 import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
+import com.apagon.rhythm.ui.habit.HabitListViewModel
 import com.apagon.rhythm.ui.journal.JournalViewModel
 import com.apagon.rhythm.ui.notes.NoteEditorViewModel
 import com.apagon.rhythm.ui.notes.NotebookDetailViewModel
@@ -124,6 +125,12 @@ val desktopAppModule = module {
     single<FilePicker> { DesktopFilePickerService() }
     single<com.apagon.rhythm.platform.GlassBlur> { com.apagon.rhythm.platform.DesktopGlassBlur() }
     viewModel { DesktopHabitViewModel(get(), get(), get(), get()) }
+    // The Habits/Today screen's grouped/streak/%-done state — see
+    // ref_notes for the layout-parity round this was activated in. Every
+    // dependency below was already registered for other screens (Todo,
+    // Calendar, Journal, Settings); HabitListViewModel itself just hadn't
+    // been wired into Koin yet.
+    viewModel { HabitListViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { TodoViewModel(get(), get(), get(), get()) }
     viewModel { DesktopRecentlyDeletedViewModel(get(), get()) }
     viewModel { DesktopCalendarViewModel(get(), get()) }

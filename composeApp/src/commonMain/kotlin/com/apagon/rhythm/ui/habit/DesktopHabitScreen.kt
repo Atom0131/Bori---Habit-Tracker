@@ -1,22 +1,29 @@
 package com.apagon.rhythm.ui.habit
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,42 +31,63 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.model.HabitFrequency
+import com.apagon.rhythm.data.preferences.ThemePreferences
+import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.QrCodeRenderer
+import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
-import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
-import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
-import com.apagon.rhythm.ui.components.crystalTileSurface
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-// Stage 3's minimal desktop Habit screen — a plain list/add/complete UI
-// against Compose Multiplatform's common artifacts (not androidx.compose),
-// so this same file is a candidate to share with Android later rather than
-// a throwaway. Deliberately not a port of the Android HabitListScreen.kt
-// (which genuinely depends on real androidx.compose.* + BackHandler and
-// isn't directly shareable) — only its list-grouping/tap-to-complete shape
-// is borrowed.
+// Stage 3's minimal desktop Habit screen, extended for the layout-parity round to match the
+// phone app's organization: a greeting/streak/%-done header and Daily/Weekly/Monthly collapsible
+// sections (ui/habit/HabitListScreen.kt, HabitFrequencySection.kt on Android), while deliberately
+// staying a plain list rather than a full port (no checklist items, no swipe actions, no per-habit
+// edit sheet — none of those exist on desktop today). Grouped/streak/%-done state comes from
+// HabitListViewModel, which already implements it and just wasn't wired into Koin until now;
+// DesktopHabitViewModel is kept for its desktop-only sync/QR/add-habit responsibilities.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
+fun DesktopHabitScreen(
+    viewModel: DesktopHabitViewModel = koinViewModel(),
+    habitListViewModel: HabitListViewModel = koinViewModel()
+) {
     val state by viewModel.uiState.collectAsState()
     val peerAddress by viewModel.peerAddress.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     var newHabitName by remember { mutableStateOf("") }
+    var showSync by remember { mutableStateOf(false) }
     var showQrCode by remember { mutableStateOf(false) }
     val qrCodeRenderer = koinInject<QrCodeRenderer>()
     // Stage 9: tapping a habit navigates to DesktopHabitDetailScreen (Stats).
     // Plain local state, matching this project's existing showX/editingX
     // toggle pattern rather than a real navigation library (Stage 11 territory).
     var selectedHabitId by remember { mutableStateOf<Long?>(null) }
+
+    val themePreferences = koinInject<ThemePreferences>()
+    val userName by themePreferences.userName.collectAsState(initial = "")
+    val profilePictureUri by themePreferences.profilePictureUri.collectAsState(initial = null)
+
+    val habitsUiState by habitListViewModel.habitsUiState.collectAsState()
+    val dailyStreak by habitListViewModel.dailyStreak.collectAsState()
+    val completionRate by habitListViewModel.completionRate.collectAsState()
+
+    // Seeded fully closed, matching the phone app's HabitListScreen: the planner opens with every
+    // primary section closed rather than in a mix of open/closed states.
+    var collapsedSections by remember {
+        mutableStateOf(setOf(HabitFrequency.DAILY, HabitFrequency.WEEKLY, HabitFrequency.MONTHLY))
+    }
+    var expandedDoneGroups by remember { mutableStateOf(setOf<HabitFrequency>()) }
 
     selectedHabitId?.let { habitId ->
         DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
@@ -71,105 +99,233 @@ fun DesktopHabitScreen(viewModel: DesktopHabitViewModel = koinViewModel()) {
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Rhythm — ${state.date}") }) }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = newHabitName,
-                    onValueChange = { newHabitName = it },
-                    label = { Text("New habit") },
-                    colors = crystalBareTextFieldColors(),
-                    modifier = Modifier.weight(1f)
-                )
-                Button(
-                    colors = crystalButtonColors(),
-                    onClick = {
-                        viewModel.addHabit(newHabitName)
-                        newHabitName = ""
-                    }
-                ) {
-                    Text("Add")
-                }
-            }
-
-            // Stage 13: this device's own address, read-only — the user reads
-            // it off this line and types it into the phone's peer-address
-            // field (desktop is always the sync server). The QR toggle below
-            // is the easier path — same address, scanned instead of typed.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    .crystalCardSurface().padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Your address: ${viewModel.ownSyncAddress}",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = { showQrCode = !showQrCode }) {
-                    Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
-                }
-            }
-            if (showQrCode) {
-                qrCodeRenderer.QrCodeImage(
-                    text = viewModel.ownSyncAddressForPairing,
-                    modifier = Modifier.size(200.dp).padding(top = 8.dp)
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item {
+                HomeHeader(
+                    dailyStreak = dailyStreak,
+                    completionRate = completionRate,
+                    userName = userName,
+                    profilePictureUri = profilePictureUri
                 )
             }
 
-            // Stage 4b: local sync test UI, still used for the reverse
-            // direction (desktop-initiates-sync) and local dev testing.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
-                    .crystalCardSurface().padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = peerAddress,
-                    onValueChange = { viewModel.updatePeerAddress(it) },
-                    label = { Text("Peer address (host:port)") },
-                    colors = crystalBareTextFieldColors(),
-                    modifier = Modifier.weight(1f)
-                )
-                Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
-                    Text("Sync")
-                }
-            }
-            if (syncStatus != null) {
-                Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
-            }
-
-            if (state.habits.isEmpty()) {
-                Text(
-                    "No habits scheduled for today yet — add one above.",
-                    modifier = Modifier.padding(top = 24.dp)
-                )
-            } else {
-                LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
-                    items(state.habits, key = { it.id }) { habit ->
-                        val isDone = habit.id in state.completedHabitIds
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                .crystalTileSurface().padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            item {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newHabitName,
+                            onValueChange = { newHabitName = it },
+                            label = { Text("New habit") },
+                            colors = crystalBareTextFieldColors(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            colors = crystalButtonColors(),
+                            onClick = {
+                                viewModel.addHabit(newHabitName)
+                                newHabitName = ""
+                            }
                         ) {
-                            Checkbox(
-                                checked = isDone,
-                                onCheckedChange = { viewModel.toggleCompletion(habit.id, isDone) },
-                                colors = crystalCheckboxColors()
-                            )
-                            Text(
-                                habit.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f).clickable { selectedHabitId = habit.id }
-                            )
+                            Text("Add")
                         }
                     }
+
+                    TextButton(onClick = { showSync = !showSync }, modifier = Modifier.padding(top = 8.dp)) {
+                        Text(if (showSync) "Hide sync with phone" else "Sync with phone")
+                    }
+
+                    if (showSync) {
+                        // Stage 13: this device's own address, read-only — the user reads it off
+                        // this line and types it into the phone's peer-address field (desktop is
+                        // always the sync server). The QR toggle below is the easier path — same
+                        // address, scanned instead of typed.
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                .crystalCardSurface().padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Your address: ${viewModel.ownSyncAddress}",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            TextButton(onClick = { showQrCode = !showQrCode }) {
+                                Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
+                            }
+                        }
+                        if (showQrCode) {
+                            qrCodeRenderer.QrCodeImage(
+                                text = viewModel.ownSyncAddressForPairing,
+                                modifier = Modifier.size(200.dp).padding(top = 8.dp)
+                            )
+                        }
+
+                        // Stage 4b: local sync test UI, still used for the reverse direction
+                        // (desktop-initiates-sync) and local dev testing.
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                .crystalCardSurface().padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = peerAddress,
+                                onValueChange = { viewModel.updatePeerAddress(it) },
+                                label = { Text("Peer address (host:port)") },
+                                colors = crystalBareTextFieldColors(),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
+                                Text("Sync")
+                            }
+                        }
+                        if (syncStatus != null) {
+                            Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+            }
+
+            val uiState = habitsUiState
+            val anyHabits = uiState.groupedHabits.values.any { it.isNotEmpty() }
+            if (!anyHabits) {
+                item {
+                    Text(
+                        "No habits scheduled for today yet — add one above.",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                for (frequency in listOf(HabitFrequency.DAILY, HabitFrequency.WEEKLY, HabitFrequency.MONTHLY)) {
+                    val pending = uiState.pendingGroupedHabits[frequency].orEmpty()
+                    val completed = uiState.completedHabits.filter { it.frequency == frequency }
+                    habitFrequencySection(
+                        frequency = frequency,
+                        pending = pending,
+                        completed = completed,
+                        expanded = frequency !in collapsedSections,
+                        onToggleExpanded = {
+                            collapsedSections = if (frequency in collapsedSections) {
+                                collapsedSections - frequency
+                            } else {
+                                collapsedSections + frequency
+                            }
+                        },
+                        doneExpanded = frequency in expandedDoneGroups,
+                        onToggleDone = {
+                            expandedDoneGroups = if (frequency in expandedDoneGroups) {
+                                expandedDoneGroups - frequency
+                            } else {
+                                expandedDoneGroups + frequency
+                            }
+                        },
+                        onToggleCompletion = habitListViewModel::toggleCompletion,
+                        onView = { habit -> selectedHabitId = habit.id }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeHeader(
+    dailyStreak: Int,
+    completionRate: Int,
+    userName: String,
+    profilePictureUri: String?
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(48.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                if (profilePictureUri != null) {
+                    val imageLoader = koinInject<ImageBitmapLoader>()
+                    imageLoader.LoadedImage(
+                        path = profilePictureUri,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        "?",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "Hello",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = userName.ifBlank { "Friend" },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxHeight().crystalCardSurface()) {
+                Column(
+                    modifier = Modifier.padding(16.dp).fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "🔥 $dailyStreak",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Day streak",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight().crystalCardSurface()) {
+                Column(
+                    modifier = Modifier.padding(16.dp).fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "$completionRate%",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        LinearProgressIndicator(
+                            progress = { (completionRate / 100f).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                    Text(
+                        text = "Done today",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
