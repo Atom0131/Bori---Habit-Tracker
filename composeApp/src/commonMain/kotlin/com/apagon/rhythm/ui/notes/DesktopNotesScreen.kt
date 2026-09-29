@@ -26,6 +26,7 @@ import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
+import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
@@ -200,7 +201,7 @@ fun DesktopNotesScreen(
             TopAppBar(
                 title = { Text("Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
                 actions = {
-                    TextButton(onClick = onNavigateToSearch) { Text("⌕") }
+                    CrystalIconButton(glyph = "⌕", onClick = onNavigateToSearch)
                 },
                 colors = crystalTopAppBarColors()
             )
@@ -284,7 +285,7 @@ private fun DesktopNotebookCard(
                     Text("📓", style = MaterialTheme.typography.titleMedium)
                 }
                 Box {
-                    TextButton(onClick = { showMenu = true }) { Text("⋮") }
+                    CrystalIconButton(glyph = "⋮", onClick = { showMenu = true })
                     RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit() })
                         DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete() })

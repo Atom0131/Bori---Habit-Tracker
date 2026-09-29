@@ -2,6 +2,7 @@ package com.apagon.rhythm.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,7 @@ import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
@@ -227,6 +229,25 @@ fun Modifier.crystalChipSurface(fill: Color): Modifier =
 fun Modifier.crystalIconButtonSurface(): Modifier = if (isCrystal()) {
     this.crystalSurface(shape = CircleShape, fill = MaterialTheme.colorScheme.surfaceContainerHighest, elevation = 0.dp, crystalElevation = 1.dp)
 } else this
+
+/** Stage 17f: every glyph-only action in this app (search "⌕", overflow "⋮", lock "🔓"/"🔒", close
+ * "×") was a bare `TextButton { Text(glyph) }` — `TextButton`'s content padding is sized for text,
+ * not a single centered glyph, so these all read as cramped/off-center. A fixed-size circular
+ * touch target with the glyph centered inside it, using the already-built (but until now unused)
+ * [crystalIconButtonSurface] for the Crystal-only glass fill. */
+@Composable
+fun CrystalIconButton(glyph: String, onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 36.dp) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .crystalIconButtonSurface()
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = glyph, style = MaterialTheme.typography.titleMedium)
+    }
+}
 
 @Composable
 fun Modifier.crystalFabSurface(): Modifier = if (isCrystal()) {

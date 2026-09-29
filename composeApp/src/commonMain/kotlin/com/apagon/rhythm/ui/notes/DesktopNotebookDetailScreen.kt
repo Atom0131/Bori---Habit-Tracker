@@ -28,6 +28,7 @@ import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
+import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
@@ -101,8 +102,8 @@ fun DesktopNotebookDetailScreen(
                 },
                 navigationIcon = {
                     when {
-                        searchExpanded -> TextButton(onClick = { searchExpanded = false; viewModel.setSearchQuery("") }) { Text("×") }
-                        isInSelectMode -> TextButton(onClick = { viewModel.clearSelection() }) { Text("×") }
+                        searchExpanded -> CrystalIconButton(glyph = "×", onClick = { searchExpanded = false; viewModel.setSearchQuery("") })
+                        isInSelectMode -> CrystalIconButton(glyph = "×", onClick = { viewModel.clearSelection() })
                         else -> TextButton(onClick = onNavigateBack) { Text("← Back") }
                     }
                 },
@@ -112,7 +113,7 @@ fun DesktopNotebookDetailScreen(
                         TextButton(onClick = { showBulkTagSheet = true }) { Text("Tag") }
                         TextButton(onClick = { showDeleteConfirm = true }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                     } else if (!searchExpanded) {
-                        TextButton(onClick = { searchExpanded = true }) { Text("⌕") }
+                        CrystalIconButton(glyph = "⌕", onClick = { searchExpanded = true })
                         TextButton(onClick = { showSortSheet = true }) { Text("Sort") }
                     }
                 },
@@ -372,7 +373,7 @@ private fun DesktopNoteItem(
                 }
                 if (!isInSelectMode) {
                     Box {
-                        TextButton(onClick = { showMenu = true }) { Text("⋮") }
+                        CrystalIconButton(glyph = "⋮", onClick = { showMenu = true })
                         RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(text = { Text(if (note.isPinned) "Unpin" else "Pin") }, onClick = { showMenu = false; onTogglePin() })
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showMenu = false; onMove() })

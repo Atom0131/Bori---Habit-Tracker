@@ -24,6 +24,7 @@ import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
+import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
@@ -84,7 +85,7 @@ fun DesktopEntryEditorPane(
     ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onDismiss) { Text("×") }
+                        CrystalIconButton(glyph = "×", onClick = onDismiss)
                         if (entry != null) {
                             TextButton(onClick = { onDelete(entry); onDismiss() }) {
                                 Text("Delete", color = MaterialTheme.colorScheme.error)

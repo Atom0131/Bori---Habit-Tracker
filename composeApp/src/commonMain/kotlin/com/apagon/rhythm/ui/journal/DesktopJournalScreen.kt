@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.repository.LockType
+import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
@@ -85,7 +86,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     placeholder = { Text("Search journal...") },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
-                            TextButton(onClick = { viewModel.setSearchQuery("") }) { Text("×") }
+                            CrystalIconButton(glyph = "×", onClick = { viewModel.setSearchQuery("") }, size = 28.dp)
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
@@ -93,9 +94,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     singleLine = true
                 )
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { showLockSettings = true }) {
-                    Text(if (lockType == LockType.NONE) "🔓" else "🔒")
-                }
+                CrystalIconButton(glyph = if (lockType == LockType.NONE) "🔓" else "🔒", onClick = { showLockSettings = true })
             }
             }
 

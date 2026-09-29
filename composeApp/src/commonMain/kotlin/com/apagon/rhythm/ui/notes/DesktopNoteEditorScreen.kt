@@ -43,6 +43,7 @@ import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
+import com.apagon.rhythm.ui.components.CrystalIconButton
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
@@ -106,7 +107,7 @@ fun DesktopNoteEditorScreen(
                 actions = {
                     TextButton(onClick = { clipboard.setText(AnnotatedString(viewModel.exportMarkdown())) }) { Text("Copy") }
                     Box {
-                        TextButton(onClick = { showOverflowMenu = true }) { Text("⋮") }
+                        CrystalIconButton(glyph = "⋮", onClick = { showOverflowMenu = true })
                         RhythmDropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showOverflowMenu = false; showMoveSheet = true })
                             DropdownMenuItem(
