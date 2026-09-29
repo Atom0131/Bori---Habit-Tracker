@@ -3,9 +3,11 @@ package com.apagon.rhythm.ui.notes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +25,7 @@ import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
@@ -32,6 +35,15 @@ import org.koin.compose.viewmodel.koinViewModel
  * notebook detail ↔ note editor ↔ search), matching this project's existing
  * showX/selectedX toggle pattern (DesktopHabitScreen's selectedHabitId, Stage
  * 9) rather than a real navigation library, which is Stage 11+ territory.
+ *
+ * Stage 15c: once inside a notebook (Detail/Editor), the notebook list stays
+ * visible as a persistent left rail instead of being replaced by the
+ * notebook's content — the master-detail pattern research turned up as
+ * standard wherever an app has this exact list-of-things + one-thing's-
+ * content shape (Notion's page tree, Asana's task list + detail pane). The
+ * List state itself (browsing/creating notebooks) stays the full-width grid
+ * unchanged — it's the entry point, not a detail view, so there's nothing to
+ * show a detail pane against yet.
  */
 private sealed class NotesNavState {
     object List : NotesNavState()
@@ -49,21 +61,118 @@ fun DesktopNotesTab() {
             onNavigateToNotebook = { navState = NotesNavState.Detail(it) },
             onNavigateToSearch = { navState = NotesNavState.Search }
         )
-        is NotesNavState.Detail -> DesktopNotebookDetailScreen(
-            notebookId = state.notebookId,
-            onNavigateBack = { navState = NotesNavState.List },
-            onNavigateToNote = { noteId, notebookId, template -> navState = NotesNavState.Editor(noteId, notebookId, template) }
-        )
-        is NotesNavState.Editor -> DesktopNoteEditorScreen(
-            noteId = state.noteId,
-            notebookId = state.notebookId,
-            template = state.template,
-            onNavigateBack = { navState = NotesNavState.Detail(state.notebookId) }
-        )
+        is NotesNavState.Detail -> NotesWithRail(
+            selectedNotebookId = state.notebookId,
+            onSelectNotebook = { navState = NotesNavState.Detail(it) },
+            onExitToList = { navState = NotesNavState.List }
+        ) {
+            DesktopNotebookDetailScreen(
+                notebookId = state.notebookId,
+                onNavigateBack = { navState = NotesNavState.List },
+                onNavigateToNote = { noteId, notebookId, template -> navState = NotesNavState.Editor(noteId, notebookId, template) }
+            )
+        }
+        is NotesNavState.Editor -> NotesWithRail(
+            selectedNotebookId = state.notebookId,
+            onSelectNotebook = { navState = NotesNavState.Detail(it) },
+            onExitToList = { navState = NotesNavState.List }
+        ) {
+            DesktopNoteEditorScreen(
+                noteId = state.noteId,
+                notebookId = state.notebookId,
+                template = state.template,
+                onNavigateBack = { navState = NotesNavState.Detail(state.notebookId) }
+            )
+        }
         is NotesNavState.Search -> DesktopNotesSearchScreen(
             onNavigateBack = { navState = NotesNavState.List },
             onNavigateToNote = { noteId, notebookId -> navState = NotesNavState.Editor(noteId, notebookId, null) }
         )
+    }
+}
+
+/** The Stage 15c split-pane shell: a persistent notebook rail on the left, [content] (either the
+ * notebook's note list or the note editor) filling the rest. */
+@Composable
+private fun NotesWithRail(
+    selectedNotebookId: Long,
+    onSelectNotebook: (Long) -> Unit,
+    onExitToList: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        NotebookRail(
+            selectedNotebookId = selectedNotebookId,
+            onSelectNotebook = onSelectNotebook,
+            onExitToList = onExitToList,
+            modifier = Modifier.width(240.dp).fillMaxHeight()
+        )
+        VerticalDivider()
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { content() }
+    }
+}
+
+@Composable
+private fun NotebookRail(
+    selectedNotebookId: Long,
+    onSelectNotebook: (Long) -> Unit,
+    onExitToList: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: NotesViewModel = koinViewModel()
+) {
+    val notebooksWithCount by viewModel.notebooksWithCount.collectAsState()
+
+    Column(modifier = modifier.padding(vertical = 8.dp)) {
+        TextButton(onClick = onExitToList, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Text("← All notebooks")
+        }
+        LazyColumnRailItems(
+            notebooks = notebooksWithCount,
+            selectedNotebookId = selectedNotebookId,
+            onSelectNotebook = onSelectNotebook
+        )
+    }
+}
+
+@Composable
+private fun LazyColumnRailItems(
+    notebooks: List<NotebookWithCount>,
+    selectedNotebookId: Long,
+    onSelectNotebook: (Long) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items(notebooks, key = { it.notebook.id }) { item ->
+            val isSelected = item.notebook.id == selectedNotebookId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isSelected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
+                        else Modifier
+                    )
+                    .clickable { onSelectNotebook(item.notebook.id) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.notebook.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = item.count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
