@@ -40,8 +40,7 @@ import com.apagon.rhythm.platform.DesktopAlarmClockService
 import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
 import com.apagon.rhythm.ui.alarms.DesktopAlertContent
-import com.apagon.rhythm.ui.calendar.DesktopCalendarScreen
-import com.apagon.rhythm.ui.habit.DesktopHabitScreen
+import com.apagon.rhythm.ui.habit.DesktopTodayScreen
 import com.apagon.rhythm.ui.journal.DesktopJournalScreen
 import com.apagon.rhythm.ui.notes.DesktopNotesTab
 import com.apagon.rhythm.ui.reminders.DesktopClockScreen
@@ -49,7 +48,6 @@ import com.apagon.rhythm.ui.components.crystalChromeSurface
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmThemedRoot
-import com.apagon.rhythm.ui.todos.DesktopTodoScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.core.context.startKoin
@@ -157,7 +155,11 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
 // place, since the rail's width is fixed rather than shared out across N tabs. "Recently
 // Deleted" is deliberately dropped from this list — every comparison app treats trash as
 // secondary, not primary, nav — and moves into Settings as a sub-section in Stage 15f.
-private val SIDEBAR_SECTIONS = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Clock", "Settings")
+// Stage 17e: "Habits"/"To-dos"/"Calendar" merged into one "Today" section — the real Android app
+// has no separate tabs for these either (MainActivity.kt's bottom nav is Today/Journal/Clock/Notes
+// only), so this now mirrors mobile's actual grouping instead of Stage 15a's general
+// desktop-app-research guess.
+private val SIDEBAR_SECTIONS = listOf("Today", "Journal", "Notes", "Clock", "Settings")
 private val SIDEBAR_WIDTH = 220.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -190,13 +192,11 @@ private fun DesktopAppRoot() {
         }
         Column(modifier = Modifier.fillMaxSize()) {
             when (selectedSection) {
-                0 -> DesktopHabitScreen()
-                1 -> DesktopTodoScreen()
-                2 -> DesktopCalendarScreen()
-                3 -> DesktopJournalScreen()
-                4 -> DesktopNotesTab()
-                5 -> DesktopClockScreen()
-                6 -> DesktopSettingsScreen()
+                0 -> DesktopTodayScreen()
+                1 -> DesktopJournalScreen()
+                2 -> DesktopNotesTab()
+                3 -> DesktopClockScreen()
+                4 -> DesktopSettingsScreen()
             }
         }
     }

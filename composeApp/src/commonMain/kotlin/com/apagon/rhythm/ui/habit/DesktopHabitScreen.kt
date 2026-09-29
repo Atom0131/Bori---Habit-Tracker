@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
@@ -39,15 +39,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.HabitFrequency
+import com.apagon.rhythm.data.model.TodoPriority
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.QrCodeRenderer
+import com.apagon.rhythm.ui.todos.TodoViewModel
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.DesktopLayout
-import com.apagon.rhythm.ui.components.crystalScaffoldColor
-import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.todos.todoSection
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -58,11 +59,18 @@ import org.koin.compose.viewmodel.koinViewModel
 // edit sheet — none of those exist on desktop today). Grouped/streak/%-done state comes from
 // HabitListViewModel, which already implements it and just wasn't wired into Koin until now;
 // DesktopHabitViewModel is kept for its desktop-only sync/QR/add-habit responsibilities.
+// Stage 17e: the real Android app has no separate Habits/To-dos/Calendar tabs — HabitListScreen.kt
+// (the "Today" tab) shows habits and to-dos together in one continuous list. This is now
+// DesktopTodayScreen's list-mode content: habit sections plus, via DesktopHabitList's extraItems
+// hook, a to-do section appended in the same LazyColumn. No longer called directly from the
+// sidebar (DesktopTodayScreen.kt owns that now) — kept as its own composable since the
+// selectedHabitId/detail-pane split-pane logic (Stage 15e) is still exactly right for list mode.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DesktopHabitScreen(
+internal fun DesktopTodayListContent(
     viewModel: DesktopHabitViewModel = koinViewModel(),
-    habitListViewModel: HabitListViewModel = koinViewModel()
+    habitListViewModel: HabitListViewModel = koinViewModel(),
+    todoViewModel: TodoViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val peerAddress by viewModel.peerAddress.collectAsState()
@@ -83,6 +91,10 @@ fun DesktopHabitScreen(
     val habitsUiState by habitListViewModel.habitsUiState.collectAsState()
     val dailyStreak by habitListViewModel.dailyStreak.collectAsState()
     val completionRate by habitListViewModel.completionRate.collectAsState()
+
+    val pendingTodos by todoViewModel.pendingTodos.collectAsState()
+    val completedTodos by todoViewModel.completedTodos.collectAsState()
+    var newTodoTitle by remember { mutableStateOf("") }
 
     // Seeded fully closed, matching the phone app's HabitListScreen: the planner opens with every
     // primary section closed rather than in a mix of open/closed states.
@@ -123,7 +135,23 @@ fun DesktopHabitScreen(
                 onToggleDoneExpanded = { frequency ->
                     expandedDoneGroups = if (frequency in expandedDoneGroups) expandedDoneGroups - frequency else expandedDoneGroups + frequency
                 },
-                onSelectHabit = { selectedHabitId = it }
+                onSelectHabit = { selectedHabitId = it },
+                extraItems = {
+                    todoSection(
+                        pending = pendingTodos,
+                        completed = completedTodos,
+                        newTitle = newTodoTitle,
+                        onNewTitleChange = { newTodoTitle = it },
+                        onAdd = {
+                            if (newTodoTitle.isNotBlank()) {
+                                todoViewModel.addTodo(title = newTodoTitle, note = "", dueDate = "", priority = TodoPriority.NONE)
+                                newTodoTitle = ""
+                            }
+                        },
+                        onToggle = { todoViewModel.toggleCompletion(it) },
+                        onDelete = { todoViewModel.deleteTodo(it) }
+                    )
+                }
             )
         }
 
@@ -138,7 +166,7 @@ fun DesktopHabitScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DesktopHabitList(
+internal fun DesktopHabitList(
     viewModel: DesktopHabitViewModel,
     habitListViewModel: HabitListViewModel,
     state: DesktopHabitUiState,
@@ -160,19 +188,17 @@ private fun DesktopHabitList(
     onToggleCollapsed: (HabitFrequency) -> Unit,
     expandedDoneGroups: Set<HabitFrequency>,
     onToggleDoneExpanded: (HabitFrequency) -> Unit,
-    onSelectHabit: (Long) -> Unit
+    onSelectHabit: (Long) -> Unit,
+    extraItems: LazyListScope.() -> Unit = {}
 ) {
-    // Stage 17b: previously a Scaffold TopAppBar("Rhythm — date") sat directly above HomeHeader's
-    // own "Hello / {name}" row — two rows both partly about identity/date, and the TopAppBar was
-    // unthemed (flat white) on top of it. Dropped the TopAppBar entirely; the date now lives in
-    // HomeHeader's own top-right corner, one themed header instead of two.
-    Scaffold(
-        containerColor = crystalScaffoldColor(),
-        contentColor = crystalScaffoldContentColor()
-    ) { padding ->
+    // Stage 17e: no longer owns its own Scaffold — DesktopTodayScreen provides the single shared
+    // Scaffold/TopAppBar/background for the whole Today screen (list mode + calendar mode both
+    // live under it), so this is just the scrollable content now. extraItems lets Today append the
+    // to-do section after the habit sections in the same LazyColumn, matching how the real Android
+    // "Today" screen shows habits and to-dos in one continuous list, not two separate screens.
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         // Stage 16a: same centered content-width cap Stage 15g gave To-dos/Clock, now applied
         // here too so every primary screen's card column reads the same width.
-        Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
             item {
                 HomeHeader(
@@ -292,7 +318,8 @@ private fun DesktopHabitList(
                     )
                 }
             }
-        }
+
+            extraItems()
         }
     }
 }

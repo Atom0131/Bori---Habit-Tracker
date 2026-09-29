@@ -12,10 +12,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
+import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCardSurface
@@ -42,67 +41,48 @@ import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
-import com.apagon.rhythm.ui.components.crystalScaffoldColor
-import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
-import com.apagon.rhythm.ui.components.crystalTopAppBarColors
+import com.apagon.rhythm.ui.reminders.DesktopAddReminderSheet
+import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Stage 8's desktop Calendar tab: month grid plus a day-detail pane of
- * in-app calendar events only (no Reminders section, no habit list/checklist
- * toggling — see DesktopCalendarViewModel's doc comment and
- * ref_notes/plan_2026-09-24_calendar_port.md for why those are dropped).
+ * Stage 8's desktop Calendar tab, Stage 17e: no longer its own sidebar screen — this is
+ * DesktopTodayScreen's calendar-mode content now (the real Android app has no separate Calendar
+ * tab; Today's calendarMode toggle shows this instead of the habit/to-do list). Dropped its own
+ * Scaffold/TopAppBar — DesktopTodayScreen owns the shared one — and the FAB is now a self-contained
+ * Box overlay (same pattern DesktopJournalScreen.kt already uses without a Scaffold) instead of
+ * Scaffold's floatingActionButton slot. Day-detail now also shows Reminders for the selected day
+ * (reusing ReminderViewModel, previously Clock-only — matches mobile's DayDetailView.kt, which
+ * shows events and reminders together, not Reminders under Alarms/Timers).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel()) {
+internal fun DesktopTodayCalendarContent(
+    viewModel: DesktopCalendarViewModel = koinViewModel(),
+    reminderViewModel: ReminderViewModel = koinViewModel()
+) {
     val currentMonth by viewModel.currentMonth.collectAsState()
     val selectedDayState = viewModel.selectedDay.collectAsState()
     val selectedDay by selectedDayState
     val monthIndicatorDates by viewModel.monthIndicatorDates.collectAsState()
     val selectedDayEvents by viewModel.selectedDayEvents.collectAsState()
+    val upcomingReminders by reminderViewModel.upcomingReminders.collectAsState()
+    val pastReminders by reminderViewModel.pastReminders.collectAsState()
+    val completedReminders by reminderViewModel.completedReminders.collectAsState()
     var editingEvent by remember { mutableStateOf<CalendarEvent?>(null) }
     var showAddEventSheet by remember { mutableStateOf(false) }
+    var showAddReminder by remember { mutableStateOf(false) }
     val onDayClick = remember(viewModel) { viewModel::selectDay }
 
-    Scaffold(
-        containerColor = crystalScaffoldColor(),
-        contentColor = crystalScaffoldContentColor(),
-        topBar = {
-            TopAppBar(
-                title = { Text("Calendar") },
-                actions = {
-                    TextButton(onClick = { viewModel.selectDay(LocalDate.now()) }) {
-                        Text("Today")
-                    }
-                },
-                colors = crystalTopAppBarColors()
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddEventSheet = true },
-                modifier = Modifier.crystalFabSurface(),
-                containerColor = crystalFabContainerColor(),
-                contentColor = crystalFabContentColor(),
-                elevation = crystalFabElevation()
-            ) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
-            }
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         // Stage 15b: horizontal split, not the vertical stack this had before — month grid on
         // the left, day-detail agenda on the right, following the TickTick "Split View" precedent
         // research turned up (list/calendar side by side, not stacked) rather than wasting the
         // window's actual width the way the vertical stack did.
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+        Row(modifier = Modifier.fillMaxSize()) {
             // Stage 16b: this pane previously used its own 4-8dp outer-margin scale (MonthHeader
             // and MonthGrid each padding their own horizontal edge slightly) instead of the 16dp
             // screenPadding convention every other screen uses — normalized to one shared margin
@@ -127,14 +107,32 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
 
             val currentSelectedDay = selectedDay
             if (currentSelectedDay != null) {
+                val dayReminders = remember(currentSelectedDay, upcomingReminders, pastReminders, completedReminders) {
+                    val dateStr = currentSelectedDay.format(ISO_LOCAL_DATE)
+                    (upcomingReminders + pastReminders + completedReminders).filter { it.dateTime.substringBefore(" ") == dateStr }
+                }
                 DayDetail(
                     selectedDay = currentSelectedDay,
                     events = selectedDayEvents,
                     onEditEvent = { editingEvent = it },
                     onDeleteEvent = { viewModel.deleteCalendarEvent(it) },
+                    reminders = dayReminders,
+                    onToggleReminder = { reminderViewModel.toggleCompletion(it) },
+                    onDeleteReminder = { reminderViewModel.deleteReminder(it) },
+                    onAddReminder = { showAddReminder = true },
                     modifier = Modifier.weight(1f).fillMaxHeight().padding(DesktopLayout.screenPadding)
                 )
             }
+        }
+
+        FloatingActionButton(
+            onClick = { showAddEventSheet = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding).crystalFabSurface(),
+            containerColor = crystalFabContainerColor(),
+            contentColor = crystalFabContentColor(),
+            elevation = crystalFabElevation()
+        ) {
+            Text("+", style = MaterialTheme.typography.headlineSmall)
         }
     }
 
@@ -156,6 +154,16 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
             onSave = { updated ->
                 viewModel.updateCalendarEvent(updated)
                 editingEvent = null
+            }
+        )
+    }
+
+    if (showAddReminder) {
+        DesktopAddReminderSheet(
+            onDismiss = { showAddReminder = false },
+            onSave = { title, note, dateTime ->
+                reminderViewModel.addReminder(title, note, dateTime)
+                showAddReminder = false
             }
         )
     }
@@ -296,6 +304,10 @@ private fun DayDetail(
     events: List<CalendarEvent>,
     onEditEvent: (CalendarEvent) -> Unit,
     onDeleteEvent: (CalendarEvent) -> Unit,
+    reminders: List<Reminder>,
+    onToggleReminder: (Reminder) -> Unit,
+    onDeleteReminder: (Reminder) -> Unit,
+    onAddReminder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateTimeFormatter.ofPattern("MMMM d") }
@@ -308,7 +320,7 @@ private fun DayDetail(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(vertical = 4.dp)
         )
-        if (events.isEmpty()) {
+        if (events.isEmpty() && reminders.isEmpty()) {
             Text(
                 "Nothing here yet — tap + to add an event",
                 style = MaterialTheme.typography.bodyMedium,
@@ -320,10 +332,37 @@ private fun DayDetail(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(events, key = { it.id }) { event ->
+                items(events, key = { "event_${it.id}" }) { event ->
                     CalendarEventRow(event = event, onEdit = { onEditEvent(event) }, onDelete = { onDeleteEvent(event) })
                 }
+                items(reminders, key = { "reminder_${it.id}" }) { reminder ->
+                    DesktopReminderRow(reminder, onToggle = { onToggleReminder(reminder) }, onDelete = { onDeleteReminder(reminder) })
+                }
             }
+        }
+        TextButton(onClick = onAddReminder, modifier = Modifier.padding(top = 4.dp)) { Text("+ Reminder") }
+    }
+}
+
+// Stage 17e: moved from DesktopClockScreen.kt (Reminders is no longer Clock's — it lives on
+// Today's Calendar day-detail, matching mobile's DayDetailView.kt).
+@Composable
+private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
+    Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(reminder.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(reminder.dateTime, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (reminder.note.isNotBlank()) {
+                    Text(reminder.note, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            TextButton(onClick = onToggle) { Text(if (reminder.isCompleted) "Undo" else "Complete") }
+            TextButton(onClick = onDelete) { Text("Delete") }
         }
     }
 }
