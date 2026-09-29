@@ -1,11 +1,14 @@
 package com.apagon.rhythm.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
@@ -45,7 +48,12 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
     val completed by viewModel.completedTodos.collectAsState()
     var newTitle by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    // Stage 15g: cap content width on wide windows instead of stretching the add-row and every
+    // to-do row edge to edge — matches the 560dp cap RhythmAlertDialog/RhythmDatePickerDialog
+    // already use for the same "don't let content over-stretch" reason, sized up since this is a
+    // full-height list, not a compact dialog.
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp).fillMaxWidth().padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -88,6 +96,7 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
                 }
             }
         }
+    }
     }
 }
 

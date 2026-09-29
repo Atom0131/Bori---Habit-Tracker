@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -77,7 +79,10 @@ fun DesktopClockScreen(
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Schedule") }) }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Stage 15g: same 720dp content cap as To-dos — this screen is the other remaining
+        // single-column list with no natural detail pane to split against.
+        Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp).fillMaxWidth()) {
             alarmsSection(
                 alarms = alarms,
                 expanded = alarmsExpanded,
@@ -104,6 +109,7 @@ fun DesktopClockScreen(
                 onToggle = reminderViewModel::toggleCompletion,
                 onDelete = reminderViewModel::deleteReminder
             )
+        }
         }
     }
 
