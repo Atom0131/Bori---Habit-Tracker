@@ -225,7 +225,7 @@ private fun MonthGrid(
                 repeat(7) { colIndex ->
                     val cellIndex = rowIndex * 7 + colIndex
                     val dayIndex = cellIndex - firstDayOfWeek
-                    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
                         if (dayIndex in 0 until daysInMonth) {
                             val (day, dateStr) = dayData[dayIndex]
                             DayCell(
@@ -258,11 +258,16 @@ private fun DayCell(
         isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
     }
+    // Stage 17c: the cell's actual grid slot isn't square (7 columns vs. a variable row count
+    // splitting whatever height MonthGrid has left), so CircleShape on a non-square Box drew an
+    // oval/pill instead of a circle. Forcing 1:1 before the clip makes it a true circle regardless
+    // of the slot's real dimensions — the parent Box (MonthGrid) now centers it in that slot.
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxSize()
             .padding(4.dp)
+            .aspectRatio(1f)
             .clip(CircleShape)
             .background(bubbleBg)
             .clickable(onClick = onClick)
