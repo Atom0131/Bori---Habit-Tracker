@@ -16,6 +16,7 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import kotlin.time.Instant
@@ -60,7 +61,8 @@ fun DesktopNotesSearchScreen(
                     if (query.isNotEmpty()) {
                         TextButton(onClick = { viewModel.setQuery("") }) { Text("×") }
                     }
-                }
+                },
+                colors = crystalTopAppBarColors()
             )
         }
     ) { innerPadding ->

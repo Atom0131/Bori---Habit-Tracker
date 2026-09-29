@@ -44,6 +44,7 @@ import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
@@ -77,7 +78,8 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
                     TextButton(onClick = { viewModel.selectDay(LocalDate.now()) }) {
                         Text("Today")
                     }
-                }
+                },
+                colors = crystalTopAppBarColors()
             )
         },
         floatingActionButton = {

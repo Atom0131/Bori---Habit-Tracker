@@ -42,6 +42,7 @@ import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
@@ -78,7 +79,7 @@ fun DesktopClockScreen(
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
-        topBar = { TopAppBar(title = { Text("Schedule") }) }
+        topBar = { TopAppBar(title = { Text("Schedule") }, colors = crystalTopAppBarColors()) }
     ) { padding ->
         // Stage 15g: same content cap as To-dos — this screen is the other remaining single-column
         // list with no natural detail pane to split against. Stage 16b: sourced from DesktopLayout.

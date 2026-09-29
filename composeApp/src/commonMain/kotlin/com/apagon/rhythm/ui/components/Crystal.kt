@@ -12,6 +12,7 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CheckboxColors
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.Icon
@@ -25,6 +26,8 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -148,6 +151,24 @@ fun crystalScaffoldColor(fallback: Color = Color.Unspecified): Color = when {
 @Composable
 @ReadOnlyComposable
 fun crystalScaffoldContentColor(): Color = MaterialTheme.colorScheme.onBackground
+
+/** Stage 17b: every screen's `TopAppBar` was passing no `colors =` at all, so it rendered as a
+ * flat opaque Material bar (near-white) even under Crystal — the "white square" every screen
+ * showed at the top. Transparent container so the ambient field shows through, same as
+ * [crystalScaffoldColor]; content colours track the same roles a themed Scaffold already uses. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun crystalTopAppBarColors(): TopAppBarColors = if (isCrystal()) {
+    TopAppBarDefaults.topAppBarColors(
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent,
+        titleContentColor = MaterialTheme.colorScheme.onBackground,
+        navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+        actionIconContentColor = MaterialTheme.colorScheme.onBackground
+    )
+} else {
+    TopAppBarDefaults.topAppBarColors()
+}
 
 // ── The tiers (invariant #5: crystalSurface is private, exactly these 8, fill is the only open
 // parameter) ──────────────────────────────────────────────────────────────────────────────────────

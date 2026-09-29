@@ -52,6 +52,7 @@ import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemeStyle
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalRadioButtonColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalSliderColors
@@ -128,7 +129,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
-        topBar = { TopAppBar(title = { Text("Settings") }) }
+        topBar = { TopAppBar(title = { Text("Settings") }, colors = crystalTopAppBarColors()) }
     ) { padding ->
         Row(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(

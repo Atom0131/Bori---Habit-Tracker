@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.stats.DesktopHabitStatsContent
 import org.koin.compose.koinInject
 
@@ -50,7 +51,8 @@ fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(stat?.habit?.name ?: "") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("← Back") } }
+                navigationIcon = { TextButton(onClick = onBack) { Text("← Back") } },
+                colors = crystalTopAppBarColors()
             )
         }
     ) { padding ->

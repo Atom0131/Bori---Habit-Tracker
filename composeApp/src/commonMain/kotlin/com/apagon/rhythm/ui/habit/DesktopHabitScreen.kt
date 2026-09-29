@@ -25,7 +25,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -163,10 +162,13 @@ private fun DesktopHabitList(
     onToggleDoneExpanded: (HabitFrequency) -> Unit,
     onSelectHabit: (Long) -> Unit
 ) {
+    // Stage 17b: previously a Scaffold TopAppBar("Rhythm — date") sat directly above HomeHeader's
+    // own "Hello / {name}" row — two rows both partly about identity/date, and the TopAppBar was
+    // unthemed (flat white) on top of it. Dropped the TopAppBar entirely; the date now lives in
+    // HomeHeader's own top-right corner, one themed header instead of two.
     Scaffold(
         containerColor = crystalScaffoldColor(),
-        contentColor = crystalScaffoldContentColor(),
-        topBar = { TopAppBar(title = { Text("Rhythm — ${state.date}") }) }
+        contentColor = crystalScaffoldContentColor()
     ) { padding ->
         // Stage 16a: same centered content-width cap Stage 15g gave To-dos/Clock, now applied
         // here too so every primary screen's card column reads the same width.
@@ -177,7 +179,8 @@ private fun DesktopHabitList(
                     dailyStreak = dailyStreak,
                     completionRate = completionRate,
                     userName = userName,
-                    profilePictureUri = profilePictureUri
+                    profilePictureUri = profilePictureUri,
+                    date = state.date.toString()
                 )
             }
 
@@ -299,7 +302,8 @@ private fun HomeHeader(
     dailyStreak: Int,
     completionRate: Int,
     userName: String,
-    profilePictureUri: String?
+    profilePictureUri: String?,
+    date: String
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(start = DesktopLayout.screenPadding, end = DesktopLayout.screenPadding, top = DesktopLayout.screenPadding, bottom = DesktopLayout.itemSpacing)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -324,7 +328,7 @@ private fun HomeHeader(
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Hello",
                     style = MaterialTheme.typography.labelMedium,
@@ -337,6 +341,11 @@ private fun HomeHeader(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+            Text(
+                text = date,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

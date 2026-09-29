@@ -42,6 +42,7 @@ import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
@@ -116,7 +117,8 @@ fun DesktopNoteEditorScreen(
                             DropdownMenuItem(text = { Text("Save") }, onClick = { showOverflowMenu = false; viewModel.saveNote(onNavigateBack) })
                         }
                     }
-                }
+                },
+                colors = crystalTopAppBarColors()
             )
         }
     ) { innerPadding ->

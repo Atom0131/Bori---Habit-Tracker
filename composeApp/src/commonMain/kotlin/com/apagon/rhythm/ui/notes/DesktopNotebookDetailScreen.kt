@@ -27,6 +27,7 @@ import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
@@ -114,7 +115,8 @@ fun DesktopNotebookDetailScreen(
                         TextButton(onClick = { searchExpanded = true }) { Text("⌕") }
                         TextButton(onClick = { showSortSheet = true }) { Text("Sort") }
                     }
-                }
+                },
+                colors = crystalTopAppBarColors()
             )
         },
         floatingActionButton = {
