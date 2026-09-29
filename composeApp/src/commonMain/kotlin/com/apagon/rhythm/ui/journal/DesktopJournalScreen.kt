@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.repository.LockType
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
@@ -67,9 +68,14 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
 
     Row(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
+            // Stage 16: same centered content-width cap every other primary screen got — wraps
+            // just the search row + list, not the FAB below, so the FAB still pins to this pane's
+            // true bottom-right corner rather than trailing the capped column's edge.
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                    .crystalCardSurface().padding(4.dp),
+                modifier = Modifier.widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
+                    .padding(horizontal = DesktopLayout.screenPadding, vertical = 8.dp)
+                    .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
@@ -91,9 +97,11 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     Text(if (lockType == LockType.NONE) "🔓" else "🔒")
                 }
             }
+            }
 
             Box(Modifier.weight(1f)) {
-                LazyColumn(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                LazyColumn(Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
                     if (searchQuery.isBlank()) {
                         item(key = "week_strip") {
                             DesktopJournalWeekStrip(
@@ -124,6 +132,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                         }
                     }
                     item(key = "bottom_spacer") { Spacer(Modifier.height(80.dp)) }
+                }
                 }
 
                 FloatingActionButton(

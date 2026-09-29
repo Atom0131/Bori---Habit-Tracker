@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +51,7 @@ import com.apagon.rhythm.data.preferences.CrystalStyle
 import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemeStyle
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalRadioButtonColors
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
@@ -158,11 +160,13 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
 
             VerticalDivider()
 
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            // Stage 16a: same centered content-width cap every other primary screen got.
+            Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                 when (selectedSection) {
                     SettingsSection.RECENTLY_DELETED -> DesktopRecentlyDeletedScreen()
                     else -> Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                        modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
+                            .verticalScroll(rememberScrollState()).padding(DesktopLayout.screenPadding),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
                         when (selectedSection) {

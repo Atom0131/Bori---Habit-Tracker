@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
@@ -45,6 +46,7 @@ import com.apagon.rhythm.platform.QrCodeRenderer
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import org.koin.compose.koinInject
@@ -166,7 +168,10 @@ private fun DesktopHabitList(
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Rhythm — ${state.date}") }) }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Stage 16a: same centered content-width cap Stage 15g gave To-dos/Clock, now applied
+        // here too so every primary screen's card column reads the same width.
+        Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
             item {
                 HomeHeader(
                     dailyStreak = dailyStreak,
@@ -284,6 +289,7 @@ private fun DesktopHabitList(
                     )
                 }
             }
+        }
         }
     }
 }
