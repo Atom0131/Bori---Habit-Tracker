@@ -95,6 +95,10 @@ internal fun DesktopTodayListContent(
     val pendingTodos by todoViewModel.pendingTodos.collectAsState()
     val completedTodos by todoViewModel.completedTodos.collectAsState()
     var newTodoTitle by remember { mutableStateOf("") }
+    // Stage 18: matches the phone app's HabitListScreen — its "todos" section uses the exact same
+    // collapsedSections set as the habit frequency sections, seeded closed. Kept as its own flag
+    // here rather than widening collapsedSections' type, since To-dos isn't a HabitFrequency.
+    var todosExpanded by remember { mutableStateOf(false) }
 
     // Seeded fully closed, matching the phone app's HabitListScreen: the planner opens with every
     // primary section closed rather than in a mix of open/closed states.
@@ -140,6 +144,8 @@ internal fun DesktopTodayListContent(
                     todoSection(
                         pending = pendingTodos,
                         completed = completedTodos,
+                        expanded = todosExpanded,
+                        onToggleExpanded = { todosExpanded = !todosExpanded },
                         newTitle = newTodoTitle,
                         onNewTitleChange = { newTodoTitle = it },
                         onAdd = {

@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
@@ -25,6 +24,8 @@ import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
+import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
+import com.apagon.rhythm.ui.util.SectionHeaderTier
 import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 
 // Stage 17e: To-dos is no longer a standalone sidebar screen — the real Android app has no
@@ -33,9 +34,16 @@ import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 // appended after the habit sections in DesktopTodayScreen's list mode, instead of its own
 // Scaffold+width-cap+LazyColumn screen. DesktopTodoRow (the per-todo card) is unchanged content,
 // just no longer wrapped in its own screen shell.
+// Stage 18: Android's real HabitListScreen.kt also renders its "todos" section through
+// CollapsibleSectionHeader, using the exact same collapsedSections set the Daily/Weekly/Monthly
+// habit sections use — everything starts folded closed, not just habits. Matches that here with
+// its own expanded/onToggleExpanded pair (kept separate from the habit frequencies' Set<HabitFrequency>
+// state rather than widening that type, since To-dos isn't a HabitFrequency).
 internal fun LazyListScope.todoSection(
     pending: List<Todo>,
     completed: List<Todo>,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
     newTitle: String,
     onNewTitleChange: (String) -> Unit,
     onAdd: () -> Unit,
@@ -43,13 +51,15 @@ internal fun LazyListScope.todoSection(
     onDelete: (Todo) -> Unit
 ) {
     item(key = "todos_header") {
-        Text(
-            "To-dos",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
+        CollapsibleSectionHeader(
+            title = "To-dos",
+            expanded = expanded,
+            onToggle = onToggleExpanded,
+            tier = SectionHeaderTier.Primary
         )
     }
+    if (!expanded) return
+
     item(key = "todos_add") {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding)
