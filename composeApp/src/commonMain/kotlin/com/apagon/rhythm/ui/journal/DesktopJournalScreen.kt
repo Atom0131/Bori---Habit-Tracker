@@ -74,7 +74,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Row(
                 modifier = Modifier.widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
-                    .padding(horizontal = DesktopLayout.screenPadding, vertical = 8.dp)
+                    .padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
                     .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -123,7 +123,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                                 entry = entry,
                                 habits = activeHabits,
                                 isLocked = isLocked,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = 6.dp),
                                 onClick = {
                                     if (isLocked) showUnlockPrompt = true
                                     else editorState = JournalEditorState.Editing(entry)
@@ -137,7 +137,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
 
                 FloatingActionButton(
                     onClick = { editorState = JournalEditorState.New },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).crystalFabSurface(),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding).crystalFabSurface(),
                     containerColor = crystalFabContainerColor(),
                     contentColor = crystalFabContentColor(),
                     elevation = crystalFabElevation()

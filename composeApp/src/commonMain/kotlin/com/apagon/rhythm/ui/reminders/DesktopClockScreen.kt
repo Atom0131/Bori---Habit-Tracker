@@ -38,6 +38,7 @@ import com.apagon.rhythm.ui.alarms.DesktopAddAlarmSheet
 import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
 import com.apagon.rhythm.ui.alarms.TimerUiState
 import com.apagon.rhythm.ui.alarms.TimerViewModel
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
@@ -79,10 +80,10 @@ fun DesktopClockScreen(
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Schedule") }) }
     ) { padding ->
-        // Stage 15g: same 720dp content cap as To-dos — this screen is the other remaining
-        // single-column list with no natural detail pane to split against.
+        // Stage 15g: same content cap as To-dos — this screen is the other remaining single-column
+        // list with no natural detail pane to split against. Stage 16b: sourced from DesktopLayout.
         Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp).fillMaxWidth()) {
+        LazyColumn(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
             alarmsSection(
                 alarms = alarms,
                 expanded = alarmsExpanded,
@@ -165,18 +166,18 @@ private fun LazyListScope.alarmsSection(
         Button(
             onClick = onAdd,
             colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
         ) { Text("+ Alarm") }
     }
     if (alarms.isEmpty()) {
         item(key = "alarms_empty") {
-            Text("No alarms yet.", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Text("No alarms yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
         }
     } else {
         items(alarms, key = { "alarm_${it.id}" }) { alarm ->
-            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -215,18 +216,18 @@ private fun LazyListScope.timersSection(
         Button(
             onClick = onAdd,
             colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
         ) { Text("+ Timer") }
     }
     if (timerStates.isEmpty()) {
         item(key = "timers_empty") {
-            Text("No timers yet.", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Text("No timers yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
         }
     } else {
         items(timerStates, key = { "timer_${it.timer.id}" }) { state ->
             val timer = state.timer
-            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
@@ -280,16 +281,16 @@ private fun LazyListScope.remindersSection(
         Button(
             onClick = onAdd,
             colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
         ) { Text("+ Reminder") }
     }
     if (reminders.isEmpty()) {
         item(key = "reminders_empty") {
-            Text("No reminders yet.", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Text("No reminders yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
         }
     } else {
         items(reminders, key = { "reminder_${it.id}" }) { reminder ->
-            Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Box(Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)) {
                 DesktopReminderRow(reminder, onToggle = { onToggle(reminder) }, onDelete = { onDelete(reminder) })
             }
         }
@@ -300,7 +301,7 @@ private fun LazyListScope.remindersSection(
 private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
     Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

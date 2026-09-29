@@ -182,10 +182,10 @@ private fun DesktopHabitList(
             }
 
             item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Column(modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                        horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
@@ -216,9 +216,9 @@ private fun DesktopHabitList(
                         // always the sync server). The QR toggle below is the easier path — same
                         // address, scanned instead of typed.
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                .crystalCardSurface().padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
+                                .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -240,9 +240,9 @@ private fun DesktopHabitList(
                         // Stage 4b: local sync test UI, still used for the reverse direction
                         // (desktop-initiates-sync) and local dev testing.
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                .crystalCardSurface().padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
+                                .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             OutlinedTextField(
@@ -301,7 +301,7 @@ private fun HomeHeader(
     userName: String,
     profilePictureUri: String?
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(start = DesktopLayout.screenPadding, end = DesktopLayout.screenPadding, top = DesktopLayout.screenPadding, bottom = DesktopLayout.itemSpacing)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.size(48.dp).clip(CircleShape)
@@ -343,11 +343,11 @@ private fun HomeHeader(
 
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing)
         ) {
             Box(modifier = Modifier.weight(1f).fillMaxHeight().crystalCardSurface()) {
                 Column(
-                    modifier = Modifier.padding(16.dp).fillMaxHeight(),
+                    modifier = Modifier.padding(DesktopLayout.cardPadding).fillMaxHeight(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
@@ -365,7 +365,7 @@ private fun HomeHeader(
             }
             Box(modifier = Modifier.weight(1f).fillMaxHeight().crystalCardSurface()) {
                 Column(
-                    modifier = Modifier.padding(16.dp).fillMaxHeight(),
+                    modifier = Modifier.padding(DesktopLayout.cardPadding).fillMaxHeight(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

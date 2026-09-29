@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
@@ -51,12 +52,13 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
     // Stage 15g: cap content width on wide windows instead of stretching the add-row and every
     // to-do row edge to edge — matches the 560dp cap RhythmAlertDialog/RhythmDatePickerDialog
     // already use for the same "don't let content over-stretch" reason, sized up since this is a
-    // full-height list, not a compact dialog.
+    // full-height list, not a compact dialog. Stage 16b: now sourced from DesktopLayout, the same
+    // constant every other primary screen uses.
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-    Column(modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp).fillMaxWidth().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth().padding(DesktopLayout.screenPadding)) {
         Row(
-            modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -87,7 +89,7 @@ fun DesktopTodoScreen(viewModel: TodoViewModel = koinViewModel()) {
                 modifier = Modifier.padding(top = 24.dp)
             )
         } else {
-            LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
+            LazyColumn(modifier = Modifier.padding(top = DesktopLayout.screenPadding)) {
                 items(pending, key = { it.id }) { todo ->
                     DesktopTodoRow(todo, onToggle = { viewModel.toggleCompletion(todo) }, onDelete = { viewModel.deleteTodo(todo) })
                 }

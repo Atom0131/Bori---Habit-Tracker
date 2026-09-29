@@ -35,6 +35,7 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalControlColor
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
@@ -100,7 +101,11 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            // Stage 16b: this pane previously used its own 4-8dp outer-margin scale (MonthHeader
+            // and MonthGrid each padding their own horizontal edge slightly) instead of the 16dp
+            // screenPadding convention every other screen uses — normalized to one shared margin
+            // on the pane itself, with MonthHeader/MonthGrid's own small paddings removed below.
+            Column(modifier = Modifier.weight(1f).fillMaxHeight().padding(DesktopLayout.screenPadding)) {
                 MonthHeader(
                     month = currentMonth,
                     onPrevious = { viewModel.previousMonth() },
@@ -125,7 +130,7 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
                     events = selectedDayEvents,
                     onEditEvent = { editingEvent = it },
                     onDeleteEvent = { viewModel.deleteCalendarEvent(it) },
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f).fillMaxHeight().padding(DesktopLayout.screenPadding)
                 )
             }
         }
@@ -159,7 +164,7 @@ private fun MonthHeader(month: YearMonth, onPrevious: () -> Unit, onNext: () -> 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         TextButton(onClick = onPrevious) {
             Text("‹", style = MaterialTheme.typography.titleLarge)
@@ -212,7 +217,7 @@ private fun MonthGrid(
     val totalCells = firstDayOfWeek + daysInMonth
     val rowCount = (totalCells + 6) / 7
 
-    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+    Column(modifier = modifier.fillMaxWidth()) {
         repeat(rowCount) { rowIndex ->
             Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 repeat(7) { colIndex ->
@@ -288,22 +293,24 @@ private fun DayDetail(
 ) {
     val formatter = remember { DateTimeFormatter.ofPattern("MMMM d") }
 
+    // Stage 16b: horizontal margin already comes from the pane's own DesktopLayout.screenPadding
+    // (added at the call site in DesktopCalendarScreen), so these no longer add their own.
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = selectedDay.format(formatter),
             style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            modifier = Modifier.padding(vertical = 4.dp)
         )
         if (events.isEmpty()) {
             Text(
                 "Nothing here yet — tap + to add an event",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(events, key = { it.id }) { event ->
