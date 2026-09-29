@@ -1,11 +1,16 @@
 package com.apagon.rhythm
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +23,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
@@ -37,12 +43,12 @@ import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
 import com.apagon.rhythm.ui.alarms.DesktopAlertContent
 import com.apagon.rhythm.ui.calendar.DesktopCalendarScreen
-import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedScreen
 import com.apagon.rhythm.ui.habit.DesktopHabitScreen
 import com.apagon.rhythm.ui.journal.DesktopJournalScreen
 import com.apagon.rhythm.ui.notes.DesktopNotesTab
 import com.apagon.rhythm.ui.reminders.DesktopClockScreen
 import com.apagon.rhythm.ui.components.crystalChromeSurface
+import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmThemedRoot
 import com.apagon.rhythm.ui.todos.DesktopTodoScreen
@@ -85,7 +91,17 @@ fun main() {
     koinApp.koin.get<DesktopAlarmClockService>().start()
 
     application {
-        Window(onCloseRequest = ::exitApplication, title = "Rhythm") {
+        // Stage 15a: the window previously had no default/min size at all (bare OS default),
+        // which is what let the old ScrollableTabRow shell get squeezed into the label-wrapping
+        // widths the last layout round had to patch around. The sidebar shell replacing it needs
+        // enough width for a ~220dp rail plus a genuinely usable content pane, so give the window
+        // real sizing intent instead of leaving it to chance.
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "Rhythm",
+            state = rememberWindowState(width = 1280.dp, height = 800.dp)
+        ) {
+            window.minimumSize = java.awt.Dimension(960, 600)
             val themePreferences = koinInject<ThemePreferences>()
 
             RhythmThemedRoot(themePreferences = themePreferences) {
@@ -137,50 +153,76 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
     }
 }
 
-// Stage 7's minimal tab switcher — the desktop app's first navigation of any
-// kind (Stages 3-6 only ever showed one screen). A plain TabRow rather than
-// the real app's bottom NavigationBar/NavHost; Stage 11 adds Settings as a
-// 7th tab here rather than introducing a different nav pattern (drawer/gear
-// icon) just for it — desktop has no bottom-nav real-estate constraint
-// forcing that, and every other stage (7-10) landed the same way.
+// Stage 15a: replaces Stage 7's ScrollableTabRow with a persistent left sidebar — the pattern
+// every comparison app (Notion/Asana/Todoist/ClickUp) uses for desktop top-level nav, and one
+// that doesn't have the tab row's label-wrapping-at-narrow-widths failure mode in the first
+// place, since the rail's width is fixed rather than shared out across N tabs. "Recently
+// Deleted" is deliberately dropped from this list — every comparison app treats trash as
+// secondary, not primary, nav — and moves into Settings as a sub-section in Stage 15f.
+private val SIDEBAR_SECTIONS = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Clock", "Settings")
+private val SIDEBAR_WIDTH = 220.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DesktopAppRoot() {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Habits", "To-dos", "Calendar", "Journal", "Notes", "Recently Deleted", "Clock", "Settings")
+    var selectedSection by remember { mutableIntStateOf(0) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // ScrollableTabRow, not TabRow — TabRow gives every tab the SAME width (total/tab count)
-        // and never lets one shrink below another, so at 8 tabs a narrow window forces each label
-        // to wrap one letter per line rather than truncate. Scrollable tabs keep their own natural
-        // width and the row scrolls horizontally instead, which is what actually degrades cleanly
-        // on resize — this is the layout-parity round's resize-misalignment fix for the one thing
-        // on screen at every width, not a per-row Arrangement.SpaceBetween case like the others.
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            modifier = Modifier.crystalChromeSurface(),
-            containerColor = Color.Transparent,
-            edgePadding = 8.dp
+    Row(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .width(SIDEBAR_WIDTH)
+                .fillMaxHeight()
+                .crystalChromeSurface()
+                .padding(vertical = 12.dp, horizontal = 8.dp)
         ) {
-            tabs.forEachIndexed { index, label ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(label) },
-                    selectedContentColor = MaterialTheme.colorScheme.primary,
-                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                text = "Rhythm",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 16.dp)
+            )
+            SIDEBAR_SECTIONS.forEachIndexed { index, label ->
+                SidebarItem(
+                    label = label,
+                    selected = selectedSection == index,
+                    onClick = { selectedSection = index }
                 )
             }
         }
-        when (selectedTab) {
-            0 -> DesktopHabitScreen()
-            1 -> DesktopTodoScreen()
-            2 -> DesktopCalendarScreen()
-            3 -> DesktopJournalScreen()
-            4 -> DesktopNotesTab()
-            5 -> DesktopRecentlyDeletedScreen()
-            6 -> DesktopClockScreen()
-            7 -> DesktopSettingsScreen()
+        Column(modifier = Modifier.fillMaxSize()) {
+            when (selectedSection) {
+                0 -> DesktopHabitScreen()
+                1 -> DesktopTodoScreen()
+                2 -> DesktopCalendarScreen()
+                3 -> DesktopJournalScreen()
+                4 -> DesktopNotesTab()
+                5 -> DesktopClockScreen()
+                6 -> DesktopSettingsScreen()
+            }
         }
+    }
+}
+
+@Composable
+private fun SidebarItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .then(
+                if (selected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
+                else Modifier
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
