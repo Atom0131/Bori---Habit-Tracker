@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -91,12 +91,16 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
             }
         }
     ) { innerPadding ->
-        Column(
+        // Stage 15b: horizontal split, not the vertical stack this had before — month grid on
+        // the left, day-detail agenda on the right, following the TickTick "Split View" precedent
+        // research turned up (list/calendar side by side, not stacked) rather than wasting the
+        // window's actual width the way the vertical stack did.
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 MonthHeader(
                     month = currentMonth,
                     onPrevious = { viewModel.previousMonth() },
@@ -112,7 +116,7 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
                 )
             }
 
-            HorizontalDivider()
+            VerticalDivider()
 
             val currentSelectedDay = selectedDay
             if (currentSelectedDay != null) {
@@ -121,7 +125,7 @@ fun DesktopCalendarScreen(viewModel: DesktopCalendarViewModel = koinViewModel())
                     events = selectedDayEvents,
                     onEditEvent = { editingEvent = it },
                     onDeleteEvent = { viewModel.deleteCalendarEvent(it) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
         }
