@@ -25,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -89,11 +90,77 @@ fun DesktopHabitScreen(
     }
     var expandedDoneGroups by remember { mutableStateOf(setOf<HabitFrequency>()) }
 
-    selectedHabitId?.let { habitId ->
-        DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
-        return
-    }
+    // Stage 15e: the habit list stays visible as a left column when a habit is selected, with
+    // DesktopHabitDetailScreen filling a right pane instead of replacing the whole screen — lighter
+    // than Notes/Journal's persistent-rail treatment (Habits is this app's primary landing screen,
+    // not a browse-then-drill-down surface), but the same "don't discard the list" principle.
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = if (selectedHabitId != null) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxSize()) {
+            DesktopHabitList(
+                viewModel = viewModel,
+                habitListViewModel = habitListViewModel,
+                state = state,
+                peerAddress = peerAddress,
+                syncStatus = syncStatus,
+                newHabitName = newHabitName,
+                onNewHabitNameChange = { newHabitName = it },
+                showSync = showSync,
+                onToggleShowSync = { showSync = !showSync },
+                showQrCode = showQrCode,
+                onToggleShowQrCode = { showQrCode = !showQrCode },
+                qrCodeRenderer = qrCodeRenderer,
+                userName = userName,
+                profilePictureUri = profilePictureUri,
+                habitsUiState = habitsUiState,
+                dailyStreak = dailyStreak,
+                completionRate = completionRate,
+                collapsedSections = collapsedSections,
+                onToggleCollapsed = { frequency ->
+                    collapsedSections = if (frequency in collapsedSections) collapsedSections - frequency else collapsedSections + frequency
+                },
+                expandedDoneGroups = expandedDoneGroups,
+                onToggleDoneExpanded = { frequency ->
+                    expandedDoneGroups = if (frequency in expandedDoneGroups) expandedDoneGroups - frequency else expandedDoneGroups + frequency
+                },
+                onSelectHabit = { selectedHabitId = it }
+            )
+        }
 
+        selectedHabitId?.let { habitId ->
+            VerticalDivider()
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DesktopHabitList(
+    viewModel: DesktopHabitViewModel,
+    habitListViewModel: HabitListViewModel,
+    state: DesktopHabitUiState,
+    peerAddress: String,
+    syncStatus: String?,
+    newHabitName: String,
+    onNewHabitNameChange: (String) -> Unit,
+    showSync: Boolean,
+    onToggleShowSync: () -> Unit,
+    showQrCode: Boolean,
+    onToggleShowQrCode: () -> Unit,
+    qrCodeRenderer: QrCodeRenderer,
+    userName: String,
+    profilePictureUri: String?,
+    habitsUiState: HabitsUiState,
+    dailyStreak: Int,
+    completionRate: Int,
+    collapsedSections: Set<HabitFrequency>,
+    onToggleCollapsed: (HabitFrequency) -> Unit,
+    expandedDoneGroups: Set<HabitFrequency>,
+    onToggleDoneExpanded: (HabitFrequency) -> Unit,
+    onSelectHabit: (Long) -> Unit
+) {
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
@@ -118,7 +185,7 @@ fun DesktopHabitScreen(
                     ) {
                         OutlinedTextField(
                             value = newHabitName,
-                            onValueChange = { newHabitName = it },
+                            onValueChange = onNewHabitNameChange,
                             label = { Text("New habit") },
                             colors = crystalBareTextFieldColors(),
                             modifier = Modifier.weight(1f)
@@ -127,14 +194,14 @@ fun DesktopHabitScreen(
                             colors = crystalButtonColors(),
                             onClick = {
                                 viewModel.addHabit(newHabitName)
-                                newHabitName = ""
+                                onNewHabitNameChange("")
                             }
                         ) {
                             Text("Add")
                         }
                     }
 
-                    TextButton(onClick = { showSync = !showSync }, modifier = Modifier.padding(top = 8.dp)) {
+                    TextButton(onClick = onToggleShowSync, modifier = Modifier.padding(top = 8.dp)) {
                         Text(if (showSync) "Hide sync with phone" else "Sync with phone")
                     }
 
@@ -154,7 +221,7 @@ fun DesktopHabitScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
-                            TextButton(onClick = { showQrCode = !showQrCode }) {
+                            TextButton(onClick = onToggleShowQrCode) {
                                 Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
                             }
                         }
@@ -209,23 +276,11 @@ fun DesktopHabitScreen(
                         pending = pending,
                         completed = completed,
                         expanded = frequency !in collapsedSections,
-                        onToggleExpanded = {
-                            collapsedSections = if (frequency in collapsedSections) {
-                                collapsedSections - frequency
-                            } else {
-                                collapsedSections + frequency
-                            }
-                        },
+                        onToggleExpanded = { onToggleCollapsed(frequency) },
                         doneExpanded = frequency in expandedDoneGroups,
-                        onToggleDone = {
-                            expandedDoneGroups = if (frequency in expandedDoneGroups) {
-                                expandedDoneGroups - frequency
-                            } else {
-                                expandedDoneGroups + frequency
-                            }
-                        },
+                        onToggleDone = { onToggleDoneExpanded(frequency) },
                         onToggleCompletion = habitListViewModel::toggleCompletion,
-                        onView = { habit -> selectedHabitId = habit.id }
+                        onView = { habit -> onSelectHabit(habit.id) }
                     )
                 }
             }
