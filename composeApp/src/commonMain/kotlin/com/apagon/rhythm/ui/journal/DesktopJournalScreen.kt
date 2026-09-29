@@ -21,12 +21,25 @@ import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
 import org.koin.compose.viewmodel.koinViewModel
 
+/** Stage 15d: which of the two panes' selection state the right column shows, if any. */
+private sealed class JournalEditorState {
+    object None : JournalEditorState()
+    object New : JournalEditorState()
+    data class Editing(val entry: JournalEntry) : JournalEditorState()
+}
+
 /**
  * Desktop port of JournalScreen.kt (Stage 9). No Settings entry point (no
  * desktop Settings screen exists yet — Stage 11) and no Pro paywall (desktop
  * is unconditionally Pro), so onLimitExceeded/paywall branches from the
  * shared JournalViewModel simply never fire here — there's nothing left to
  * wire them to.
+ *
+ * Stage 15d: split into a left column (search/lock row + week-strip + entry
+ * list, unchanged) and a right column showing the selected/new entry inline
+ * via DesktopEntryEditorPane — replacing the previous full-screen Dialog
+ * overlay so the entry list stays visible while editing, the same
+ * master-detail pattern Stage 15c applied to Notes.
  */
 @Composable
 fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
@@ -39,8 +52,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
     val journalPin by viewModel.journalPin.collectAsState()
     val journalPassword by viewModel.journalPassword.collectAsState()
 
-    var showNewEntry by remember { mutableStateOf(false) }
-    var editingEntry by remember { mutableStateOf<JournalEntry?>(null) }
+    var editorState by remember { mutableStateOf<JournalEditorState>(JournalEditorState.None) }
     var showLockSettings by remember { mutableStateOf(false) }
     var showUnlockPrompt by remember { mutableStateOf(false) }
     var calendarExpanded by remember { mutableStateOf(false) }
@@ -53,112 +65,120 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
         )
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                .crystalCardSurface().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Search journal...") },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.setSearchQuery("") }) { Text("×") }
+    Row(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                    .crystalCardSurface().padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Search journal...") },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            TextButton(onClick = { viewModel.setSearchQuery("") }) { Text("×") }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = crystalBareTextFieldColors(),
+                    singleLine = true
+                )
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = { showLockSettings = true }) {
+                    Text(if (lockType == LockType.NONE) "🔓" else "🔒")
+                }
+            }
+
+            Box(Modifier.weight(1f)) {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    if (searchQuery.isBlank()) {
+                        item(key = "week_strip") {
+                            DesktopJournalWeekStrip(
+                                selectedDate = selectedDate,
+                                onDateSelected = { viewModel.setSelectedDate(it) },
+                                expanded = calendarExpanded,
+                                onToggleExpanded = { calendarExpanded = !calendarExpanded }
+                            )
+                        }
                     }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = crystalBareTextFieldColors(),
-                singleLine = true
-            )
-            Spacer(Modifier.width(8.dp))
-            TextButton(onClick = { showLockSettings = true }) {
-                Text(if (lockType == LockType.NONE) "🔓" else "🔒")
+
+                    if (entries.isEmpty()) {
+                        item(key = "empty_state") {
+                            DesktopJournalEmptyState(searchQuery)
+                        }
+                    } else {
+                        items(entries, key = { "entry_${it.id}" }) { entry ->
+                            DesktopJournalEntryCard(
+                                entry = entry,
+                                habits = activeHabits,
+                                isLocked = isLocked,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                onClick = {
+                                    if (isLocked) showUnlockPrompt = true
+                                    else editorState = JournalEditorState.Editing(entry)
+                                }
+                            )
+                        }
+                    }
+                    item(key = "bottom_spacer") { Spacer(Modifier.height(80.dp)) }
+                }
+
+                FloatingActionButton(
+                    onClick = { editorState = JournalEditorState.New },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).crystalFabSurface(),
+                    containerColor = crystalFabContainerColor(),
+                    contentColor = crystalFabContentColor(),
+                    elevation = crystalFabElevation()
+                ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
             }
         }
 
-        Box(Modifier.weight(1f)) {
-            LazyColumn(Modifier.fillMaxSize()) {
-                if (searchQuery.isBlank()) {
-                    item(key = "week_strip") {
-                        DesktopJournalWeekStrip(
-                            selectedDate = selectedDate,
-                            onDateSelected = { viewModel.setSelectedDate(it) },
-                            expanded = calendarExpanded,
-                            onToggleExpanded = { calendarExpanded = !calendarExpanded }
+        when (val state = editorState) {
+            is JournalEditorState.None -> Unit
+            is JournalEditorState.New -> {
+                VerticalDivider()
+                DesktopEntryEditorPane(
+                    entry = null,
+                    selectedDate = selectedDate,
+                    habits = activeHabits,
+                    onDelete = { viewModel.deleteEntry(it) },
+                    onDismiss = { editorState = JournalEditorState.None },
+                    onSave = { title, content, feelings, tags, photoUris, habitId ->
+                        viewModel.saveEntry(
+                            date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                            title = title, content = content, mood = 0,
+                            feelings = feelings, tags = tags, photoUris = photoUris,
+                            habitId = habitId,
+                            onSuccess = { editorState = JournalEditorState.None }
                         )
-                    }
-                }
-
-                if (entries.isEmpty()) {
-                    item(key = "empty_state") {
-                        DesktopJournalEmptyState(searchQuery)
-                    }
-                } else {
-                    items(entries, key = { "entry_${it.id}" }) { entry ->
-                        DesktopJournalEntryCard(
-                            entry = entry,
-                            habits = activeHabits,
-                            isLocked = isLocked,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                            onClick = {
-                                if (isLocked) showUnlockPrompt = true
-                                else editingEntry = entry
-                            }
-                        )
-                    }
-                }
-                item(key = "bottom_spacer") { Spacer(Modifier.height(80.dp)) }
+                    },
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
             }
-
-            FloatingActionButton(
-                onClick = { showNewEntry = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).crystalFabSurface(),
-                containerColor = crystalFabContainerColor(),
-                contentColor = crystalFabContentColor(),
-                elevation = crystalFabElevation()
-            ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+            is JournalEditorState.Editing -> {
+                VerticalDivider()
+                DesktopEntryEditorPane(
+                    entry = state.entry,
+                    selectedDate = selectedDate,
+                    habits = activeHabits,
+                    onDelete = { viewModel.deleteEntry(it) },
+                    onDismiss = { editorState = JournalEditorState.None },
+                    onSave = { title, content, feelings, tags, photoUris, habitId ->
+                        viewModel.saveEntry(
+                            date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                            title = title, content = content, mood = 0,
+                            feelings = feelings, tags = tags, photoUris = photoUris,
+                            habitId = habitId, existingEntry = state.entry,
+                            onSuccess = { editorState = JournalEditorState.None }
+                        )
+                    },
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+            }
         }
-    }
-
-    if (showNewEntry) {
-        DesktopEntrySheet(
-            entry = null,
-            selectedDate = selectedDate,
-            habits = activeHabits,
-            onDelete = { viewModel.deleteEntry(it) },
-            onDismiss = { showNewEntry = false },
-            onSave = { title, content, feelings, tags, photoUris, habitId ->
-                viewModel.saveEntry(
-                    date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    title = title, content = content, mood = 0,
-                    feelings = feelings, tags = tags, photoUris = photoUris,
-                    habitId = habitId,
-                    onSuccess = { showNewEntry = false }
-                )
-            }
-        )
-    }
-
-    editingEntry?.let { entry ->
-        DesktopEntrySheet(
-            entry = entry,
-            selectedDate = selectedDate,
-            habits = activeHabits,
-            onDelete = { viewModel.deleteEntry(it) },
-            onDismiss = { editingEntry = null },
-            onSave = { title, content, feelings, tags, photoUris, habitId ->
-                viewModel.saveEntry(
-                    date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    title = title, content = content, mood = 0,
-                    feelings = feelings, tags = tags, photoUris = photoUris,
-                    habitId = habitId, existingEntry = entry,
-                    onSuccess = { editingEntry = null }
-                )
-            }
-        )
     }
 
     if (showLockSettings) {
