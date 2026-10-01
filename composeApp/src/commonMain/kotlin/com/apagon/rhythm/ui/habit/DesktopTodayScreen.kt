@@ -21,11 +21,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.apagon.rhythm.data.model.TodoPriority
+import com.apagon.rhythm.ui.calendar.DesktopAddCalendarEventSheet
+import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
 import com.apagon.rhythm.ui.calendar.DesktopTodayCalendarContent
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
+import com.apagon.rhythm.ui.reminders.DesktopAddReminderSheet
+import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.settings.DesktopSettingsViewModel
 import com.apagon.rhythm.ui.todos.TodoViewModel
 import com.apagon.rhythm.ui.util.RhythmAddFab
@@ -48,11 +52,14 @@ import org.koin.compose.viewmodel.koinViewModel
  *
  * Stage 19c: list mode previously had no persistent add affordance at all (the only way to add a
  * habit or to-do was scrolling to their inline fields) — Android's HabitListScreen.kt has a single
- * FAB opening a Habit/To-do AddTypePickerSheet. Desktop has no bottom-sheet UX, so the picker here
- * is a RhythmDropdownMenu off the FAB instead, each item opening a small RhythmAlertDialog (no
+ * FAB opening an AddTypePickerSheet with four peer options (Habit/To-Do/Reminder/Event,
+ * HabitListScreen.kt:668-707). Desktop has no bottom-sheet UX, so the picker here is a
+ * RhythmDropdownMenu off the FAB instead. Habit/To-do each open a small RhythmAlertDialog (no
  * desktop "add habit" sheet existed yet — the inline fields in DesktopHabitScreen.kt/
- * DesktopTodoScreen.kt are the only other entry points, and Stage 19e tracks demoting those once
- * this one is confirmed working). Calendar mode keeps its own add-event FAB
+ * DesktopTodoScreen.kt were the only other entry points until Stage 19e removed them once this FAB
+ * was confirmed working). Reminder/Event (Stage 19h) reuse the existing DesktopAddReminderSheet/
+ * DesktopAddCalendarEventSheet already used by Calendar mode's day-detail "+Reminder" button and
+ * add-event FAB, rather than building new sheets. Calendar mode keeps its own add-event FAB
  * (DesktopTodayCalendarContent), so this FAB only shows in list mode.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,12 +67,16 @@ import org.koin.compose.viewmodel.koinViewModel
 fun DesktopTodayScreen(
     settingsViewModel: DesktopSettingsViewModel = koinViewModel(),
     habitViewModel: DesktopHabitViewModel = koinViewModel(),
-    todoViewModel: TodoViewModel = koinViewModel()
+    todoViewModel: TodoViewModel = koinViewModel(),
+    reminderViewModel: ReminderViewModel = koinViewModel(),
+    calendarViewModel: DesktopCalendarViewModel = koinViewModel()
 ) {
     val calendarMode by settingsViewModel.homeViewCalendar.collectAsState()
     var showAddMenu by remember { mutableStateOf(false) }
     var showAddHabitDialog by remember { mutableStateOf(false) }
     var showAddTodoDialog by remember { mutableStateOf(false) }
+    var showAddReminder by remember { mutableStateOf(false) }
+    var showAddEventSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = crystalScaffoldColor(),
@@ -96,6 +107,14 @@ fun DesktopTodayScreen(
                         DropdownMenuItem(
                             text = { Text("To-do") },
                             onClick = { showAddMenu = false; showAddTodoDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Reminder") },
+                            onClick = { showAddMenu = false; showAddReminder = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Event") },
+                            onClick = { showAddMenu = false; showAddEventSheet = true }
                         )
                     }
                 }
@@ -153,6 +172,26 @@ fun DesktopTodayScreen(
                         showAddTodoDialog = false
                     }
                 ) { Text("Add") }
+            }
+        )
+    }
+
+    if (showAddReminder) {
+        DesktopAddReminderSheet(
+            onDismiss = { showAddReminder = false },
+            onSave = { title, note, dateTime ->
+                reminderViewModel.addReminder(title, note, dateTime)
+                showAddReminder = false
+            }
+        )
+    }
+
+    if (showAddEventSheet) {
+        DesktopAddCalendarEventSheet(
+            onDismiss = { showAddEventSheet = false },
+            onSave = { event ->
+                calendarViewModel.addCalendarEvent(event)
+                showAddEventSheet = false
             }
         )
     }
