@@ -25,9 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
+import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.isTraySupported
+import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.repository.TimerRepository
@@ -54,9 +57,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import org.koin.core.context.startKoin
 import rhythm.composeapp.generated.resources.Res
+import rhythm.composeapp.generated.resources.app_icon
 
 // Stage 4b checkpoint: adds the local loopback sync engine (Ktor WebSocket
 // server + client) on top of Stage 3's Habit list/add/complete screen. See
@@ -129,30 +134,35 @@ fun main() {
     koinApp.koin.get<DesktopAlarmClockService>().start()
 
     // Holds the live AWT window once Window{}'s content composes, so the single-instance watcher
-    // (a plain coroutine, outside composition) can toggle it later. "Hiding" this way — iconifying
-    // the underlying java.awt.Window rather than conditionally composing/decomposing the Window{}
-    // composable, or toggling its `isVisible` — is load-bearing, and both easier alternatives were
-    // tried and rejected live:
+    // (a plain coroutine, outside composition) and the Tray's click handler can toggle it later.
+    //
+    // Two earlier approaches were tried and rejected live before landing on Tray + isVisible:
     //  - Decomposing Window{} (`if (windowVisible) Window(...)`) tears down its Skiko/Skia surface,
-    //    and doing that from inside the native windowing callback onCloseRequest runs on crashed
-    //    the JVM outright (SIGSEGV in libX11's XVisualIDFromVisual, confirmed live).
-    //  - Keeping Window{} mounted but flipping `isVisible = false/true` avoided the crash but the
-    //    window never came back on `isVisible = true` — confirmed live (no exception, but no window
-    //    either; AWT/Skiko on this stack doesn't reliably support a hide/show cycle on a
-    //    ComposeWindow, only an iconify/deiconify one).
-    // Iconifying (`extendedState = ICONIFIED`) never disposes anything and is the standard AWT
-    // minimize operation, which deiconify (`extendedState = NORMAL`) reliably reverses — confirmed
-    // live, including the window actually regaining focus on the second launch's signal.
+    //    and doing that from inside the native windowing callback onCloseRequest crashed the JVM
+    //    outright (SIGSEGV in libX11's XVisualIDFromVisual, confirmed live).
+    //  - Setting `extendedState = ICONIFIED` from onCloseRequest (the first shipped fix) *looked*
+    //    safe in that session's manual testing, but is actually a race: Skiko runs a background
+    //    frame-limiter coroutine that queries the AWT drawing surface's X11 visual on every frame,
+    //    and iconifying while that's in flight hits the exact same XVisualIDFromVisual SIGSEGV —
+    //    confirmed live on a real XFCE/X11 session, non-deterministically (crashed outright once,
+    //    silently destroyed the window without crashing a second time). `isVisible = false` avoids
+    //    touching AWT's iconify state machine at all, which is what that frame-limiter race needs.
+    // This is also what cross-platform JVM apps actually ship for Linux minimize-to-tray (a status
+    // icon that hides/shows the window), rather than hand-rolling an iconify-based hide — Compose
+    // Desktop exposes this directly as the `Tray` composable used below, no new dependency.
     val mainWindowRef = mutableStateOf<androidx.compose.ui.awt.ComposeWindow?>(null)
-    singleInstance.startWatching(CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+    val showMainWindow: () -> Unit = {
         java.awt.EventQueue.invokeLater {
             mainWindowRef.value?.apply {
-                extendedState = java.awt.Frame.NORMAL
                 isVisible = true
+                extendedState = java.awt.Frame.NORMAL
                 toFront()
                 requestFocus()
             }
         }
+    }
+    singleInstance.startWatching(CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+        showMainWindow()
     }
 
     application {
@@ -171,8 +181,14 @@ fun main() {
                 // on. DesktopAlarmClockService/SyncServer were already started above, outside
                 // application{}, so they keep running untouched either way; this only decides
                 // whether exitApplication() also tears the whole JVM process down with them.
+                // Deferred via invokeLater rather than touched synchronously from this callback
+                // — see mainWindowRef's doc comment above: doing it synchronously races Skiko's
+                // frame-limiter coroutine querying the same X11 drawing surface, confirmed live.
+                // Running it on a later EDT tick, off the native WM_DELETE_WINDOW callback's own
+                // call stack, is the fix actually being tested here.
                 if (runInBackground) {
-                    mainWindowRef.value?.extendedState = java.awt.Frame.ICONIFIED
+                    val w = mainWindowRef.value
+                    java.awt.EventQueue.invokeLater { w?.extendedState = java.awt.Frame.ICONIFIED }
                 } else {
                     exitApplication()
                 }
@@ -189,6 +205,28 @@ fun main() {
         }
 
         DesktopAlertWindowHost()
+
+        // Only meaningful alongside runInBackground's isVisible=false close path above — gives
+        // the user a way to bring the hidden window back without relaunching the app, matching
+        // every other Linux tray-minimize app (Slack, Discord, Signal, syncthing-gtk, etc.).
+        // isTraySupported() is false on some Wayland/GNOME setups (java.awt.SystemTray isn't
+        // universally implemented there); runInBackground still works without it since a second
+        // launch's DesktopSingleInstance signal (wired to the same showMainWindow above) is the
+        // fallback recovery path in that case.
+        if (isTraySupported) {
+            val trayState = rememberTrayState()
+            Tray(
+                icon = painterResource(Res.drawable.app_icon),
+                state = trayState,
+                tooltip = "Rhythm",
+                onAction = showMainWindow,
+                menu = {
+                    Item("Show Rhythm", onClick = showMainWindow)
+                    Separator()
+                    Item("Quit", onClick = { exitApplication() })
+                }
+            )
+        }
     }
 }
 
