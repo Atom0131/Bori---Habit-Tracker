@@ -33,19 +33,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -53,12 +47,8 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toSize
 import com.apagon.rhythm.data.preferences.CrystalBackground
 import com.apagon.rhythm.data.preferences.CrystalMesh
 import com.apagon.rhythm.data.preferences.CrystalStyle
@@ -701,24 +691,28 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
 }
 
 /**
- * The field for a `DropdownMenu`, ported from the Android original's `crystalMenuField` — the one
- * exception to [CrystalWindowContent]'s "paint at local bounds" rule (that file's header comment).
- * M3 puts 8dp of padding *outside* the clipping scroll container `DropdownMenu`'s content lambda
- * draws into, but still inside the `Surface`'s own `clip(shape)` — so a field painted from inside
- * the content lambda (the [CrystalWindowContent] way) can never reach that padding strip, leaving a
- * visible gap. The field has to go on the `modifier` handed to `DropdownMenu` itself instead, where
- * `Surface` forwards it down into its content slot ahead of the padding.
+ * The field for a `DropdownMenu`. M3 puts 8dp of padding *outside* the clipping scroll container
+ * `DropdownMenu`'s content lambda draws into, but still inside the `Surface`'s own `clip(shape)` —
+ * so a field painted from inside the content lambda (the [CrystalWindowContent] way) can never
+ * reach that padding strip, leaving a visible gap. The field has to go on the `modifier` handed to
+ * `DropdownMenu` itself instead, where `Surface` forwards it down into its content slot ahead of
+ * the padding.
  *
- * **Sampling a slice of the enclosing window's field, not painting a fresh small one, avoids "a
- * rainbow in a menu."** A menu is typically much smaller than a sheet or dialog — squeezing the same
- * five-hue corner-to-corner mesh into a small popup (what [CrystalWindowContent]'s local-bounds
- * approach would produce here) reads as a miniature rainbow rather than a plausible patch of glass.
- * Instead this samples the correctly-scaled/positioned slice of the *enclosing window's* field —
- * [LocalWindowInfo]'s `containerSize` standing in for Android's `displayMetrics` (this port's own
- * "no meaningful absolute screen position" reasoning doesn't apply here: a `DropdownMenu` popup
- * renders as an overlay within its triggering window's own composition, not a separate window, so
- * "position in window" is exactly the right reference frame) and `positionInWindow()` standing in
- * for Android's `positionOnScreen()`.
+ * Paints a fresh field at this popup's own *local* bounds — the same convention this file's header
+ * comment states for every other window-scoped field ([CrystalWindowContent], [AmbientBackground]),
+ * via the same [drawCrystalMeshField] call those use with no `fieldSize`/`origin` override. This
+ * function used to instead sample a slice of "the enclosing window's field" via [LocalWindowInfo]'s
+ * `containerSize`/`positionInWindow()`, reasoning (wrongly, on desktop) that a `DropdownMenu` popup
+ * renders as an overlay within its triggering window's own composition rather than a separate
+ * window. Compose Multiplatform's own docs say otherwise — "the menu is displayed in a separate
+ * window, on top of other content" — so `containerSize`/`positionInWindow()` inside the popup read
+ * that popup's own small, near-zero-origin window, not the main app window: the "slice" sampled was
+ * wrong, and in practice rendered as a flat, near-opaque box instead of glass. Reverting to this
+ * file's own local-bounds convention (already proven correct for every sheet and dialog in the app)
+ * fixes that, at the cost of this function's original theoretical worry — a small popup getting a
+ * miniature of the full five-blob mesh rather than a plausible "patch" of one. In practice this
+ * reads fine at menu scale, same as it already does for the (similarly sized) `RhythmAlertDialog`/
+ * `ModalBottomSheet` surfaces using the exact same call.
  *
  * A no-op off Crystal, and under Solid — there the shell's own flat container colour is already the
  * field, so there is nothing a gradient would add.
@@ -729,20 +723,12 @@ fun Modifier.crystalMenuField(): Modifier {
     val dark = isDark
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
     val blobs = crystalFieldBlobs(LocalCrystalMesh.current, dark)
-    val windowSize = LocalWindowInfo.current.containerSize.toSize()
-    // Unspecified until the popup has been laid out. `onGloballyPositioned` runs after the first
-    // composition, so on the opening frame there is no offset to draw with — and a field that
-    // visibly jumps as the menu opens is worse than the miniature it replaces.
-    var origin by remember { mutableStateOf(Offset.Unspecified) }
     val tint = MaterialTheme.colorScheme.surfaceContainer
     val tintAlpha = crystalSurfaceAlpha(LocalCrystalStyle.current, dark, LocalCrystalIntensity.current)
-    return this
-        .onGloballyPositioned { origin = it.positionInWindow() }
-        .drawBehind {
-            if (origin.isUnspecified) return@drawBehind
-            drawCrystalMeshField(base, blobs, dark, fieldSize = windowSize, origin = origin)
-            drawRect(tint.copy(alpha = tintAlpha))
-        }
+    return this.drawBehind {
+        drawCrystalMeshField(base, blobs, dark)
+        drawRect(tint.copy(alpha = tintAlpha))
+    }
 }
 
 /**

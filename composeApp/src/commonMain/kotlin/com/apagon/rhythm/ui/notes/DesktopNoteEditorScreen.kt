@@ -38,8 +38,11 @@ import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
+import com.apagon.rhythm.ui.components.crystalChipSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
+import com.apagon.rhythm.ui.components.crystalSelectedChipColor
+import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
 import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
@@ -613,7 +616,23 @@ private fun DesktopNoteStyleSheet(
             Text("SIZE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("small" to "S · Small", "normal" to "M · Normal", "large" to "L · Large").forEach { (key, label) ->
-                    FilterChip(selected = currentSizeKey == key, onClick = { onSizeSelected(key) }, label = { Text(label) })
+                    val selected = currentSizeKey == key
+                    Box(
+                        modifier = Modifier
+                            .crystalChipSurface(
+                                fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
+                                else MaterialTheme.colorScheme.surfaceContainerHighest
+                            )
+                            .clickable(onClick = { onSizeSelected(key) })
+                    ) {
+                        Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                label,
+                                color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
                 }
             }
         }
