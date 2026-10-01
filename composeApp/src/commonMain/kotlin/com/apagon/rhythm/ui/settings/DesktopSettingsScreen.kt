@@ -114,6 +114,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     val swipeSectionsEnabled by viewModel.swipeSectionsEnabled.collectAsState(initial = false)
     val homeViewCalendar by viewModel.homeViewCalendar.collectAsState()
     val calendarIntegrationEnabled by viewModel.calendarIntegrationEnabled.collectAsState()
+    val runInBackground by viewModel.runInBackground.collectAsState(initial = false)
 
     val archivedHabits by viewModel.archivedHabits.collectAsState()
     val archivedTodos by viewModel.archivedTodos.collectAsState()
@@ -202,7 +203,8 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 viewModel = viewModel,
                                 homeViewCalendar = homeViewCalendar,
                                 swipeSectionsEnabled = swipeSectionsEnabled,
-                                calendarIntegrationEnabled = calendarIntegrationEnabled
+                                calendarIntegrationEnabled = calendarIntegrationEnabled,
+                                runInBackground = runInBackground
                             )
                             SettingsSection.DATA -> DataSectionContent(
                                 viewModel = viewModel,
@@ -587,7 +589,8 @@ private fun LayoutSectionContent(
     viewModel: DesktopSettingsViewModel,
     homeViewCalendar: Boolean,
     swipeSectionsEnabled: Boolean,
-    calendarIntegrationEnabled: Boolean
+    calendarIntegrationEnabled: Boolean,
+    runInBackground: Boolean
 ) {
     SettingsSection("Layout") {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -597,6 +600,20 @@ private fun LayoutSectionContent(
             SettingsRow("Swipeable sections") {
                 Switch(checked = swipeSectionsEnabled, onCheckedChange = { viewModel.setSwipeSectionsEnabled(it) }, colors = crystalSwitchColors())
             }
+        }
+    }
+
+    SettingsSection("Background") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SettingsRow("Run in background") {
+                Switch(checked = runInBackground, onCheckedChange = { viewModel.setRunInBackground(it) }, colors = crystalSwitchColors())
+            }
+            Text(
+                "Keep Rhythm running when the window is closed, so alarms, reminders, and timers " +
+                    "can still fire. Relaunch Rhythm to bring the window back.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 

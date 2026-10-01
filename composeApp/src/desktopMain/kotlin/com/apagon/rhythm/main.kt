@@ -37,6 +37,7 @@ import com.apagon.rhythm.data.sync.findTailscaleAddress
 import com.apagon.rhythm.di.desktopAppModule
 import com.apagon.rhythm.platform.AlertCenter
 import com.apagon.rhythm.platform.DesktopAlarmClockService
+import com.apagon.rhythm.platform.DesktopSingleInstance
 import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
 import com.apagon.rhythm.ui.alarms.DesktopAlertContent
@@ -48,6 +49,9 @@ import com.apagon.rhythm.ui.components.crystalChromeSurface
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.settings.DesktopSettingsScreen
 import com.apagon.rhythm.ui.theme.RhythmThemedRoot
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.compose.koinInject
@@ -88,6 +92,13 @@ private fun ensureEmojiFontInstalled() {
 }
 
 fun main() {
+    // Must run before any DB/Koin setup — a second launch while a "run in background" instance
+    // is already alive should just signal it and exit, not open a second connection to the same
+    // Room database. See DesktopSingleInstance's own doc comment for why there's no tray icon to
+    // click instead.
+    val singleInstance = DesktopSingleInstance()
+    if (!singleInstance.acquire()) return
+
     ensureEmojiFontInstalled()
 
     val koinApp = startKoin {
@@ -117,19 +128,60 @@ fun main() {
     // above already established for this app's "start once at launch" services.
     koinApp.koin.get<DesktopAlarmClockService>().start()
 
+    // Holds the live AWT window once Window{}'s content composes, so the single-instance watcher
+    // (a plain coroutine, outside composition) can toggle it later. "Hiding" this way — iconifying
+    // the underlying java.awt.Window rather than conditionally composing/decomposing the Window{}
+    // composable, or toggling its `isVisible` — is load-bearing, and both easier alternatives were
+    // tried and rejected live:
+    //  - Decomposing Window{} (`if (windowVisible) Window(...)`) tears down its Skiko/Skia surface,
+    //    and doing that from inside the native windowing callback onCloseRequest runs on crashed
+    //    the JVM outright (SIGSEGV in libX11's XVisualIDFromVisual, confirmed live).
+    //  - Keeping Window{} mounted but flipping `isVisible = false/true` avoided the crash but the
+    //    window never came back on `isVisible = true` — confirmed live (no exception, but no window
+    //    either; AWT/Skiko on this stack doesn't reliably support a hide/show cycle on a
+    //    ComposeWindow, only an iconify/deiconify one).
+    // Iconifying (`extendedState = ICONIFIED`) never disposes anything and is the standard AWT
+    // minimize operation, which deiconify (`extendedState = NORMAL`) reliably reverses — confirmed
+    // live, including the window actually regaining focus on the second launch's signal.
+    val mainWindowRef = mutableStateOf<androidx.compose.ui.awt.ComposeWindow?>(null)
+    singleInstance.startWatching(CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+        java.awt.EventQueue.invokeLater {
+            mainWindowRef.value?.apply {
+                extendedState = java.awt.Frame.NORMAL
+                isVisible = true
+                toFront()
+                requestFocus()
+            }
+        }
+    }
+
     application {
+        val themePreferences = koinInject<ThemePreferences>()
+        val runInBackground by themePreferences.runInBackground.collectAsState(initial = false)
+
         // Stage 15a: the window previously had no default/min size at all (bare OS default),
         // which is what let the old ScrollableTabRow shell get squeezed into the label-wrapping
         // widths the last layout round had to patch around. The sidebar shell replacing it needs
         // enough width for a ~220dp rail plus a genuinely usable content pane, so give the window
         // real sizing intent instead of leaving it to chance.
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                // Opt-in only (Settings → Layout → "Run in background") — closing the window
+                // keeps quitting the app exactly as it always has unless the user turned this
+                // on. DesktopAlarmClockService/SyncServer were already started above, outside
+                // application{}, so they keep running untouched either way; this only decides
+                // whether exitApplication() also tears the whole JVM process down with them.
+                if (runInBackground) {
+                    mainWindowRef.value?.extendedState = java.awt.Frame.ICONIFIED
+                } else {
+                    exitApplication()
+                }
+            },
             title = "Rhythm",
             state = rememberWindowState(width = 1280.dp, height = 800.dp)
         ) {
             window.minimumSize = java.awt.Dimension(960, 600)
-            val themePreferences = koinInject<ThemePreferences>()
+            mainWindowRef.value = window
 
             RhythmThemedRoot(themePreferences = themePreferences) {
                 DesktopAppRoot()

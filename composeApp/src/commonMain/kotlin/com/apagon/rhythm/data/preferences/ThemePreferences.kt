@@ -44,6 +44,12 @@ class ThemePreferences(
         val ACCENT_COLOR_ARGB_KEY = intPreferencesKey("accent_color_argb")
         val SWIPE_SECTIONS_KEY = booleanPreferencesKey("swipe_sections_enabled")
         val HOME_VIEW_CALENDAR_KEY = booleanPreferencesKey("home_view_calendar")
+        // Desktop-only (no Android equivalent — the OS already handles background
+        // scheduling there) — deliberately NOT read/written by exportPreferences/
+        // importPreferences below, same reasoning SecurityRepository's PIN is kept
+        // outside the backup: a value meaningless on the other platform shouldn't
+        // round-trip through a cross-device backup file.
+        val RUN_IN_BACKGROUND_KEY = booleanPreferencesKey("run_in_background")
         val CALENDAR_LIST_MODE_KEY = booleanPreferencesKey("calendar_list_mode")
         val USER_NAME_KEY      = stringPreferencesKey("user_name")
         val USER_NICKNAME_KEY  = stringPreferencesKey("user_nickname")
@@ -116,6 +122,10 @@ class ThemePreferences(
         prefs[HOME_VIEW_CALENDAR_KEY] ?: false
     }
 
+    val runInBackground: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[RUN_IN_BACKGROUND_KEY] ?: false
+    }
+
     val calendarListMode: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[CALENDAR_LIST_MODE_KEY] ?: false
     }
@@ -123,6 +133,12 @@ class ThemePreferences(
     suspend fun setHomeViewCalendar(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[HOME_VIEW_CALENDAR_KEY] = enabled
+        }
+    }
+
+    suspend fun setRunInBackground(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[RUN_IN_BACKGROUND_KEY] = enabled
         }
     }
 

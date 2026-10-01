@@ -27,7 +27,8 @@ class DesktopAlarmClockService(
     private val alarmDao: AlarmDao,
     private val reminderDao: ReminderDao,
     private val timerDao: TimerDao,
-    private val alertCenter: AlertCenter
+    private val alertCenter: AlertCenter,
+    private val osNotifier: DesktopOsNotifier
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -55,6 +56,14 @@ class DesktopAlarmClockService(
         checkTimers()
     }
 
+    /** Every fire goes through here — raises the in-process alert (the always-on-top
+     * window) and posts a real OS notification alongside it, so the user sees something
+     * even if that window isn't visible. */
+    private suspend fun fire(alert: FiredAlert) {
+        alertCenter.raise(alert)
+        osNotifier.notify(alert)
+    }
+
     private suspend fun checkAlarms(now: LocalDateTime) {
         val bit = 1 shl (now.dayOfWeek.isoDayNumber - 1)
         alarmDao.getEnabledAlarms().forEach { alarm ->
@@ -63,7 +72,7 @@ class DesktopAlarmClockService(
             if (!matchesTime || !matchesDay) return@forEach
             val key = "${alarm.id}@${now.date}T${now.hour}:${now.minute}"
             if (!firedAlarmMinutes.add(key)) return@forEach
-            alertCenter.raise(
+            fire(
                 FiredAlert(
                     kind = FiredAlertKind.ALARM,
                     sourceId = alarm.id,
@@ -84,7 +93,7 @@ class DesktopAlarmClockService(
             val due = runCatching { LocalDateTime.parse(reminder.dateTime, REMINDER_INPUT_FMT) }.getOrNull() ?: return@forEach
             if (due > now) return@forEach
             if (!firedReminderIds.add(reminder.id)) return@forEach
-            alertCenter.raise(
+            fire(
                 FiredAlert(
                     kind = FiredAlertKind.REMINDER,
                     sourceId = reminder.id,
@@ -99,7 +108,7 @@ class DesktopAlarmClockService(
         val nowMs = com.apagon.rhythm.core.time.System.currentTimeMillis()
         timerDao.getAllTimers().first().forEach { timer ->
             if (timer.endTimeMillis <= 0 || timer.endTimeMillis > nowMs) return@forEach
-            alertCenter.raise(
+            fire(
                 FiredAlert(
                     kind = FiredAlertKind.TIMER,
                     sourceId = timer.id,

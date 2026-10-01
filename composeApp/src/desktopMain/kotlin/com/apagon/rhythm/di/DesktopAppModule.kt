@@ -30,6 +30,7 @@ import com.apagon.rhythm.data.sync.SyncServer
 import com.apagon.rhythm.data.sync.findTailscaleAddress
 import com.apagon.rhythm.platform.AlertCenter
 import com.apagon.rhythm.platform.DesktopAlarmClockService
+import com.apagon.rhythm.platform.DesktopOsNotifier
 import com.apagon.rhythm.platform.DesktopHapticAlerter
 import com.apagon.rhythm.platform.DesktopImageBitmapLoader
 import com.apagon.rhythm.platform.DesktopLocaleFormatting
@@ -124,7 +125,7 @@ val desktopAppModule = module {
     single<ImageBitmapLoader> { DesktopImageBitmapLoader() }
     single<FilePicker> { DesktopFilePickerService() }
     single<com.apagon.rhythm.platform.GlassBlur> { com.apagon.rhythm.platform.DesktopGlassBlur() }
-    viewModel { DesktopHabitViewModel(get(), get(), get(), get()) }
+    viewModel { DesktopHabitViewModel(get(), get(), get(), get(), get()) }
     // The Habits/Today screen's grouped/streak/%-done state — see
     // ref_notes for the layout-parity round this was activated in. Every
     // dependency below was already registered for other screens (Todo,
@@ -153,7 +154,8 @@ val desktopAppModule = module {
     // ── Stage 12: Alarms/Timers/Reminders/Clock ─────────────────────────────
     single<ReminderScheduling> { DesktopReminderScheduling() }
     single { AlertCenter() }
-    single { DesktopAlarmClockService(get(), get(), get(), get()) }
+    single { DesktopOsNotifier() }
+    single { DesktopAlarmClockService(get(), get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
     viewModel { ReminderViewModel(get(), get()) }
     viewModel { TimerViewModel(get(), get(), get(), get()) }

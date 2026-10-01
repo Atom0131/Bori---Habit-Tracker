@@ -111,6 +111,8 @@ class DesktopSettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val calendarIntegrationEnabled: StateFlow<Boolean> = themePreferences.calendarIntegrationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val runInBackground: StateFlow<Boolean> = themePreferences.runInBackground
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val archivedHabits: StateFlow<List<Habit>> = habitRepository.getAllArchivedHabits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -169,6 +171,10 @@ class DesktopSettingsViewModel(
 
     fun setCalendarIntegrationEnabled(enabled: Boolean) {
         viewModelScope.launch { themePreferences.setCalendarIntegrationEnabled(enabled) }
+    }
+
+    fun setRunInBackground(enabled: Boolean) {
+        viewModelScope.launch { themePreferences.setRunInBackground(enabled) }
     }
 
     private val _backupState = MutableStateFlow<DesktopBackupState>(DesktopBackupState.Idle)
