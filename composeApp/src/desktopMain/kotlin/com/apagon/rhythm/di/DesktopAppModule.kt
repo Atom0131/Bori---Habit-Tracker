@@ -52,7 +52,7 @@ import com.apagon.rhythm.platform.WidgetRefresher
 import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.TimerViewModel
 import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
-import com.apagon.rhythm.ui.deleted.DesktopRecentlyDeletedViewModel
+import com.apagon.rhythm.ui.deleted.RecentlyDeletedViewModel
 import com.apagon.rhythm.ui.habit.DesktopHabitViewModel
 import com.apagon.rhythm.ui.habit.HabitListViewModel
 import com.apagon.rhythm.ui.journal.JournalViewModel
@@ -133,7 +133,7 @@ val desktopAppModule = module {
     // been wired into Koin yet.
     viewModel { HabitListViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { TodoViewModel(get(), get(), get(), get()) }
-    viewModel { DesktopRecentlyDeletedViewModel(get(), get()) }
+    viewModel { RecentlyDeletedViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { DesktopCalendarViewModel(get(), get()) }
     viewModel { JournalViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { NotesViewModel(get(), get(), get()) }

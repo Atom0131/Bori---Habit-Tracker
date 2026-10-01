@@ -20,17 +20,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.model.Alarm
+import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.Habit
+import com.apagon.rhythm.data.model.JournalEntry
+import com.apagon.rhythm.data.model.Note
+import com.apagon.rhythm.data.model.Notebook
+import com.apagon.rhythm.data.model.Reminder
+import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import org.koin.compose.viewmodel.koinViewModel
 
-// Stage 7's Recently Deleted screen — see DesktopRecentlyDeletedViewModel's
-// doc comment for why this covers Habit+Todo only, not the full 9-way split
-// Android's RecentlyDeletedScreen.kt shows. Grows a section at a time as
-// later stages add each entity to DesktopHabitDatabase.
+// Was Stage 7's deliberately-narrow Habit+Todo-only trash, covering just the two entities that
+// existed on desktop at the time. Every entity DesktopRecentlyDeletedViewModel was waiting on
+// (Reminders, Calendar, Alarms, Timers, Notes, Journal) has since landed on desktop — Stages 8-12
+// added them all, and DesktopBackupManager already round-trips every one of them — so this now
+// uses the same full RecentlyDeletedViewModel/DeletedItems the rest of the app's shared code was
+// already written against, instead of the narrowed desktop-only pair.
 @Composable
-fun DesktopRecentlyDeletedScreen(viewModel: DesktopRecentlyDeletedViewModel = koinViewModel()) {
+fun DesktopRecentlyDeletedScreen(viewModel: RecentlyDeletedViewModel = koinViewModel()) {
     val items by viewModel.deletedItems.collectAsState()
 
     if (items.isEmpty) {
@@ -70,6 +79,76 @@ fun DesktopRecentlyDeletedScreen(viewModel: DesktopRecentlyDeletedViewModel = ko
                     title = todo.title,
                     onRestore = { viewModel.restoreTodo(todo) },
                     onDelete = { viewModel.hardDeleteTodo(todo) }
+                )
+            }
+        }
+        if (items.reminders.isNotEmpty()) {
+            item { DeletedSectionHeader("Reminders") }
+            items(items.reminders, key = { "reminder-${it.id}" }) { reminder: Reminder ->
+                DesktopDeletedItemRow(
+                    title = reminder.title,
+                    onRestore = { viewModel.restoreReminder(reminder) },
+                    onDelete = { viewModel.hardDeleteReminder(reminder) }
+                )
+            }
+        }
+        if (items.events.isNotEmpty()) {
+            item { DeletedSectionHeader("Events") }
+            items(items.events, key = { "event-${it.id}" }) { event: CalendarEvent ->
+                DesktopDeletedItemRow(
+                    title = event.title,
+                    onRestore = { viewModel.restoreEvent(event) },
+                    onDelete = { viewModel.hardDeleteEvent(event) }
+                )
+            }
+        }
+        if (items.alarms.isNotEmpty()) {
+            item { DeletedSectionHeader("Alarms") }
+            items(items.alarms, key = { "alarm-${it.id}" }) { alarm: Alarm ->
+                DesktopDeletedItemRow(
+                    title = alarm.label.ifBlank { "Alarm" },
+                    onRestore = { viewModel.restoreAlarm(alarm) },
+                    onDelete = { viewModel.hardDeleteAlarm(alarm) }
+                )
+            }
+        }
+        if (items.timers.isNotEmpty()) {
+            item { DeletedSectionHeader("Timers") }
+            items(items.timers, key = { "timer-${it.id}" }) { timer: Timer ->
+                DesktopDeletedItemRow(
+                    title = timer.label.ifBlank { "Timer" },
+                    onRestore = { viewModel.restoreTimer(timer) },
+                    onDelete = { viewModel.hardDeleteTimer(timer) }
+                )
+            }
+        }
+        if (items.notebooks.isNotEmpty()) {
+            item { DeletedSectionHeader("Notebooks") }
+            items(items.notebooks, key = { "notebook-${it.id}" }) { notebook: Notebook ->
+                DesktopDeletedItemRow(
+                    title = notebook.name,
+                    onRestore = { viewModel.restoreNotebook(notebook) },
+                    onDelete = { viewModel.hardDeleteNotebook(notebook) }
+                )
+            }
+        }
+        if (items.notes.isNotEmpty()) {
+            item { DeletedSectionHeader("Notes") }
+            items(items.notes, key = { "note-${it.id}" }) { note: Note ->
+                DesktopDeletedItemRow(
+                    title = note.title.ifBlank { "Untitled note" },
+                    onRestore = { viewModel.restoreNote(note) },
+                    onDelete = { viewModel.hardDeleteNote(note) }
+                )
+            }
+        }
+        if (items.journalEntries.isNotEmpty()) {
+            item { DeletedSectionHeader("Journal") }
+            items(items.journalEntries, key = { "journal-${it.id}" }) { entry: JournalEntry ->
+                DesktopDeletedItemRow(
+                    title = entry.title.ifBlank { entry.date },
+                    onRestore = { viewModel.restoreJournalEntry(entry) },
+                    onDelete = { viewModel.hardDeleteJournalEntry(entry) }
                 )
             }
         }
