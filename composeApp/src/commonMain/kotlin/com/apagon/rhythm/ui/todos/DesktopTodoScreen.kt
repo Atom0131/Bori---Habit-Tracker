@@ -1,6 +1,5 @@
 package com.apagon.rhythm.ui.todos
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,8 +18,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.ui.components.DesktopLayout
-import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
-import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
@@ -39,14 +35,14 @@ import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 // habit sections use — everything starts folded closed, not just habits. Matches that here with
 // its own expanded/onToggleExpanded pair (kept separate from the habit frequencies' Set<HabitFrequency>
 // state rather than widening that type, since To-dos isn't a HabitFrequency).
+// Stage 19e: the inline "New to-do" row used to sit here — removed now that the Today FAB
+// (Stage 19c) is the single discoverable add entry point for both habits and to-dos, matching
+// Android's HabitListScreen.kt (no inline todosSection add row there either, only the FAB).
 internal fun LazyListScope.todoSection(
     pending: List<Todo>,
     completed: List<Todo>,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
-    newTitle: String,
-    onNewTitleChange: (String) -> Unit,
-    onAdd: () -> Unit,
     onToggle: (Todo) -> Unit,
     onDelete: (Todo) -> Unit
 ) {
@@ -60,27 +56,10 @@ internal fun LazyListScope.todoSection(
     }
     if (!expanded) return
 
-    item(key = "todos_add") {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding)
-                .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = newTitle,
-                onValueChange = onNewTitleChange,
-                label = { Text("New to-do") },
-                colors = crystalBareTextFieldColors(),
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = onAdd) { Text("Add") }
-        }
-    }
     if (pending.isEmpty() && completed.isEmpty()) {
         item(key = "todos_empty") {
             Text(
-                "No to-dos yet — add one above.",
+                "No to-dos yet — tap + to add one.",
                 modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
             )
         }

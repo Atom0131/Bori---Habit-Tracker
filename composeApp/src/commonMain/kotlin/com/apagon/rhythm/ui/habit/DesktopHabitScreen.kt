@@ -39,7 +39,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.HabitFrequency
-import com.apagon.rhythm.data.model.TodoPriority
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.QrCodeRenderer
@@ -85,7 +84,6 @@ internal fun DesktopTodayListContent(
     val state by viewModel.uiState.collectAsState()
     val peerAddress by viewModel.peerAddress.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
-    var newHabitName by remember { mutableStateOf("") }
     // Stage 19f: Android's Today list always shows a WeekStrip between the header and the habit
     // sections — desktop had none. selectedDate drives both the strip and (Stage 19g) the
     // Reminders/Events sections below the habit sections, kept in sync with calendarViewModel's
@@ -124,7 +122,6 @@ internal fun DesktopTodayListContent(
 
     val pendingTodos by todoViewModel.pendingTodos.collectAsState()
     val completedTodos by todoViewModel.completedTodos.collectAsState()
-    var newTodoTitle by remember { mutableStateOf("") }
     // Stage 18: matches the phone app's HabitListScreen — its "todos" section uses the exact same
     // collapsedSections set as the habit frequency sections, seeded closed. Kept as its own flag
     // here rather than widening collapsedSections' type, since To-dos isn't a HabitFrequency.
@@ -149,8 +146,6 @@ internal fun DesktopTodayListContent(
                 state = state,
                 peerAddress = peerAddress,
                 syncStatus = syncStatus,
-                newHabitName = newHabitName,
-                onNewHabitNameChange = { newHabitName = it },
                 selectedDate = selectedDate,
                 onSelectedDateChange = {
                     selectedDate = it
@@ -200,14 +195,6 @@ internal fun DesktopTodayListContent(
                         completed = completedTodos,
                         expanded = todosExpanded,
                         onToggleExpanded = { todosExpanded = !todosExpanded },
-                        newTitle = newTodoTitle,
-                        onNewTitleChange = { newTodoTitle = it },
-                        onAdd = {
-                            if (newTodoTitle.isNotBlank()) {
-                                todoViewModel.addTodo(title = newTodoTitle, note = "", dueDate = "", priority = TodoPriority.NONE)
-                                newTodoTitle = ""
-                            }
-                        },
                         onToggle = { todoViewModel.toggleCompletion(it) },
                         onDelete = { todoViewModel.deleteTodo(it) }
                     )
@@ -232,8 +219,6 @@ internal fun DesktopHabitList(
     state: DesktopHabitUiState,
     peerAddress: String,
     syncStatus: String?,
-    newHabitName: String,
-    onNewHabitNameChange: (String) -> Unit,
     selectedDate: LocalDate,
     onSelectedDateChange: (LocalDate) -> Unit,
     weekStripExpanded: Boolean,
@@ -287,31 +272,13 @@ internal fun DesktopHabitList(
             }
 
             item {
+                // Stage 19e: the inline "New habit" field used to live here — removed now that the
+                // Today FAB (Stage 19c) is the single discoverable add entry point, matching
+                // Android's HabitListScreen.kt (no inline field there either, only the FAB). The
+                // "Sync with phone" block below is unrelated desktop-only functionality
+                // (Stage 13 Tailscale pairing) and stays exactly where it was.
                 Column(modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-                        horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = newHabitName,
-                            onValueChange = onNewHabitNameChange,
-                            label = { Text("New habit") },
-                            colors = crystalBareTextFieldColors(),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Button(
-                            colors = crystalButtonColors(),
-                            onClick = {
-                                viewModel.addHabit(newHabitName)
-                                onNewHabitNameChange("")
-                            }
-                        ) {
-                            Text("Add")
-                        }
-                    }
-
-                    TextButton(onClick = onToggleShowSync, modifier = Modifier.padding(top = 8.dp)) {
+                    TextButton(onClick = onToggleShowSync) {
                         Text(if (showSync) "Hide sync with phone" else "Sync with phone")
                     }
 
@@ -373,7 +340,7 @@ internal fun DesktopHabitList(
             if (!anyHabits) {
                 item {
                     Text(
-                        "No habits scheduled for today yet — add one above.",
+                        "No habits scheduled for today yet — tap + to add one.",
                         modifier = Modifier.padding(16.dp)
                     )
                 }
