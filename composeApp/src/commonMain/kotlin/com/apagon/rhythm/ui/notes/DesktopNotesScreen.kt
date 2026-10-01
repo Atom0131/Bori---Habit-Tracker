@@ -19,16 +19,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.ui.components.crystalCardSurface
-import com.apagon.rhythm.ui.components.crystalFabContainerColor
-import com.apagon.rhythm.ui.components.crystalFabContentColor
-import com.apagon.rhythm.ui.components.crystalFabElevation
-import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.util.RhythmAddFab
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -207,15 +204,7 @@ fun DesktopNotesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddNotebook = true },
-                modifier = Modifier.crystalFabSurface(),
-                containerColor = crystalFabContainerColor(),
-                contentColor = crystalFabContentColor(),
-                elevation = crystalFabElevation()
-            ) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
-            }
+            RhythmAddFab(onClick = { showAddNotebook = true })
         }
     ) { innerPadding ->
         if (notebooksWithCount.isEmpty()) {

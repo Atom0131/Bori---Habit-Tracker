@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,13 +36,10 @@ import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalControlColor
-import com.apagon.rhythm.ui.components.crystalFabContainerColor
-import com.apagon.rhythm.ui.components.crystalFabContentColor
-import com.apagon.rhythm.ui.components.crystalFabElevation
-import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.reminders.DesktopAddReminderSheet
 import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.util.RhythmAddFab
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -125,15 +121,10 @@ internal fun DesktopTodayCalendarContent(
             }
         }
 
-        FloatingActionButton(
+        RhythmAddFab(
             onClick = { showAddEventSheet = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding).crystalFabSurface(),
-            containerColor = crystalFabContainerColor(),
-            contentColor = crystalFabContentColor(),
-            elevation = crystalFabElevation()
-        ) {
-            Text("+", style = MaterialTheme.typography.headlineSmall)
-        }
+            modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding)
+        )
     }
 
     if (showAddEventSheet) {

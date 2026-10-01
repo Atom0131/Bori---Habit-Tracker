@@ -17,10 +17,7 @@ import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
-import com.apagon.rhythm.ui.components.crystalFabContainerColor
-import com.apagon.rhythm.ui.components.crystalFabContentColor
-import com.apagon.rhythm.ui.components.crystalFabElevation
-import com.apagon.rhythm.ui.components.crystalFabSurface
+import com.apagon.rhythm.ui.util.RhythmAddFab
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Stage 15d: which of the two panes' selection state the right column shows, if any. */
@@ -134,13 +131,10 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                 }
                 }
 
-                FloatingActionButton(
+                RhythmAddFab(
                     onClick = { editorState = JournalEditorState.New },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding).crystalFabSurface(),
-                    containerColor = crystalFabContainerColor(),
-                    contentColor = crystalFabContentColor(),
-                    elevation = crystalFabElevation()
-                ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(DesktopLayout.screenPadding)
+                )
             }
         }
 

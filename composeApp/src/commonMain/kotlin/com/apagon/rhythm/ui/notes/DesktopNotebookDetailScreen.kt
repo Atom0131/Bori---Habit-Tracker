@@ -21,10 +21,6 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCardSurface
-import com.apagon.rhythm.ui.components.crystalFabContainerColor
-import com.apagon.rhythm.ui.components.crystalFabContentColor
-import com.apagon.rhythm.ui.components.crystalFabElevation
-import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
@@ -34,6 +30,7 @@ import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.components.crystalTileSurface
+import com.apagon.rhythm.ui.util.RhythmAddFab
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import kotlin.time.Instant
@@ -122,13 +119,7 @@ fun DesktopNotebookDetailScreen(
         },
         floatingActionButton = {
             if (!isInSelectMode) {
-                FloatingActionButton(
-                    onClick = { showTemplatePicker = true },
-                    modifier = Modifier.crystalFabSurface(),
-                    containerColor = crystalFabContainerColor(),
-                    contentColor = crystalFabContentColor(),
-                    elevation = crystalFabElevation()
-                ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                RhythmAddFab(onClick = { showTemplatePicker = true })
             }
         }
     ) { innerPadding ->
