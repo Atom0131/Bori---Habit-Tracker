@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
+import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
@@ -99,8 +100,8 @@ private fun HabitFrequency.sectionTitle(): String = when (this) {
 @Composable
 private fun DesktopHabitRow(habit: Habit, isDone: Boolean, onToggle: () -> Unit, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            .crystalTileSurface().padding(horizontal = PlannerMetrics.RowInset, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)
+            .crystalTileSurface().padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = isDone, onCheckedChange = { onToggle() }, colors = crystalCheckboxColors())

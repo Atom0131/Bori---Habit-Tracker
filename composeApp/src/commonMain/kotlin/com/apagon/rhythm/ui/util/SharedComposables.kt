@@ -49,6 +49,7 @@ fun CollapsibleSectionHeader(
     Box(
         Modifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
             .crystalStickyHeader(horizontalPadding = PlannerMetrics.SectionInset)
             .clickable(onClick = onToggle)
     ) {
