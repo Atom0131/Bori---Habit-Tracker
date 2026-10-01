@@ -1,11 +1,17 @@
 package com.apagon.rhythm.ui.util
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,10 +49,12 @@ enum class SectionHeaderTier { Primary, Secondary }
  * when overlaid in a `Box`, or nothing when passed straight into `Scaffold(floatingActionButton =
  * {})`, which positions it itself.
  *
- * Uses a plain `Text("+")` glyph rather than `Icons.Default.Add`: this project has no
- * material-icons-core dependency available (confirmed by a direct compile attempt — not just
- * material-icons-extended, which Stage 18b already found broke dependency resolution), matching
- * the glyph convention already established by [CollapsibleSectionHeader].
+ * Draws the plus from two bars rather than a `Text("+")` glyph or `Icons.Default.Add` (this
+ * project has no material-icons-core dependency available — confirmed by a direct compile
+ * attempt, not just material-icons-extended, which Stage 18b already found broke dependency
+ * resolution): a font glyph's ascent/descent box isn't symmetric around the "+" shape itself, so
+ * centering the `Text` composable in the FAB still left the visible plus sign off-center. Two
+ * bars overlaid in a centered [Box] are geometrically centered regardless of font metrics.
  */
 @Composable
 fun RhythmAddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -57,7 +65,11 @@ fun RhythmAddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
         contentColor = crystalFabContentColor(),
         elevation = crystalFabElevation()
     ) {
-        Text("+", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        val plusColor = LocalContentColor.current
+        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(2.dp).height(16.dp).background(plusColor, RoundedCornerShape(1.dp)))
+            Box(Modifier.width(16.dp).height(2.dp).background(plusColor, RoundedCornerShape(1.dp)))
+        }
     }
 }
 
