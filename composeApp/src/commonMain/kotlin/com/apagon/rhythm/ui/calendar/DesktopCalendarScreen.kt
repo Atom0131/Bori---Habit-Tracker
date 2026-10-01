@@ -338,7 +338,7 @@ private fun DayDetail(
 // Stage 17e: moved from DesktopClockScreen.kt (Reminders is no longer Clock's — it lives on
 // Today's Calendar day-detail, matching mobile's DayDetailView.kt).
 @Composable
-private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
+internal fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
     Box(Modifier.fillMaxWidth().crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(DesktopLayout.cardPadding),
@@ -359,7 +359,7 @@ private fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDelet
 }
 
 @Composable
-private fun CalendarEventRow(event: CalendarEvent, onEdit: () -> Unit, onDelete: () -> Unit) {
+internal fun CalendarEventRow(event: CalendarEvent, onEdit: () -> Unit, onDelete: () -> Unit) {
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
     val accentColor = resolveDisplayColor(event.colorIndex, event.colorArgb)

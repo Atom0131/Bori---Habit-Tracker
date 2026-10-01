@@ -43,12 +43,20 @@ import com.apagon.rhythm.data.model.TodoPriority
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.QrCodeRenderer
+import com.apagon.rhythm.core.time.*
+import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
+import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
+import com.apagon.rhythm.ui.calendar.eventsSection
+import com.apagon.rhythm.ui.reminders.ReminderViewModel
+import com.apagon.rhythm.ui.reminders.remindersForDate
+import com.apagon.rhythm.ui.reminders.remindersSection
 import com.apagon.rhythm.ui.todos.TodoViewModel
 import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.todos.todoSection
+import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -70,12 +78,34 @@ import org.koin.compose.viewmodel.koinViewModel
 internal fun DesktopTodayListContent(
     viewModel: DesktopHabitViewModel = koinViewModel(),
     habitListViewModel: HabitListViewModel = koinViewModel(),
-    todoViewModel: TodoViewModel = koinViewModel()
+    todoViewModel: TodoViewModel = koinViewModel(),
+    calendarViewModel: DesktopCalendarViewModel = koinViewModel(),
+    reminderViewModel: ReminderViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val peerAddress by viewModel.peerAddress.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     var newHabitName by remember { mutableStateOf("") }
+    // Stage 19f: Android's Today list always shows a WeekStrip between the header and the habit
+    // sections — desktop had none. selectedDate drives both the strip and (Stage 19g) the
+    // Reminders/Events sections below the habit sections, kept in sync with calendarViewModel's
+    // own selectedDay so Today list-mode and Today calendar-mode agree on "the selected day".
+    val calendarSelectedDay by calendarViewModel.selectedDay.collectAsState()
+    var selectedDate by remember { mutableStateOf(calendarSelectedDay ?: LocalDate.now()) }
+    var weekStripExpanded by remember { mutableStateOf(false) }
+    val monthIndicatorDates by calendarViewModel.monthIndicatorDates.collectAsState()
+
+    // Stage 19g: Reminders/Events, previously only reachable via Calendar mode's day-detail —
+    // Android's Today list always shows them inline, after the habit sections and before To-dos.
+    val upcomingReminders by reminderViewModel.upcomingReminders.collectAsState()
+    val pastReminders by reminderViewModel.pastReminders.collectAsState()
+    val completedReminders by reminderViewModel.completedReminders.collectAsState()
+    val selectedDayReminders = remember(selectedDate, upcomingReminders, pastReminders, completedReminders) {
+        remindersForDate(upcomingReminders + pastReminders + completedReminders, selectedDate.format(ISO_LOCAL_DATE))
+    }
+    val selectedDayEvents by calendarViewModel.selectedDayEvents.collectAsState()
+    var remindersExpanded by remember { mutableStateOf(false) }
+    var eventsExpanded by remember { mutableStateOf(false) }
     var showSync by remember { mutableStateOf(false) }
     var showQrCode by remember { mutableStateOf(false) }
     val qrCodeRenderer = koinInject<QrCodeRenderer>()
@@ -121,6 +151,14 @@ internal fun DesktopTodayListContent(
                 syncStatus = syncStatus,
                 newHabitName = newHabitName,
                 onNewHabitNameChange = { newHabitName = it },
+                selectedDate = selectedDate,
+                onSelectedDateChange = {
+                    selectedDate = it
+                    calendarViewModel.selectDay(it)
+                },
+                weekStripExpanded = weekStripExpanded,
+                onToggleWeekStripExpanded = { weekStripExpanded = !weekStripExpanded },
+                weekStripIndicatorDates = monthIndicatorDates,
                 showSync = showSync,
                 onToggleShowSync = { showSync = !showSync },
                 showQrCode = showQrCode,
@@ -140,6 +178,22 @@ internal fun DesktopTodayListContent(
                     expandedDoneGroups = if (frequency in expandedDoneGroups) expandedDoneGroups - frequency else expandedDoneGroups + frequency
                 },
                 onSelectHabit = { selectedHabitId = it },
+                remindersEventsItems = {
+                    remindersSection(
+                        reminders = selectedDayReminders,
+                        expanded = remindersExpanded,
+                        onToggleExpanded = { remindersExpanded = !remindersExpanded },
+                        onToggle = { reminderViewModel.toggleCompletion(it) },
+                        onDelete = { reminderViewModel.deleteReminder(it) }
+                    )
+                    eventsSection(
+                        events = selectedDayEvents,
+                        expanded = eventsExpanded,
+                        onToggleExpanded = { eventsExpanded = !eventsExpanded },
+                        onEdit = { /* Stage 19g: no desktop edit-event entry point from Today list yet — Calendar mode has one. */ },
+                        onDelete = { calendarViewModel.deleteCalendarEvent(it) }
+                    )
+                },
                 extraItems = {
                     todoSection(
                         pending = pendingTodos,
@@ -180,6 +234,11 @@ internal fun DesktopHabitList(
     syncStatus: String?,
     newHabitName: String,
     onNewHabitNameChange: (String) -> Unit,
+    selectedDate: LocalDate,
+    onSelectedDateChange: (LocalDate) -> Unit,
+    weekStripExpanded: Boolean,
+    onToggleWeekStripExpanded: () -> Unit,
+    weekStripIndicatorDates: Set<String>,
     showSync: Boolean,
     onToggleShowSync: () -> Unit,
     showQrCode: Boolean,
@@ -195,6 +254,7 @@ internal fun DesktopHabitList(
     expandedDoneGroups: Set<HabitFrequency>,
     onToggleDoneExpanded: (HabitFrequency) -> Unit,
     onSelectHabit: (Long) -> Unit,
+    remindersEventsItems: LazyListScope.() -> Unit = {},
     extraItems: LazyListScope.() -> Unit = {}
 ) {
     // Stage 17e: no longer owns its own Scaffold — DesktopTodayScreen provides the single shared
@@ -213,6 +273,16 @@ internal fun DesktopHabitList(
                     userName = userName,
                     profilePictureUri = profilePictureUri,
                     date = state.date.toString()
+                )
+            }
+
+            item(key = "week_strip") {
+                DesktopTodayWeekStrip(
+                    selectedDate = selectedDate,
+                    onDateSelected = onSelectedDateChange,
+                    expanded = weekStripExpanded,
+                    onToggleExpanded = onToggleWeekStripExpanded,
+                    indicatorDates = weekStripIndicatorDates
                 )
             }
 
@@ -325,6 +395,7 @@ internal fun DesktopHabitList(
                 }
             }
 
+            remindersEventsItems()
             extraItems()
         }
     }
