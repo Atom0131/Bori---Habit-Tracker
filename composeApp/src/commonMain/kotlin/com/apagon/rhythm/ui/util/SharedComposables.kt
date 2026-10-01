@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.LocalContentColor
@@ -63,7 +64,8 @@ fun RhythmAddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.crystalFabSurface(),
         containerColor = crystalFabContainerColor(),
         contentColor = crystalFabContentColor(),
-        elevation = crystalFabElevation()
+        elevation = crystalFabElevation(),
+        shape = CircleShape
     ) {
         val plusColor = LocalContentColor.current
         Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {

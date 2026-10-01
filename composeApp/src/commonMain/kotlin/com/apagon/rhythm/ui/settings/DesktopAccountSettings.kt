@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,11 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.ImageBitmapLoader
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
+import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.koinInject
 
 // Desktop counterpart to androidMain's AccountSettings.kt (Stage 11). Drops
@@ -56,12 +54,10 @@ import org.koin.compose.koinInject
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    RhythmSheet(
+        onDismiss = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
-        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -113,7 +109,6 @@ fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
                 shape = RoundedCornerShape(16.dp)
             ) { Text("I Understand") }
         }
-        }
     }
 }
 
@@ -153,12 +148,10 @@ fun DesktopEditProfileSheet(
     var pronouns by remember { mutableStateOf(currentPronouns) }
     val imageLoader = koinInject<ImageBitmapLoader>()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    RhythmSheet(
+        onDismiss = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
-        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -263,7 +256,6 @@ fun DesktopEditProfileSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) { Text("Save") }
-        }
         }
     }
 }

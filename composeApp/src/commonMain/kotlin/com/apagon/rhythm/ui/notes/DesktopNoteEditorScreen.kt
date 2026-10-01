@@ -36,20 +36,19 @@ import androidx.compose.foundation.BorderStroke
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import com.apagon.rhythm.platform.PhotoStorage
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalChipSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSelectedChipColor
 import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.CrystalIconButton
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
+import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -212,14 +211,7 @@ fun DesktopNoteEditorScreen(
     if (showMoveSheet) {
         val currentNotebookId = currentNote?.notebookId ?: notebookId
         val targetNotebooks = allNotebooks.filter { it.id != currentNotebookId }
-        ModalBottomSheet(
-            onDismissRequest = { showMoveSheet = false },
-            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-        ) {
-            // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-            // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-            // scoped to this sheet.
-            CrystalWindowContent {
+        RhythmSheet(onDismiss = { showMoveSheet = false }) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Move to Notebook", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 if (targetNotebooks.isEmpty()) {
@@ -235,7 +227,6 @@ fun DesktopNoteEditorScreen(
                         }
                     }
                 }
-            }
             }
         }
     }
@@ -601,15 +592,7 @@ private fun DesktopNoteStyleSheet(
     onSizeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface),
-        contentColor = MaterialTheme.colorScheme.onSurface
-    ) {
-        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-        // scoped to this sheet.
-        CrystalWindowContent {
+    RhythmSheet(onDismiss = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Text Style", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
@@ -635,7 +618,6 @@ private fun DesktopNoteStyleSheet(
                     }
                 }
             }
-        }
         }
     }
 }

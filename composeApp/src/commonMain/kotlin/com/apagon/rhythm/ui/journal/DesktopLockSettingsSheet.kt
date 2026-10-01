@@ -18,12 +18,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.repository.LockType
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.components.crystalTileSurface
+import com.apagon.rhythm.ui.util.RhythmSheet
 
 /**
  * Desktop port of AddReflectionSheet.kt's LockSettingsSheet. Biometrics and
@@ -47,11 +46,7 @@ fun DesktopLockSettingsSheet(
     var tempInput by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
-        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-        // scoped to this sheet.
-        CrystalWindowContent {
+    RhythmSheet(onDismiss = onDismiss) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -180,7 +175,6 @@ fun DesktopLockSettingsSheet(
                     TextButton(onClick = { mode = "MAIN" }, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
                 }
             }
-        }
         }
     }
 }

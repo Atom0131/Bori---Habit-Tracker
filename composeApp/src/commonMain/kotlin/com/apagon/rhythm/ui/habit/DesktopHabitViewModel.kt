@@ -8,6 +8,7 @@ import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.sync.LocalSyncAddress
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncPreferences
+import com.apagon.rhythm.platform.ReminderScheduling
 import com.apagon.rhythm.ui.util.isScheduledForDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,7 @@ class DesktopHabitViewModel(
     private val repository: HabitRepository,
     private val syncCoordinator: SyncCoordinator,
     private val syncPreferences: SyncPreferences,
+    private val scheduler: ReminderScheduling,
     localSyncAddress: LocalSyncAddress
 ) : ViewModel() {
 
@@ -114,6 +116,55 @@ class DesktopHabitViewModel(
         if (name.isBlank()) return
         viewModelScope.launch {
             repository.addHabit(Habit(name = name.trim(), frequency = HabitFrequency.DAILY))
+        }
+    }
+
+    /**
+     * Full-featured add, mirroring androidMain's `HabitListViewModel.addHabit(...)` — schedule,
+     * color, icon, checklist, and a reminder time, all of which [addHabit] above hardcodes away.
+     * Deliberately on this narrowly-scoped ViewModel rather than pulling in [HabitListViewModel]:
+     * that one's `init {}` runs an `archiveOverdueTodos()` side-effect pass and depends on
+     * Calendar/Journal/billing repositories this screen has no other reason to touch.
+     */
+    fun addHabit(
+        name: String,
+        description: String,
+        frequency: HabitFrequency,
+        weekDaysMask: Int,
+        monthDaysMask: Int,
+        isChecklist: Boolean = false,
+        checklistItems: List<String> = emptyList(),
+        colorIndex: Int = 0,
+        colorArgb: Int? = null,
+        durationDays: Int = 0,
+        iconIndex: Int = -1,
+        reminderTime: String? = null
+    ) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val habit = Habit(
+                name = name.trim(),
+                description = description.trim(),
+                frequency = frequency,
+                targetDaysPerWeek = weekDaysMask.countOneBits(),
+                targetDaysPerMonth = monthDaysMask.countOneBits(),
+                weekDaysMask = weekDaysMask,
+                monthDaysMask = monthDaysMask,
+                isChecklist = isChecklist,
+                colorIndex = colorIndex,
+                colorArgb = colorArgb,
+                durationDays = durationDays,
+                iconIndex = iconIndex,
+                reminderTime = reminderTime
+            )
+            val savedId = if (isChecklist && checklistItems.isNotEmpty()) {
+                repository.addHabitWithItems(habit, checklistItems)
+            } else {
+                repository.addHabit(habit)
+            }
+            if (reminderTime != null && savedId > 0) {
+                scheduler.scheduleReminder(habit.copy(id = savedId))
+            }
         }
     }
 

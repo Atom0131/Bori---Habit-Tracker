@@ -19,20 +19,19 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.core.json.JSONArray
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.data.model.Note
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalButtonColors
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.RhythmAddFab
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
+import com.apagon.rhythm.ui.util.RhythmSheet
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -183,11 +182,7 @@ fun DesktopNotebookDetailScreen(
     }
 
     if (showSortSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSortSheet = false },
-            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-        ) {
-            CrystalWindowContent {
+        RhythmSheet(onDismiss = { showSortSheet = false }) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Sort Notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 NoteSort.entries.forEach { mode ->
@@ -208,16 +203,11 @@ fun DesktopNotebookDetailScreen(
                     }
                 }
             }
-            }
         }
     }
 
     if (showTemplatePicker) {
-        ModalBottomSheet(
-            onDismissRequest = { showTemplatePicker = false },
-            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-        ) {
-            CrystalWindowContent {
+        RhythmSheet(onDismiss = { showTemplatePicker = false }) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Choose a Template", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 NoteTemplate.all.forEach { template ->
@@ -247,17 +237,12 @@ fun DesktopNotebookDetailScreen(
                     }
                 }
             }
-            }
         }
     }
 
     if (showMoveSheet) {
         val targetNotebooks = allNotebooks.filter { it.id != notebookId }
-        ModalBottomSheet(
-            onDismissRequest = { showMoveSheet = false; noteToMove = null },
-            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-        ) {
-            CrystalWindowContent {
+        RhythmSheet(onDismiss = { showMoveSheet = false; noteToMove = null }) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Move to Notebook", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                 if (targetNotebooks.isEmpty()) {
@@ -278,17 +263,12 @@ fun DesktopNotebookDetailScreen(
                     }
                 }
             }
-            }
         }
     }
 
     if (showBulkTagSheet) {
         var tagInput by remember { mutableStateOf("") }
-        ModalBottomSheet(
-            onDismissRequest = { showBulkTagSheet = false },
-            containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-        ) {
-            CrystalWindowContent {
+        RhythmSheet(onDismiss = { showBulkTagSheet = false }) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Add Tag to Selected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
@@ -306,7 +286,6 @@ fun DesktopNotebookDetailScreen(
                     colors = crystalButtonColors(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Add Tag") }
-            }
             }
         }
     }

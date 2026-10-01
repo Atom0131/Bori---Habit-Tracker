@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -23,9 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.Todo
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalCardSurface
-import com.apagon.rhythm.ui.components.crystalSheetColor
+import com.apagon.rhythm.ui.util.RhythmSheet
 
 // Desktop counterpart to androidMain's DataSettings.kt (Stage 11). Swaps
 // IconButton(Icons.Default.Restore) for a plain text "Unarchive" TextButton,
@@ -39,12 +37,10 @@ fun DesktopArchivedHabitsSheet(
     onDismiss: () -> Unit,
     onUnarchive: (Habit) -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    RhythmSheet(
+        onDismiss = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
-        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,7 +98,6 @@ fun DesktopArchivedHabitsSheet(
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
         }
-        }
     }
 }
 
@@ -113,12 +108,10 @@ fun DesktopArchivedTodosSheet(
     onDismiss: () -> Unit,
     onUnarchive: (Todo) -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
+    RhythmSheet(
+        onDismiss = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
-        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -177,7 +170,6 @@ fun DesktopArchivedTodosSheet(
             Spacer(Modifier.height(16.dp))
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
-        }
         }
     }
 }

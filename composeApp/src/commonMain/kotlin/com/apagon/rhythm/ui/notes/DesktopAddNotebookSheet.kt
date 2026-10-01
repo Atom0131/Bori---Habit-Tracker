@@ -17,12 +17,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Notebook
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.theme.habitColorPalette
+import com.apagon.rhythm.ui.util.RhythmSheet
 
 /**
  * Desktop port of AddNotebookSheet.kt — swaps ColorPickerRow/FluidTextField/
@@ -41,11 +40,7 @@ fun DesktopAddNotebookSheet(
     var colorIndex by remember { mutableIntStateOf(initialNotebook?.colorIndex ?: 0) }
     val colorArgb = initialNotebook?.colorArgb
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
-        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-        // scoped to this sheet.
-        CrystalWindowContent {
+    RhythmSheet(onDismiss = onDismiss) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -92,7 +87,6 @@ fun DesktopAddNotebookSheet(
                 colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save Notebook") }
-        }
         }
     }
 }

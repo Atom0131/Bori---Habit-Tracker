@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,16 +28,15 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.platform.LocaleFormatting
 import androidx.compose.foundation.clickable
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalChipSurface
 import com.apagon.rhythm.ui.components.crystalControlSurface
 import com.apagon.rhythm.ui.components.crystalSelectedChipColor
 import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
+import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.koinInject
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -65,14 +63,7 @@ fun DesktopAddAlarmSheet(
     var repeatMask by remember { mutableIntStateOf(existing?.repeatDaysMask ?: 0) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)
-    ) {
-        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-        // scoped to this sheet.
-        CrystalWindowContent {
+    RhythmSheet(onDismiss = onDismiss) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -144,7 +135,6 @@ fun DesktopAddAlarmSheet(
                 colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Save") }
-        }
         }
     }
 

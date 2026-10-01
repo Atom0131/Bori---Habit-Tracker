@@ -3,10 +3,8 @@ package com.apagon.rhythm.ui.habit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -17,10 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import com.apagon.rhythm.data.model.TodoPriority
 import com.apagon.rhythm.ui.calendar.DesktopAddCalendarEventSheet
 import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
 import com.apagon.rhythm.ui.calendar.DesktopTodayCalendarContent
@@ -31,9 +27,9 @@ import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.reminders.DesktopAddReminderSheet
 import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.settings.DesktopSettingsViewModel
+import com.apagon.rhythm.ui.todos.DesktopAddTodoSheet
 import com.apagon.rhythm.ui.todos.TodoViewModel
 import com.apagon.rhythm.ui.util.RhythmAddFab
-import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -53,13 +49,13 @@ import org.koin.compose.viewmodel.koinViewModel
  * Stage 19c: list mode previously had no persistent add affordance at all (the only way to add a
  * habit or to-do was scrolling to their inline fields) — Android's HabitListScreen.kt has a single
  * FAB opening an AddTypePickerSheet with four peer options (Habit/To-Do/Reminder/Event,
- * HabitListScreen.kt:668-707). Desktop has no bottom-sheet UX, so the picker here is a
- * RhythmDropdownMenu off the FAB instead. Habit/To-do each open a small RhythmAlertDialog (no
- * desktop "add habit" sheet existed yet — the inline fields in DesktopHabitScreen.kt/
- * DesktopTodoScreen.kt were the only other entry points until Stage 19e removed them once this FAB
- * was confirmed working). Reminder/Event (Stage 19h) reuse the existing DesktopAddReminderSheet/
- * DesktopAddCalendarEventSheet already used by Calendar mode's day-detail "+Reminder" button and
- * add-event FAB, rather than building new sheets. Calendar mode keeps its own add-event FAB
+ * HabitListScreen.kt:668-707). Desktop has no bottom-sheet UX for the *type* picker, so that part
+ * stays a RhythmDropdownMenu off the FAB. What opens after picking a type is a real sheet for all
+ * four now: Habit/To-do open [DesktopAddHabitSheet]/[DesktopAddTodoSheet] (full field coverage —
+ * schedule/color/icon/checklist/reminder for habits, icon/due-date/priority for to-dos — replacing
+ * the name-only `RhythmAlertDialog`s this screen used through Stage 19h). Reminder/Event reuse the
+ * existing DesktopAddReminderSheet/DesktopAddCalendarEventSheet already used by Calendar mode's
+ * day-detail "+Reminder" button and add-event FAB. Calendar mode keeps its own add-event FAB
  * (DesktopTodayCalendarContent), so this FAB only shows in list mode.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,47 +127,34 @@ fun DesktopTodayScreen(
     }
 
     if (showAddHabitDialog) {
-        var name by remember { mutableStateOf("") }
-        RhythmAlertDialog(
-            onDismissRequest = { showAddHabitDialog = false },
-            title = { Text("New habit") },
-            text = {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddHabitDialog = false }) { Text("Cancel") }
-            },
-            confirmButton = {
-                Button(
-                    enabled = name.isNotBlank(),
-                    onClick = {
-                        habitViewModel.addHabit(name)
-                        showAddHabitDialog = false
-                    }
-                ) { Text("Add") }
+        DesktopAddHabitSheet(
+            onDismiss = { showAddHabitDialog = false },
+            onSave = { name, description, frequency, weekDaysMask, monthDaysMask, isChecklist, checklistItems, colorIndex, colorArgb, durationDays, iconIndex, reminderTime ->
+                habitViewModel.addHabit(
+                    name = name,
+                    description = description,
+                    frequency = frequency,
+                    weekDaysMask = weekDaysMask,
+                    monthDaysMask = monthDaysMask,
+                    isChecklist = isChecklist,
+                    checklistItems = checklistItems,
+                    colorIndex = colorIndex,
+                    colorArgb = colorArgb,
+                    durationDays = durationDays,
+                    iconIndex = iconIndex,
+                    reminderTime = reminderTime
+                )
+                showAddHabitDialog = false
             }
         )
     }
 
     if (showAddTodoDialog) {
-        var title by remember { mutableStateOf("") }
-        RhythmAlertDialog(
-            onDismissRequest = { showAddTodoDialog = false },
-            title = { Text("New to-do") },
-            text = {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") })
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddTodoDialog = false }) { Text("Cancel") }
-            },
-            confirmButton = {
-                Button(
-                    enabled = title.isNotBlank(),
-                    onClick = {
-                        todoViewModel.addTodo(title = title, note = "", dueDate = "", priority = TodoPriority.NONE)
-                        showAddTodoDialog = false
-                    }
-                ) { Text("Add") }
+        DesktopAddTodoSheet(
+            onDismiss = { showAddTodoDialog = false },
+            onSave = { title, note, dueDate, priority, iconIndex ->
+                todoViewModel.addTodo(title = title, note = note, dueDate = dueDate, priority = priority, iconIndex = iconIndex)
+                showAddTodoDialog = false
             }
         )
     }

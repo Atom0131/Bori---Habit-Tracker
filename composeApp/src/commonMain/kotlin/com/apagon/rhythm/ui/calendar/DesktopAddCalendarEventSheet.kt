@@ -21,7 +21,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -47,16 +46,15 @@ import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.platform.LocaleFormatting
-import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalControlSurface
-import com.apagon.rhythm.ui.components.crystalSheetColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
+import com.apagon.rhythm.ui.util.RhythmSheet
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
@@ -108,17 +106,11 @@ fun DesktopAddCalendarEventSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
+    RhythmSheet(
+        onDismiss = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.fillMaxHeight(),
-        containerColor = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface),
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        fillHeight = true
     ) {
-        // Stage 14 invariant #2: this window is separate from the main one, so its inherited
-        // blur field (if any) is unusable — CrystalWindowContent replaces it with a fresh one
-        // scoped to this sheet.
-        CrystalWindowContent {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -239,7 +231,6 @@ fun DesktopAddCalendarEventSheet(
             ) {
                 Text(if (existing == null) "Create Event" else "Update Event")
             }
-        }
         }
     }
 
