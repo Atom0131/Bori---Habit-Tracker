@@ -41,13 +41,14 @@ import com.apagon.rhythm.ui.components.crystalTextFieldShape
 @Composable
 fun DesktopAddTimerSheet(
     existing: Timer? = null,
+    initialPomo: Boolean = false,
     onDismiss: () -> Unit,
     onSave: (label: String, durationSeconds: Int) -> Unit,
     onSavePomo: (label: String, workMin: Int, shortBreakMin: Int, longBreakMin: Int, sessions: Int) -> Unit
 ) {
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var minutes by remember { mutableStateOf(((existing?.durationSeconds ?: 300) / 60).toString()) }
-    var isPomo by remember { mutableStateOf(existing?.isPomo ?: false) }
+    var isPomo by remember { mutableStateOf(existing?.isPomo ?: initialPomo) }
     var workMin by remember { mutableStateOf(((existing?.pomoWorkSecs ?: 1500) / 60).toString()) }
     var shortBreakMin by remember { mutableStateOf(((existing?.pomoShortBreakSecs ?: 300) / 60).toString()) }
     var longBreakMin by remember { mutableStateOf(((existing?.pomoLongBreakSecs ?: 900) / 60).toString()) }

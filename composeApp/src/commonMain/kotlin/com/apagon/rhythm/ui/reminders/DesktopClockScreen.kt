@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -39,12 +39,13 @@ import com.apagon.rhythm.ui.alarms.DesktopAddTimerSheet
 import com.apagon.rhythm.ui.alarms.TimerUiState
 import com.apagon.rhythm.ui.alarms.TimerViewModel
 import com.apagon.rhythm.ui.components.DesktopLayout
-import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalScaffoldColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
+import com.apagon.rhythm.ui.util.RhythmAddFab
+import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
 
 // Stage 17d: rebuilt to match the real Android ui/reminders/ClockScreen.kt (titled "Alarms &
@@ -68,11 +69,32 @@ fun DesktopClockScreen(
 
     var showAddAlarm by remember { mutableStateOf(false) }
     var showAddTimer by remember { mutableStateOf(false) }
+    var addTimerIsPomo by remember { mutableStateOf(false) }
+    var showAddMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = crystalScaffoldColor(),
         contentColor = crystalScaffoldContentColor(),
-        topBar = { TopAppBar(title = { Text("Schedule") }, colors = crystalTopAppBarColors()) }
+        topBar = { TopAppBar(title = { Text("Schedule") }, colors = crystalTopAppBarColors()) },
+        floatingActionButton = {
+            Box {
+                RhythmAddFab(onClick = { showAddMenu = true })
+                RhythmDropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Alarm") },
+                        onClick = { showAddMenu = false; showAddAlarm = true }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Timer") },
+                        onClick = { showAddMenu = false; addTimerIsPomo = false; showAddTimer = true }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Pomodoro") },
+                        onClick = { showAddMenu = false; addTimerIsPomo = true; showAddTimer = true }
+                    )
+                }
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             BoxWithConstraints(modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()) {
@@ -83,17 +105,14 @@ fun DesktopClockScreen(
                     alarmsSection(
                         alarms = alarms,
                         gridColumns = gridColumns,
-                        onAdd = { showAddAlarm = true },
                         onToggleEnabled = alarmViewModel::toggleEnabled,
                         onDelete = alarmViewModel::deleteAlarm
                     )
                     timersSection(
                         title = "Active Timers",
-                        addLabel = "+ Timer",
                         emptyLabel = "No timers yet.",
                         timerStates = regularTimers,
                         gridColumns = gridColumns,
-                        onAdd = { showAddTimer = true },
                         onStart = timerViewModel::startTimer,
                         onPause = timerViewModel::pauseTimer,
                         onReset = timerViewModel::resetTimer,
@@ -102,16 +121,13 @@ fun DesktopClockScreen(
                     if (pomoTimers.isNotEmpty()) {
                         timersSection(
                             title = "Pomodoro",
-                            addLabel = "+ Timer",
                             emptyLabel = "No Pomodoro timers yet.",
                             timerStates = pomoTimers,
                             gridColumns = gridColumns,
-                            onAdd = { showAddTimer = true },
                             onStart = timerViewModel::startTimer,
                             onPause = timerViewModel::pauseTimer,
                             onReset = timerViewModel::resetTimer,
-                            onDelete = timerViewModel::deleteTimer,
-                            showAddButton = false
+                            onDelete = timerViewModel::deleteTimer
                         )
                     }
                 }
@@ -131,6 +147,7 @@ fun DesktopClockScreen(
 
     if (showAddTimer) {
         DesktopAddTimerSheet(
+            initialPomo = addTimerIsPomo,
             onDismiss = { showAddTimer = false },
             onSave = { label, durationSeconds ->
                 timerViewModel.addTimer(label, durationSeconds)
@@ -162,19 +179,11 @@ private fun SectionHeader(title: String) {
 private fun LazyListScope.alarmsSection(
     alarms: List<Alarm>,
     gridColumns: Int,
-    onAdd: () -> Unit,
     onToggleEnabled: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit
 ) {
     item(key = "alarms_header") { SectionHeader("Scheduled Alarms") }
 
-    item(key = "alarms_add") {
-        Button(
-            onClick = onAdd,
-            colors = crystalButtonColors(),
-            modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-        ) { Text("+ Alarm") }
-    }
     if (alarms.isEmpty()) {
         item(key = "alarms_empty") {
             Text("No alarms yet.", modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
@@ -220,28 +229,16 @@ private fun AlarmCard(alarm: Alarm, onToggleEnabled: () -> Unit, onDelete: () ->
 
 private fun LazyListScope.timersSection(
     title: String,
-    addLabel: String,
     emptyLabel: String,
     timerStates: List<TimerUiState>,
     gridColumns: Int,
-    onAdd: () -> Unit,
     onStart: (com.apagon.rhythm.data.model.Timer) -> Unit,
     onPause: (com.apagon.rhythm.data.model.Timer) -> Unit,
     onReset: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    showAddButton: Boolean = true
+    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit
 ) {
     item(key = "${title}_header") { SectionHeader(title) }
 
-    if (showAddButton) {
-        item(key = "${title}_add") {
-            Button(
-                onClick = onAdd,
-                colors = crystalButtonColors(),
-                modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-            ) { Text(addLabel) }
-        }
-    }
     if (timerStates.isEmpty()) {
         item(key = "${title}_empty") {
             Text(emptyLabel, modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing))
