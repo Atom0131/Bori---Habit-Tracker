@@ -1,13 +1,10 @@
 package com.apagon.rhythm.ui.habit
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -33,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,11 +44,12 @@ import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
-import com.apagon.rhythm.ui.theme.habitColorPalette
+import com.apagon.rhythm.ui.util.ColorPickerRow
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmSheet
 import com.apagon.rhythm.ui.util.habitIconLibrary
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val DURATION_UNITS = listOf("Days", "Weeks", "Months")
@@ -97,6 +94,7 @@ fun DesktopAddHabitSheet(
     var durationUnit by remember { mutableStateOf("Weeks") }
 
     var colorIndex by remember { mutableIntStateOf(0) }
+    var colorArgb by remember { mutableStateOf<Int?>(null) }
     var iconIndex by remember { mutableIntStateOf(-1) }
 
     var isChecklist by remember { mutableStateOf(false) }
@@ -212,22 +210,12 @@ fun DesktopAddHabitSheet(
             // ── Appearance ────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("APPEARANCE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    habitColorPalette.forEachIndexed { index, color ->
-                        val isSelected = colorIndex == index
-                        Box(
-                            modifier = Modifier
-                                .size(if (isSelected) 44.dp else 40.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { colorIndex = index }
-                        )
-                    }
-                }
+                ColorPickerRow(
+                    colorIndex = colorIndex,
+                    colorArgb = colorArgb,
+                    onColorSelected = { idx, argb -> colorIndex = idx; colorArgb = argb },
+                    viewModel = koinViewModel()
+                )
                 HabitIconPickerRow(selectedIndex = iconIndex, onSelect = { iconIndex = it })
             }
 
@@ -320,7 +308,7 @@ fun DesktopAddHabitSheet(
                         isChecklist,
                         checklistItems.toList(),
                         colorIndex,
-                        null,
+                        colorArgb,
                         durationDays,
                         iconIndex,
                         if (reminderEnabled) "%02d:%02d".format(reminderHour, reminderMinute) else null

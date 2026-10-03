@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.preferences.CrystalBackground
@@ -99,6 +101,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     val amoledMode by viewModel.amoledMode.collectAsState(initial = false)
     val darkReadability by viewModel.darkReadability.collectAsState(initial = DarkReadability.STANDARD)
     val accentColorIndex by viewModel.accentColorIndex.collectAsState(initial = 0)
+    val accentColorArgb by viewModel.accentColorArgb.collectAsState(initial = null)
 
     val themeStyle by viewModel.themeStyle.collectAsState()
     val crystalStyle by viewModel.crystalStyle.collectAsState()
@@ -106,6 +109,10 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     val crystalBackground by viewModel.crystalBackground.collectAsState()
     val crystalMesh by viewModel.crystalMesh.collectAsState()
     val crystalBgColorIndex by viewModel.crystalBackgroundColorIndex.collectAsState()
+    val crystalBgColorArgb by viewModel.crystalBackgroundColorArgb.collectAsState()
+    val crystalMeshCustomArgb by viewModel.crystalMeshCustomArgb.collectAsState()
+    val crystalMeshCustomChroma by viewModel.crystalMeshCustomChroma.collectAsState()
+    val colorPickerViewModel: com.apagon.rhythm.ui.util.ColorPickerViewModel = koinViewModel()
 
     var themeStyleExpanded by remember { mutableStateOf(false) }
     var crystalBackgroundExpanded by remember { mutableStateOf(false) }
@@ -186,18 +193,23 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 amoledMode = amoledMode,
                                 darkReadability = darkReadability,
                                 accentColorIndex = accentColorIndex,
+                                accentColorArgb = accentColorArgb,
                                 themeStyle = themeStyle,
                                 crystalStyle = crystalStyle,
                                 crystalIntensity = crystalIntensity,
                                 crystalBackground = crystalBackground,
                                 crystalMesh = crystalMesh,
                                 crystalBgColorIndex = crystalBgColorIndex,
+                                crystalBgColorArgb = crystalBgColorArgb,
+                                crystalMeshCustomArgb = crystalMeshCustomArgb,
+                                crystalMeshCustomChroma = crystalMeshCustomChroma,
                                 themeStyleExpanded = themeStyleExpanded,
                                 onToggleThemeStyleExpanded = { themeStyleExpanded = !themeStyleExpanded },
                                 crystalBackgroundExpanded = crystalBackgroundExpanded,
                                 onToggleCrystalBackgroundExpanded = { crystalBackgroundExpanded = !crystalBackgroundExpanded },
                                 crystalGlassExpanded = crystalGlassExpanded,
-                                onToggleCrystalGlassExpanded = { crystalGlassExpanded = !crystalGlassExpanded }
+                                onToggleCrystalGlassExpanded = { crystalGlassExpanded = !crystalGlassExpanded },
+                                colorPickerViewModel = colorPickerViewModel
                             )
                             SettingsSection.LAYOUT -> LayoutSectionContent(
                                 viewModel = viewModel,
@@ -306,19 +318,39 @@ private fun AppearanceSectionContent(
     amoledMode: Boolean,
     darkReadability: DarkReadability,
     accentColorIndex: Int,
+    accentColorArgb: Int?,
     themeStyle: ThemeStyle,
     crystalStyle: CrystalStyle,
     crystalIntensity: Float,
     crystalBackground: CrystalBackground,
     crystalMesh: CrystalMesh,
     crystalBgColorIndex: Int,
+    crystalBgColorArgb: Int?,
+    crystalMeshCustomArgb: Int?,
+    crystalMeshCustomChroma: Float,
     themeStyleExpanded: Boolean,
     onToggleThemeStyleExpanded: () -> Unit,
     crystalBackgroundExpanded: Boolean,
     onToggleCrystalBackgroundExpanded: () -> Unit,
     crystalGlassExpanded: Boolean,
-    onToggleCrystalGlassExpanded: () -> Unit
+    onToggleCrystalGlassExpanded: () -> Unit,
+    colorPickerViewModel: com.apagon.rhythm.ui.util.ColorPickerViewModel
 ) {
+    var showMeshCustomDialog by remember { mutableStateOf(false) }
+    if (showMeshCustomDialog) {
+        com.apagon.rhythm.ui.util.CrystalCustomFieldDialog(
+            initialColor = crystalMeshCustomArgb?.let { Color(it) },
+            initialChroma = crystalMeshCustomChroma,
+            onSave = { color, chromaScale ->
+                viewModel.setCrystalMeshCustom(color.toArgb(), chromaScale)
+            },
+            onPreview = { color, chromaScale ->
+                viewModel.previewCrystalMeshCustom(color.toArgb(), chromaScale)
+            },
+            onCancelPreview = { viewModel.cancelCrystalMeshCustomPreview() },
+            onDismiss = { showMeshCustomDialog = false }
+        )
+    }
     SettingsSection("Appearance") {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SettingsRow("Theme") {
@@ -350,22 +382,14 @@ private fun AppearanceSectionContent(
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Accent Color", style = MaterialTheme.typography.bodyLarge)
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                habitColorPalette.forEachIndexed { index, color ->
-                                    val isSelected = accentColorIndex == index
-                                    Box(
-                                        modifier = Modifier
-                                            .size(if (isSelected) 40.dp else 36.dp)
-                                            .clip(CircleShape)
-                                            .background(color)
-                                            .then(
-                                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                                else Modifier
-                                            )
-                                            .clickable { viewModel.setAccentColor(index) }
-                                    )
-                                }
-                            }
+                            com.apagon.rhythm.ui.util.ColorPickerRow(
+                                colorIndex = accentColorIndex,
+                                colorArgb = accentColorArgb,
+                                onColorSelected = { idx, argb -> viewModel.setAccentColor(idx, argb) },
+                                viewModel = colorPickerViewModel,
+                                onPreview = { argb -> viewModel.previewAccentColor(-1, argb) },
+                                onCancelPreview = { viewModel.cancelAccentColorPreview() }
+                            )
                         }
         }
     }
@@ -441,19 +465,36 @@ private fun AppearanceSectionContent(
                             )
                             Text("Colour Field", style = MaterialTheme.typography.bodyLarge)
                         }
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            CrystalMesh.entries.filter { it != CrystalMesh.CUSTOM }.forEach { mesh ->
-                                CrystalMeshSwatch(
-                                    mesh = mesh,
-                                    selected = crystalBackground == CrystalBackground.MESH && crystalMesh == mesh,
-                                    onClick = {
-                                        viewModel.setCrystalBackground(CrystalBackground.MESH)
-                                        viewModel.setCrystalMesh(mesh)
+                            CrystalMesh.entries.chunked(MESH_SWATCHES_PER_ROW).forEach { rowMeshes ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    rowMeshes.forEach { mesh ->
+                                        CrystalMeshSwatch(
+                                            mesh = mesh,
+                                            selected = crystalBackground == CrystalBackground.MESH && crystalMesh == mesh,
+                                            onClick = {
+                                                if (mesh == CrystalMesh.CUSTOM) {
+                                                    showMeshCustomDialog = true
+                                                } else {
+                                                    viewModel.setCrystalBackground(CrystalBackground.MESH)
+                                                    viewModel.setCrystalMesh(mesh)
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
                                     }
-                                )
+                                    // Keep a short last row aligned with the ones above instead of
+                                    // stretching to fill — same rule Android's CrystalMeshPickerRow uses.
+                                    repeat(MESH_SWATCHES_PER_ROW - rowMeshes.size) {
+                                        Spacer(Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -477,24 +518,15 @@ private fun AppearanceSectionContent(
                             Text("Solid", style = MaterialTheme.typography.bodyLarge)
                         }
                         if (crystalBackground == CrystalBackground.SOLID) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                habitColorPalette.forEachIndexed { index, color ->
-                                    val isSelected = crystalBgColorIndex == index
-                                    Box(
-                                        modifier = Modifier
-                                            .size(if (isSelected) 36.dp else 32.dp)
-                                            .clip(CircleShape)
-                                            .background(color)
-                                            .then(
-                                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                                else Modifier
-                                            )
-                                            .clickable { viewModel.setCrystalBackgroundColor(index, null) }
-                                    )
-                                }
+                            Box(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                                com.apagon.rhythm.ui.util.ColorPickerRow(
+                                    colorIndex = crystalBgColorIndex,
+                                    colorArgb = crystalBgColorArgb,
+                                    onColorSelected = { idx, argb -> viewModel.setCrystalBackgroundColor(idx, argb) },
+                                    viewModel = colorPickerViewModel,
+                                    onPreview = { argb -> viewModel.previewCrystalBackgroundColor(-1, argb) },
+                                    onCancelPreview = { viewModel.cancelCrystalBackgroundColorPreview() }
+                                )
                             }
                         }
                     }
@@ -744,6 +776,10 @@ private fun SettingsExpandableCard(
     }
 }
 
+/** Matches Android's `CrystalMeshPickerRow` — 5 swatches per row, ragged last row padded with
+ * spacers rather than stretched. */
+private const val MESH_SWATCHES_PER_ROW = 5
+
 private fun crystalMeshLabel(mesh: CrystalMesh): String = when (mesh) {
     CrystalMesh.AURORA -> "Aurora"
     CrystalMesh.EMBER -> "Ember"
@@ -761,14 +797,15 @@ private fun crystalMeshLabel(mesh: CrystalMesh): String = when (mesh) {
 /** One mesh swatch, drawn with the same [drawCrystalMeshField] the real ambient field uses, so a
  * swatch cannot drift from what tapping it produces. */
 @Composable
-private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () -> Unit) {
+private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
     val blobs = crystalFieldBlobs(mesh, dark)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f)
                 .clip(CircleShape)
                 .then(
                     if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
@@ -780,5 +817,11 @@ private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () 
                 drawCrystalMeshField(base = base, blobs = blobs, dark = dark)
             }
         }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            crystalMeshLabel(mesh),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

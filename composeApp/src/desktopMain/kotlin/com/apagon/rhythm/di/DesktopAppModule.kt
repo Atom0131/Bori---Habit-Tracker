@@ -144,6 +144,10 @@ val desktopAppModule = module {
     // ── Stage 11: Settings ───────────────────────────────────────────────────
     single<BackupManaging> { DesktopBackupManager(get(), get()) }
     viewModel { DesktopSettingsViewModel(get(), get(), get(), get(), get(), get()) }
+    // Custom accent/Crystal-room/Crystal-mesh colour pickers — ColorPickerViewModel itself was
+    // already commonMain (ported alongside Stage 11) but never registered, since nothing called
+    // it until the custom-colour picker UI landed.
+    viewModel { com.apagon.rhythm.ui.util.ColorPickerViewModel(get()) }
 
     // ── Stage 6: cross-cutting platform shims ───────────────────────────────
     single<LocaleFormatting> { DesktopLocaleFormatting() }

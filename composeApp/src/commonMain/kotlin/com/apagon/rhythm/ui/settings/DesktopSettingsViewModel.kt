@@ -77,6 +77,10 @@ class DesktopSettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val crystalBackgroundColorArgb: StateFlow<Int?> = themePreferences.crystalBackgroundColorArgb
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val crystalMeshCustomArgb: StateFlow<Int?> = themePreferences.crystalMeshCustomArgb
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val crystalMeshCustomChroma: StateFlow<Float> = themePreferences.crystalMeshCustomChroma
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreferences.DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
 
     fun setThemeStyle(style: ThemeStyle) {
         viewModelScope.launch { themePreferences.setThemeStyle(style) }
@@ -104,6 +108,41 @@ class DesktopSettingsViewModel(
 
     fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
         viewModelScope.launch { themePreferences.setCrystalBackgroundColor(index, argb) }
+    }
+
+    fun previewCrystalBackgroundColor(index: Int, argb: Int?) {
+        themePreferences.previewCrystalBackgroundColor(index, argb)
+    }
+
+    fun cancelCrystalBackgroundColorPreview() {
+        themePreferences.cancelCrystalBackgroundColorPreview()
+    }
+
+    fun previewAccentColor(index: Int, argb: Int?) {
+        themePreferences.previewAccentColor(index, argb)
+    }
+
+    fun cancelAccentColorPreview() {
+        themePreferences.cancelAccentColorPreview()
+    }
+
+    // Mirrors androidMain's SettingsViewModel.setCrystalMeshCustom: saving a custom field also
+    // selects it (CUSTOM) and switches to Mesh mode, so "Save" in the dialog is the one action that
+    // both configures and applies the field.
+    fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
+        viewModelScope.launch {
+            themePreferences.setCrystalMeshCustom(argb, chromaScale)
+            themePreferences.setCrystalMesh(CrystalMesh.CUSTOM)
+            themePreferences.setCrystalBackground(CrystalBackground.MESH)
+        }
+    }
+
+    fun previewCrystalMeshCustom(argb: Int, chromaScale: Float) {
+        themePreferences.previewCrystalMeshCustom(argb, chromaScale)
+    }
+
+    fun cancelCrystalMeshCustomPreview() {
+        themePreferences.cancelCrystalMeshCustomPreview()
     }
     val homeViewCalendar: StateFlow<Boolean> = themePreferences.homeViewCalendar
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

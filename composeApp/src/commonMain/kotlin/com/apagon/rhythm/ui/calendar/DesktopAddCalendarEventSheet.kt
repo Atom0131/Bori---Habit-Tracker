@@ -9,12 +9,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -37,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -51,13 +47,14 @@ import com.apagon.rhythm.ui.components.crystalControlSurface
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
-import com.apagon.rhythm.ui.theme.habitColorPalette
+import com.apagon.rhythm.ui.util.ColorPickerRow
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
 import com.apagon.rhythm.ui.util.RhythmSheet
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Desktop equivalent of androidMain's AddCalendarEventSheet.kt, with the
@@ -187,22 +184,12 @@ fun DesktopAddCalendarEventSheet(
             }
 
             Text("Color", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                habitColorPalette.forEachIndexed { index, color ->
-                    val isSelected = colorIndex == index && colorArgb == null
-                    Box(
-                        modifier = Modifier
-                            .size(if (isSelected) 44.dp else 40.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .then(
-                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                else Modifier
-                            )
-                            .clickable { colorIndex = index; colorArgb = null }
-                    )
-                }
-            }
+            ColorPickerRow(
+                colorIndex = colorIndex,
+                colorArgb = colorArgb,
+                onColorSelected = { idx, argb -> colorIndex = idx; colorArgb = argb },
+                viewModel = koinViewModel()
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
 

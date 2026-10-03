@@ -1,10 +1,6 @@
 package com.apagon.rhythm.ui.notes
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,21 +9,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
-import com.apagon.rhythm.ui.theme.habitColorPalette
+import com.apagon.rhythm.ui.util.ColorPickerRow
 import com.apagon.rhythm.ui.util.RhythmSheet
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Desktop port of AddNotebookSheet.kt — swaps ColorPickerRow/FluidTextField/
- * EditorialTitle/MomentumButton (all androidMain SharedComposables) for
- * plain Material3 primitives and the habitColorPalette swatch-row pattern
- * already established in DesktopAddCalendarEventSheet.kt (Stage 8).
+ * Desktop port of AddNotebookSheet.kt — now wired to the same `ColorPickerRow` custom-hue-wheel
+ * picker as Accent Color / Habit / Calendar-event colors (round 3 of the custom-picker plan).
+ * Originally swapped it for the plain `habitColorPalette` swatch row when first ported (Stage 8);
+ * that was the one remaining inconsistency with Android, since the data model (`Notebook.colorArgb`)
+ * already supported a custom color — only the picker UI itself never exposed it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +35,7 @@ fun DesktopAddNotebookSheet(
 ) {
     var name by remember { mutableStateOf(initialNotebook?.name ?: "") }
     var colorIndex by remember { mutableIntStateOf(initialNotebook?.colorIndex ?: 0) }
-    val colorArgb = initialNotebook?.colorArgb
+    var colorArgb by remember { mutableStateOf(initialNotebook?.colorArgb) }
 
     RhythmSheet(onDismiss = onDismiss) {
         Column(
@@ -63,22 +60,12 @@ fun DesktopAddNotebookSheet(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Notebook Color", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    habitColorPalette.forEachIndexed { index, color ->
-                        val isSelected = colorIndex == index
-                        Box(
-                            modifier = Modifier
-                                .size(if (isSelected) 44.dp else 40.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { colorIndex = index }
-                        )
-                    }
-                }
+                ColorPickerRow(
+                    colorIndex = colorIndex,
+                    colorArgb = colorArgb,
+                    onColorSelected = { idx, argb -> colorIndex = idx; colorArgb = argb },
+                    viewModel = koinViewModel()
+                )
             }
 
             Button(

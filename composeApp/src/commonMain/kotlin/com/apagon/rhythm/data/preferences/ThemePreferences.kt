@@ -99,12 +99,29 @@ class ThemePreferences(
         prefs[AMOLED_MODE_KEY] ?: false
     }
 
-    val accentColorIndex: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[ACCENT_COLOR_KEY] ?: 0
+    // Transient in-memory override while the custom accent picker is under the thumb — same
+    // shape as crystalIntensityPreview below. `null` means "no preview in progress."
+    private val accentPreview = MutableStateFlow<Pair<Int, Int?>?>(null)
+
+    val accentColorIndex: Flow<Int> = combine(
+        dataStore.data.map { prefs -> prefs[ACCENT_COLOR_KEY] ?: 0 },
+        accentPreview
+    ) { stored, preview -> preview?.first ?: stored }
+
+    val accentColorArgb: Flow<Int?> = combine(
+        dataStore.data.map { prefs -> prefs[ACCENT_COLOR_ARGB_KEY] },
+        accentPreview
+    ) { stored, preview -> if (preview != null) preview.second else stored }
+
+    /** Called every drag frame from the custom accent picker — repaints the whole app live
+     * without a DataStore write per frame. */
+    fun previewAccentColor(index: Int, argb: Int?) {
+        accentPreview.value = index to argb
     }
 
-    val accentColorArgb: Flow<Int?> = dataStore.data.map { prefs ->
-        prefs[ACCENT_COLOR_ARGB_KEY]
+    /** Cancel/dismiss-without-selecting: revert to whatever was actually committed. */
+    fun cancelAccentColorPreview() {
+        accentPreview.value = null
     }
 
     /** Key-absence, not equality-with-default — otherwise someone deliberately choosing the same
@@ -166,6 +183,7 @@ class ThemePreferences(
             if (argb != null) prefs[ACCENT_COLOR_ARGB_KEY] = argb
             else prefs.remove(ACCENT_COLOR_ARGB_KEY)
         }
+        accentPreview.value = null
     }
 
     suspend fun setAccentColorIndex(index: Int) {
@@ -254,42 +272,81 @@ class ThemePreferences(
         crystalIntensityPreview.value = null
     }
 
-    val crystalBackground: Flow<CrystalBackground> = dataStore.data.map { prefs ->
-        when (prefs[CRYSTAL_BACKGROUND_KEY]) {
-            CrystalBackground.SOLID.name -> CrystalBackground.SOLID
-            else                         -> CrystalBackground.MESH
-        }
-    }
+    // Preview overrides for the mesh Custom field dialog. Previewing the field also means
+    // previewing *selection* of it (mesh -> CUSTOM, background -> MESH) even before Save, since
+    // these two enums are what every reader (including this screen's own swatch highlighting)
+    // uses to decide what's actually showing.
+    private val crystalBackgroundPreview = MutableStateFlow<CrystalBackground?>(null)
+    private val crystalMeshPreview = MutableStateFlow<CrystalMesh?>(null)
+
+    val crystalBackground: Flow<CrystalBackground> = combine(
+        dataStore.data.map { prefs ->
+            when (prefs[CRYSTAL_BACKGROUND_KEY]) {
+                CrystalBackground.SOLID.name -> CrystalBackground.SOLID
+                else                         -> CrystalBackground.MESH
+            }
+        },
+        crystalBackgroundPreview
+    ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalBackground(background: CrystalBackground) {
         dataStore.edit { it[CRYSTAL_BACKGROUND_KEY] = background.name }
     }
 
-    val crystalMesh: Flow<CrystalMesh> = dataStore.data.map { prefs ->
-        when (prefs[CRYSTAL_MESH_KEY]) {
-            CrystalMesh.EMBER.name    -> CrystalMesh.EMBER
-            CrystalMesh.VERDANT.name  -> CrystalMesh.VERDANT
-            CrystalMesh.MIST.name     -> CrystalMesh.MIST
-            CrystalMesh.ROSE.name     -> CrystalMesh.ROSE
-            CrystalMesh.TIDE.name     -> CrystalMesh.TIDE
-            CrystalMesh.INDIGO.name   -> CrystalMesh.INDIGO
-            CrystalMesh.ORCHID.name   -> CrystalMesh.ORCHID
-            CrystalMesh.DUNE.name     -> CrystalMesh.DUNE
-            CrystalMesh.GRAPHITE.name -> CrystalMesh.GRAPHITE
-            CrystalMesh.CUSTOM.name   -> CrystalMesh.CUSTOM
-            else                      -> CrystalMesh.AURORA
-        }
-    }
+    val crystalMesh: Flow<CrystalMesh> = combine(
+        dataStore.data.map { prefs ->
+            when (prefs[CRYSTAL_MESH_KEY]) {
+                CrystalMesh.EMBER.name    -> CrystalMesh.EMBER
+                CrystalMesh.VERDANT.name  -> CrystalMesh.VERDANT
+                CrystalMesh.MIST.name     -> CrystalMesh.MIST
+                CrystalMesh.ROSE.name     -> CrystalMesh.ROSE
+                CrystalMesh.TIDE.name     -> CrystalMesh.TIDE
+                CrystalMesh.INDIGO.name   -> CrystalMesh.INDIGO
+                CrystalMesh.ORCHID.name   -> CrystalMesh.ORCHID
+                CrystalMesh.DUNE.name     -> CrystalMesh.DUNE
+                CrystalMesh.GRAPHITE.name -> CrystalMesh.GRAPHITE
+                CrystalMesh.CUSTOM.name   -> CrystalMesh.CUSTOM
+                else                      -> CrystalMesh.AURORA
+            }
+        },
+        crystalMeshPreview
+    ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalMesh(mesh: CrystalMesh) {
         dataStore.edit { it[CRYSTAL_MESH_KEY] = mesh.name }
     }
 
-    val crystalMeshCustomArgb: Flow<Int?> = dataStore.data.map { it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] }
+    // Transient in-memory override for the mesh Custom field's own seed/chroma, same shape as
+    // crystalIntensityPreview above.
+    private val crystalMeshCustomPreview = MutableStateFlow<Pair<Int, Float>?>(null)
 
-    val crystalMeshCustomChroma: Flow<Float> = dataStore.data.map { prefs ->
-        (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
-            .coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
+    val crystalMeshCustomArgb: Flow<Int?> = combine(
+        dataStore.data.map { it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] },
+        crystalMeshCustomPreview
+    ) { stored, preview -> if (preview != null) preview.first else stored }
+
+    val crystalMeshCustomChroma: Flow<Float> = combine(
+        dataStore.data.map { prefs ->
+            (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
+                .coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
+        },
+        crystalMeshCustomPreview
+    ) { stored, preview -> (preview?.second ?: stored).coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f) }
+
+    /** Called every drag frame from the mesh Custom field dialog — previews the seed/chroma and,
+     * by also previewing the mesh/background enums above, the field actually showing as selected. */
+    fun previewCrystalMeshCustom(argb: Int, chromaScale: Float) {
+        crystalMeshCustomPreview.value = argb to chromaScale
+        crystalMeshPreview.value = CrystalMesh.CUSTOM
+        crystalBackgroundPreview.value = CrystalBackground.MESH
+    }
+
+    /** Cancel/dismiss-without-saving: revert all three previewed values to whatever was actually
+     * committed. */
+    fun cancelCrystalMeshCustomPreview() {
+        crystalMeshCustomPreview.value = null
+        crystalMeshPreview.value = null
+        crystalBackgroundPreview.value = null
     }
 
     suspend fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
@@ -297,14 +354,33 @@ class ThemePreferences(
             it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = argb
             it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
         }
+        crystalMeshCustomPreview.value = null
+        crystalMeshPreview.value = null
+        crystalBackgroundPreview.value = null
     }
 
-    val crystalBackgroundColorIndex: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[CRYSTAL_BG_COLOR_KEY] ?: CRYSTAL_BG_NEUTRAL
+    // Transient in-memory override while the custom Crystal-room picker is under the thumb —
+    // same shape as accentPreview above.
+    private val crystalRoomPreview = MutableStateFlow<Pair<Int, Int?>?>(null)
+
+    val crystalBackgroundColorIndex: Flow<Int> = combine(
+        dataStore.data.map { prefs -> prefs[CRYSTAL_BG_COLOR_KEY] ?: CRYSTAL_BG_NEUTRAL },
+        crystalRoomPreview
+    ) { stored, preview -> preview?.first ?: stored }
+
+    val crystalBackgroundColorArgb: Flow<Int?> = combine(
+        dataStore.data.map { prefs -> prefs[CRYSTAL_BG_COLOR_ARGB_KEY] },
+        crystalRoomPreview
+    ) { stored, preview -> if (preview != null) preview.second else stored }
+
+    /** Called every drag frame from the custom Crystal-room picker. */
+    fun previewCrystalBackgroundColor(index: Int, argb: Int?) {
+        crystalRoomPreview.value = index to argb
     }
 
-    val crystalBackgroundColorArgb: Flow<Int?> = dataStore.data.map { prefs ->
-        prefs[CRYSTAL_BG_COLOR_ARGB_KEY]
+    /** Cancel/dismiss-without-selecting: revert to whatever was actually committed. */
+    fun cancelCrystalBackgroundColorPreview() {
+        crystalRoomPreview.value = null
     }
 
     suspend fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
@@ -313,6 +389,7 @@ class ThemePreferences(
             if (argb != null) prefs[CRYSTAL_BG_COLOR_ARGB_KEY] = argb
             else prefs.remove(CRYSTAL_BG_COLOR_ARGB_KEY)
         }
+        crystalRoomPreview.value = null
     }
 
     val calendarIntegrationEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
