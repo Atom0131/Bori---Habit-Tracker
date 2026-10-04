@@ -18,9 +18,12 @@ class JournalRepository constructor(private val dao: JournalDao) {
 
     suspend fun addEntry(entry: JournalEntry): Long = dao.insert(entry)
 
-    suspend fun updateEntry(entry: JournalEntry) = dao.update(entry)
+    suspend fun updateEntry(entry: JournalEntry) = dao.update(entry.copy(updatedAt = System.currentTimeMillis()))
 
-    suspend fun deleteEntry(entry: JournalEntry) = dao.update(entry.copy(deletedAt = System.currentTimeMillis()))
+    suspend fun deleteEntry(entry: JournalEntry) {
+        val now = System.currentTimeMillis()
+        dao.update(entry.copy(deletedAt = now, updatedAt = now))
+    }
 
     suspend fun hardDeleteEntry(entry: JournalEntry) = dao.delete(entry)
 
@@ -29,4 +32,14 @@ class JournalRepository constructor(private val dao: JournalDao) {
     suspend fun purgeOldDeletedItems(olderThan: Long) {
         dao.purgeDeletedEntries(olderThan)
     }
+
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    suspend fun getEntryBySyncId(syncId: String): JournalEntry? = dao.getEntryBySyncId(syncId)
+
+    suspend fun getEntriesUpdatedSince(since: Long): List<JournalEntry> = dao.getEntriesUpdatedSince(since)
+
+    suspend fun insertEntryFromSync(entry: JournalEntry): Long = dao.insert(entry)
+
+    suspend fun updateEntryFromSync(entry: JournalEntry) = dao.update(entry)
 }

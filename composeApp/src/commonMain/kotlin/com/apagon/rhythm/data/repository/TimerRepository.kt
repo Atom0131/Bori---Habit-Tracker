@@ -9,14 +9,27 @@ class TimerRepository constructor(private val dao: TimerDao) {
     fun getAllTimers(): Flow<List<Timer>> = dao.getAllTimers()
     suspend fun getTimerById(id: Long): Timer? = dao.getById(id)
     suspend fun addTimer(timer: Timer): Long = dao.insert(timer)
-    suspend fun updateTimer(timer: Timer) = dao.update(timer)
-    suspend fun deleteTimer(timer: Timer) = dao.update(timer.copy(deletedAt = System.currentTimeMillis()))
+    suspend fun updateTimer(timer: Timer) = dao.update(timer.copy(updatedAt = System.currentTimeMillis()))
+    suspend fun deleteTimer(timer: Timer) {
+        val now = System.currentTimeMillis()
+        dao.update(timer.copy(deletedAt = now, updatedAt = now))
+    }
     suspend fun hardDeleteTimer(timer: Timer) = dao.delete(timer)
     fun getDeletedTimers(): Flow<List<Timer>> = dao.getDeletedTimers()
 
     suspend fun purgeOldDeletedItems(olderThan: Long) {
         dao.purgeDeletedTimers(olderThan)
     }
+
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    suspend fun getTimerBySyncId(syncId: String): Timer? = dao.getTimerBySyncId(syncId)
+
+    suspend fun getTimersUpdatedSince(since: Long): List<Timer> = dao.getTimersUpdatedSince(since)
+
+    suspend fun insertTimerFromSync(timer: Timer): Long = dao.insert(timer)
+
+    suspend fun updateTimerFromSync(timer: Timer) = dao.update(timer)
 
     /**
      * Pomodoro phase state machine — transcribed from androidMain's

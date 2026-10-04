@@ -14,11 +14,15 @@ import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.preferences.ThemeStyle
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.repository.TodoRepository
+import com.apagon.rhythm.data.sync.LocalSyncAddress
+import com.apagon.rhythm.data.sync.SyncCoordinator
+import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.PhotoStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -45,7 +49,83 @@ class DesktopSettingsViewModel(
     private val backupManager: BackupManaging,
     private val filePicker: FilePicker,
     private val photoStorage: PhotoStorage,
+    private val syncCoordinator: SyncCoordinator,
+    private val syncPreferences: SyncPreferences,
+    localSyncAddress: LocalSyncAddress,
 ) : ViewModel() {
+
+    // Moved here from DesktopHabitViewModel so "Sync with phone" lives under Settings -> Data
+    // Management, matching Android's own placement (Settings -> Data Management -> "Pair with
+    // Desktop") instead of sitting on the Today screen. Desktop is always the sync server; see
+    // ref_notes/plan_2026-09-25_stage13_tailscale_pairing.md's design decision on sync direction.
+    val ownSyncAddress: String = localSyncAddress.display
+    val ownSyncAddressForPairing: String = localSyncAddress.addressForPairing
+
+    private val _peerAddress = MutableStateFlow("")
+    val peerAddress: StateFlow<String> = _peerAddress.asStateFlow()
+
+    private val _syncStatus = MutableStateFlow<String?>(null)
+    val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _peerAddress.value = syncPreferences.getPeerAddress() ?: ""
+        }
+    }
+
+    fun updatePeerAddress(address: String) {
+        _peerAddress.value = address
+    }
+
+    // Stage 3.5 — optional, default-off vault *file* sync (separate from row-level Note/Notebook
+    // sync, which is always on). Off unless the user explicitly turns it on, on each device
+    // independently — not something one device can silently enable on the other via sync (the key
+    // itself is excluded from the preferences sync blob; see ThemePreferences.vaultFileSyncEnabled).
+    val vaultFileSyncEnabled: StateFlow<Boolean> = themePreferences.vaultFileSyncEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setVaultFileSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch { themePreferences.setVaultFileSyncEnabled(enabled) }
+    }
+
+    fun syncNow() {
+        val address = _peerAddress.value.trim()
+        if (address.isEmpty()) {
+            _syncStatus.value = "Enter a peer address first"
+            return
+        }
+        viewModelScope.launch {
+            _syncStatus.value = "Syncing…"
+            runCatching {
+                syncPreferences.setPeerAddress(address)
+                syncCoordinator.syncWith(address)
+            }.onSuccess { result ->
+                _syncStatus.value =
+                    "Synced — habits +${result.habitsInserted}/${result.habitsUpdated}, " +
+                        "completions +${result.completionsInserted}/${result.completionsUpdated}, " +
+                        "other +${result.otherInserted}/${result.otherUpdated}"
+            }.onFailure { e ->
+                _syncStatus.value = "Sync failed: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Resets the local "last synced at" watermark to 0 before syncing, so every row on this
+     * device — including ones created/last-edited long before sync ever existed or before an
+     * entity type was added to its scope — is included in the next outgoing batch, not just rows
+     * touched since the last successful sync. Without this, data that predates the watermark can
+     * never be picked up by the normal incremental `getXUpdatedSince(since)` path: the watermark
+     * only ever moves forward, so expanding sync to cover more entities doesn't retroactively
+     * sweep in a user's pre-existing, never-since-edited rows for those entities. A one-time full
+     * resync (run once per device, not routinely) is the fix, not a backdoor data edit.
+     */
+    fun forceFullResyncThenSync() {
+        viewModelScope.launch {
+            syncPreferences.setLastSyncedAt(0)
+            syncNow()
+        }
+    }
 
     val userName = themePreferences.userName
     val userNickname = themePreferences.userNickname
@@ -219,11 +299,13 @@ class DesktopSettingsViewModel(
     private val _backupState = MutableStateFlow<DesktopBackupState>(DesktopBackupState.Idle)
     val backupState: StateFlow<DesktopBackupState> = _backupState
 
-    fun exportBackup() {
+    /** @param password when non-null, the exported file is AES-256-GCM encrypted
+     *  (see `DesktopBackupCrypto`) rather than plain JSON. */
+    fun exportBackup(password: CharArray? = null) {
         viewModelScope.launch {
             try {
                 val path = filePicker.pickBackupExportPath("rhythm-backup.json") ?: return@launch
-                backupManager.exportToPath(path)
+                backupManager.exportToPath(path, password)
                 _backupState.value = DesktopBackupState.Success("Backup exported successfully")
             } catch (e: Exception) {
                 _backupState.value = DesktopBackupState.Error("Export failed: ${e.message}")
@@ -231,12 +313,18 @@ class DesktopSettingsViewModel(
         }
     }
 
-    fun importBackup() {
+    /** @param password required only when the chosen file turns out to be an encrypted envelope;
+     *  harmless to pass for a plain backup, where it is simply ignored. */
+    fun importBackup(password: CharArray? = null) {
         viewModelScope.launch {
             try {
                 val path = filePicker.pickBackupImportPath() ?: return@launch
-                backupManager.importFromPath(path)
-                _backupState.value = DesktopBackupState.Success("Backup restored successfully!")
+                val warning = backupManager.importFromPath(path, password)
+                _backupState.value = if (warning != null) {
+                    DesktopBackupState.Error(warning)
+                } else {
+                    DesktopBackupState.Success("Backup restored successfully!")
+                }
             } catch (e: Exception) {
                 _backupState.value = DesktopBackupState.Error("Import failed: ${e.message}")
             }

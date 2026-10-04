@@ -33,6 +33,14 @@ interface ReminderDao {
     @Delete
     suspend fun delete(reminder: Reminder)
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM reminders WHERE syncId = :syncId")
+    suspend fun getReminderBySyncId(syncId: String): Reminder?
+
+    @Query("SELECT * FROM reminders WHERE updatedAt > :since")
+    suspend fun getRemindersUpdatedSince(since: Long): List<Reminder>
+
     @Query("SELECT * FROM reminders")
     suspend fun getAllRemindersForBackup(): List<Reminder>
 

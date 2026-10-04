@@ -52,6 +52,8 @@ import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmDatePickerDialog
 import com.apagon.rhythm.ui.util.RhythmSheet
 import kotlin.time.Instant
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -63,7 +65,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * 6-7. Date/time logic is otherwise a near-verbatim port; it already ran
  * against commonMain's java.time compat shim before this stage.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalUuidApi::class)
 @Composable
 fun DesktopAddCalendarEventSheet(
     existing: CalendarEvent? = null,
@@ -208,7 +210,13 @@ fun DesktopAddCalendarEventSheet(
                             startTime = if (allDay) null else "%02d:%02d".format(startHour, startMinute),
                             endTime = if (allDay) null else "%02d:%02d".format(endHour, endMinute),
                             colorIndex = colorIndex,
-                            colorArgb = colorArgb
+                            colorArgb = colorArgb,
+                            // Carry the existing row's sync identity/creation time forward on an
+                            // edit — otherwise these fall through to the data class's fresh-mint
+                            // defaults and an edit mints a brand-new syncId, which the sync engine
+                            // then treats as a duplicate new event on a peer instead of an update.
+                            syncId = existing?.syncId ?: Uuid.random().toString(),
+                            createdAt = existing?.createdAt ?: System.currentTimeMillis()
                         )
                     )
                 },

@@ -6,15 +6,19 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 import androidx.room.Index
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 enum class TodoPriority { HIGH, MEDIUM, LOW, NONE }
 
 
+@OptIn(ExperimentalUuidApi::class)
 @Entity(
     tableName = "todos",
     indices = [
         Index("isCompleted"),
-        Index("completedAt")
+        Index("completedAt"),
+        Index(value = ["syncId"], unique = true)
     ]
 )
 data class Todo(
@@ -30,5 +34,9 @@ data class Todo(
     val isArchived: Boolean = false,
     val deletedAt: Long? = null,
     val soundUri: String = "",
-    val vibrationPatternId: String = "default"
+    val vibrationPatternId: String = "default",
+    /** Stable cross-device id for the Tailscale sync engine. Minted once, never overwritten. */
+    val syncId: String = Uuid.random().toString(),
+    /** Bumped on every local mutation; sync's last-write-wins conflict signal. */
+    val updatedAt: Long = System.currentTimeMillis()
 )

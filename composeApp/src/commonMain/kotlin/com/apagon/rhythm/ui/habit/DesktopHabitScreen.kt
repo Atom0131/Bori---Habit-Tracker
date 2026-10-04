@@ -18,11 +18,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
@@ -41,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.platform.ImageBitmapLoader
-import com.apagon.rhythm.platform.QrCodeRenderer
 import com.apagon.rhythm.core.time.*
 import com.apagon.rhythm.core.time.DateTimeFormatter.Companion.ISO_LOCAL_DATE
 import com.apagon.rhythm.ui.calendar.DesktopCalendarViewModel
@@ -50,8 +47,6 @@ import com.apagon.rhythm.ui.reminders.ReminderViewModel
 import com.apagon.rhythm.ui.reminders.remindersForDate
 import com.apagon.rhythm.ui.reminders.remindersSection
 import com.apagon.rhythm.ui.todos.TodoViewModel
-import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
-import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.todos.todoSection
@@ -82,8 +77,6 @@ internal fun DesktopTodayListContent(
     reminderViewModel: ReminderViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val peerAddress by viewModel.peerAddress.collectAsState()
-    val syncStatus by viewModel.syncStatus.collectAsState()
     // Stage 19f: Android's Today list always shows a WeekStrip between the header and the habit
     // sections — desktop had none. selectedDate drives both the strip and (Stage 19g) the
     // Reminders/Events sections below the habit sections, kept in sync with calendarViewModel's
@@ -104,9 +97,6 @@ internal fun DesktopTodayListContent(
     val selectedDayEvents by calendarViewModel.selectedDayEvents.collectAsState()
     var remindersExpanded by remember { mutableStateOf(false) }
     var eventsExpanded by remember { mutableStateOf(false) }
-    var showSync by remember { mutableStateOf(false) }
-    var showQrCode by remember { mutableStateOf(false) }
-    val qrCodeRenderer = koinInject<QrCodeRenderer>()
     // Stage 9: tapping a habit navigates to DesktopHabitDetailScreen (Stats).
     // Plain local state, matching this project's existing showX/editingX
     // toggle pattern rather than a real navigation library (Stage 11 territory).
@@ -144,8 +134,6 @@ internal fun DesktopTodayListContent(
                 viewModel = viewModel,
                 habitListViewModel = habitListViewModel,
                 state = state,
-                peerAddress = peerAddress,
-                syncStatus = syncStatus,
                 selectedDate = selectedDate,
                 onSelectedDateChange = {
                     selectedDate = it
@@ -154,11 +142,6 @@ internal fun DesktopTodayListContent(
                 weekStripExpanded = weekStripExpanded,
                 onToggleWeekStripExpanded = { weekStripExpanded = !weekStripExpanded },
                 weekStripIndicatorDates = monthIndicatorDates,
-                showSync = showSync,
-                onToggleShowSync = { showSync = !showSync },
-                showQrCode = showQrCode,
-                onToggleShowQrCode = { showQrCode = !showQrCode },
-                qrCodeRenderer = qrCodeRenderer,
                 userName = userName,
                 profilePictureUri = profilePictureUri,
                 habitsUiState = habitsUiState,
@@ -217,18 +200,11 @@ internal fun DesktopHabitList(
     viewModel: DesktopHabitViewModel,
     habitListViewModel: HabitListViewModel,
     state: DesktopHabitUiState,
-    peerAddress: String,
-    syncStatus: String?,
     selectedDate: LocalDate,
     onSelectedDateChange: (LocalDate) -> Unit,
     weekStripExpanded: Boolean,
     onToggleWeekStripExpanded: () -> Unit,
     weekStripIndicatorDates: Set<String>,
-    showSync: Boolean,
-    onToggleShowSync: () -> Unit,
-    showQrCode: Boolean,
-    onToggleShowQrCode: () -> Unit,
-    qrCodeRenderer: QrCodeRenderer,
     userName: String,
     profilePictureUri: String?,
     habitsUiState: HabitsUiState,
@@ -271,69 +247,12 @@ internal fun DesktopHabitList(
                 )
             }
 
-            item {
-                // Stage 19e: the inline "New habit" field used to live here — removed now that the
-                // Today FAB (Stage 19c) is the single discoverable add entry point, matching
-                // Android's HabitListScreen.kt (no inline field there either, only the FAB). The
-                // "Sync with phone" block below is unrelated desktop-only functionality
-                // (Stage 13 Tailscale pairing) and stays exactly where it was.
-                Column(modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding)) {
-                    TextButton(onClick = onToggleShowSync) {
-                        Text(if (showSync) "Hide sync with phone" else "Sync with phone")
-                    }
-
-                    if (showSync) {
-                        // Stage 13: this device's own address, read-only — the user reads it off
-                        // this line and types it into the phone's peer-address field (desktop is
-                        // always the sync server). The QR toggle below is the easier path — same
-                        // address, scanned instead of typed.
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
-                                .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-                            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Your address: ${viewModel.ownSyncAddress}",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            TextButton(onClick = onToggleShowQrCode) {
-                                Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
-                            }
-                        }
-                        if (showQrCode) {
-                            qrCodeRenderer.QrCodeImage(
-                                text = viewModel.ownSyncAddressForPairing,
-                                modifier = Modifier.size(200.dp).padding(top = 8.dp)
-                            )
-                        }
-
-                        // Stage 4b: local sync test UI, still used for the reverse direction
-                        // (desktop-initiates-sync) and local dev testing.
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
-                                .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-                            horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = peerAddress,
-                                onValueChange = { viewModel.updatePeerAddress(it) },
-                                label = { Text("Peer address (host:port)") },
-                                colors = crystalBareTextFieldColors(),
-                                modifier = Modifier.weight(1f)
-                            )
-                            Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
-                                Text("Sync")
-                            }
-                        }
-                        if (syncStatus != null) {
-                            Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
-                        }
-                    }
-                }
-            }
+            // Stage 19e: the inline "New habit" field used to live here — removed now that the
+            // Today FAB (Stage 19c) is the single discoverable add entry point, matching
+            // Android's HabitListScreen.kt (no inline field there either, only the FAB).
+            // "Sync with phone" moved to Settings -> Data Management, matching Android's own
+            // placement (Settings -> Data Management -> "Pair with Desktop") instead of living on
+            // the Today screen. See DesktopSettingsScreen.kt's DataSectionContent.
 
             val uiState = habitsUiState
             val anyHabits = uiState.groupedHabits.values.any { it.isNotEmpty() }

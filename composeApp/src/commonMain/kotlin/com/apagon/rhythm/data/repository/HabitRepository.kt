@@ -157,7 +157,7 @@ class HabitRepository constructor(
     }
 
     suspend fun updateHabitWithItems(habit: Habit, newLabels: List<String>) {
-        habitDao.updateHabit(habit)
+        habitDao.updateHabit(habit.copy(updatedAt = System.currentTimeMillis()))
         val existing = habitDao.getItemsForHabit(habit.id).first()
         val existingLabels = existing.map { it.label }
         
@@ -184,14 +184,35 @@ class HabitRepository constructor(
     fun getItemsForHabit(habitId: Long): Flow<List<ChecklistItem>> =
         habitDao.getItemsForHabit(habitId)
 
+    // ── Sync (Stage 2) — checklist items/completions, full-replace-per-parent ───────────────────
+    // Nested two levels (Habit -> ChecklistItem -> ChecklistItemCompletion); itemId resolution
+    // across the two levels is done by the caller (SyncEngine), same spirit as TodoRepository's
+    // subtask primitives.
+
+    suspend fun getItemsForHabitSync(habitId: Long): List<ChecklistItem> = habitDao.getItemsForHabitOnce(habitId)
+
+    suspend fun deleteAllItemsForHabitSync(habitId: Long) = habitDao.deleteAllItemsForHabit(habitId)
+
+    suspend fun insertChecklistItemFromSync(item: ChecklistItem): Long = habitDao.insertChecklistItem(item)
+
+    suspend fun getCompletionsForItemSync(itemId: Long): List<ChecklistItemCompletion> =
+        habitDao.getCompletionsForItemOnce(itemId)
+
+    suspend fun insertItemCompletionFromSync(completion: ChecklistItemCompletion): Long =
+        habitDao.insertItemCompletion(completion)
+
     // ── Checklist Item Completions ────────────────────────────────────────────
 
-    suspend fun checkItem(itemId: Long, date: String): Long =
-        habitDao.insertItemCompletion(ChecklistItemCompletion(itemId = itemId, dateCompleted = date))
-            .also { widgetRefresher.refreshAll() }
+    suspend fun checkItem(itemId: Long, date: String): Long {
+        val id = habitDao.insertItemCompletion(ChecklistItemCompletion(itemId = itemId, dateCompleted = date))
+        habitDao.touchHabitForChecklistItem(itemId, System.currentTimeMillis())
+        widgetRefresher.refreshAll()
+        return id
+    }
 
     suspend fun uncheckItem(itemId: Long, date: String) {
         habitDao.deleteItemCompletion(itemId, date)
+        habitDao.touchHabitForChecklistItem(itemId, System.currentTimeMillis())
         widgetRefresher.refreshAll()
     }
 

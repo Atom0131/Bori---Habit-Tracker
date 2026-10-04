@@ -44,6 +44,14 @@ interface CalendarEventDao {
     @Delete
     suspend fun delete(event: CalendarEvent)
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM calendar_events WHERE syncId = :syncId")
+    suspend fun getEventBySyncId(syncId: String): CalendarEvent?
+
+    @Query("SELECT * FROM calendar_events WHERE updatedAt > :since")
+    suspend fun getEventsUpdatedSince(since: Long): List<CalendarEvent>
+
     @Query("SELECT * FROM calendar_events")
     suspend fun getAllEventsForBackup(): List<CalendarEvent>
 

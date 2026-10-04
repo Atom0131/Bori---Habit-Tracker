@@ -5,16 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.repository.HabitRepository
-import com.apagon.rhythm.data.sync.LocalSyncAddress
-import com.apagon.rhythm.data.sync.SyncCoordinator
-import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.platform.ReminderScheduling
 import com.apagon.rhythm.ui.util.isScheduledForDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -41,58 +36,10 @@ data class DesktopHabitUiState(
 
 class DesktopHabitViewModel(
     private val repository: HabitRepository,
-    private val syncCoordinator: SyncCoordinator,
-    private val syncPreferences: SyncPreferences,
-    private val scheduler: ReminderScheduling,
-    localSyncAddress: LocalSyncAddress
+    private val scheduler: ReminderScheduling
 ) : ViewModel() {
 
     private val today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-
-    // Stage 13: this device's own address for a phone to sync against, shown
-    // read-only so the user can read it off this screen and type it into the
-    // phone's peer-address field (desktop is always the sync server; see
-    // ref_notes/plan_2026-09-25_stage13_tailscale_pairing.md's design
-    // decision on sync direction).
-    val ownSyncAddress: String = localSyncAddress.display
-    val ownSyncAddressForPairing: String = localSyncAddress.addressForPairing
-
-    private val _peerAddress = MutableStateFlow("")
-    val peerAddress: StateFlow<String> = _peerAddress.asStateFlow()
-
-    private val _syncStatus = MutableStateFlow<String?>(null)
-    val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            _peerAddress.value = syncPreferences.getPeerAddress() ?: ""
-        }
-    }
-
-    fun updatePeerAddress(address: String) {
-        _peerAddress.value = address
-    }
-
-    fun syncNow() {
-        val address = _peerAddress.value.trim()
-        if (address.isEmpty()) {
-            _syncStatus.value = "Enter a peer address first"
-            return
-        }
-        viewModelScope.launch {
-            _syncStatus.value = "Syncing…"
-            runCatching {
-                syncPreferences.setPeerAddress(address)
-                syncCoordinator.syncWith(address)
-            }.onSuccess { result ->
-                _syncStatus.value =
-                    "Synced — habits +${result.habitsInserted}/${result.habitsUpdated}, " +
-                        "completions +${result.completionsInserted}/${result.completionsUpdated}"
-            }.onFailure { e ->
-                _syncStatus.value = "Sync failed: ${e.message}"
-            }
-        }
-    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<DesktopHabitUiState> =

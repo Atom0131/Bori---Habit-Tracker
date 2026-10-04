@@ -39,6 +39,14 @@ interface JournalDao {
     @Delete
     suspend fun delete(entry: JournalEntry)
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM journal_entries WHERE syncId = :syncId")
+    suspend fun getEntryBySyncId(syncId: String): JournalEntry?
+
+    @Query("SELECT * FROM journal_entries WHERE updatedAt > :since")
+    suspend fun getEntriesUpdatedSince(since: Long): List<JournalEntry>
+
     @Query("SELECT * FROM journal_entries")
     suspend fun getAllForBackup(): List<JournalEntry>
 

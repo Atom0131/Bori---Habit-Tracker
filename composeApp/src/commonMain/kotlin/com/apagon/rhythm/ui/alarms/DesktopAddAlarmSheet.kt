@@ -39,7 +39,8 @@ import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.koinInject
 
-private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+// bit0=Sun, bit1=Mon, ... bit6=Sat — matches Alarm.kt's repeatDaysMask KDoc (Android's convention).
+private val DAY_LABELS = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
 // Desktop counterpart to androidMain's AddAlarmSheet.kt (Stage 12) — not a
 // literal move. The Android original pulls RingtoneManager, LocalContext for

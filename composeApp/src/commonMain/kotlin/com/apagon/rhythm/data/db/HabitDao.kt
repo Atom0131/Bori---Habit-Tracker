@@ -47,6 +47,17 @@ interface HabitDao {
     @Query("UPDATE habits SET reminderTime = :time WHERE id = :habitId")
     suspend fun updateReminderTime(habitId: Long, time: String?)
 
+    /** Bumps the parent habit's updatedAt without reloading/re-saving the whole row — used when a
+     * child table (ChecklistItem/ChecklistItemCompletion) is mutated, so the resulting change is
+     * still picked up by getHabitsUpdatedSince and included in the next outgoing sync batch. */
+    @Query("UPDATE habits SET updatedAt = :updatedAt WHERE id = :id")
+    suspend fun touchHabit(id: Long, updatedAt: Long)
+
+    /** Same as touchHabit, but resolves the owning habit from a checklist item id — checkItem/
+     * uncheckItem only have the itemId on hand, not the parent habitId. */
+    @Query("UPDATE habits SET updatedAt = :updatedAt WHERE id = (SELECT habitId FROM checklist_items WHERE id = :itemId)")
+    suspend fun touchHabitForChecklistItem(itemId: Long, updatedAt: Long)
+
     // ── Sync (Stage 4) ───────────────────────────────────────────────────────
 
     @Query("SELECT * FROM habits WHERE syncId = :syncId")
@@ -113,6 +124,12 @@ interface HabitDao {
     @Query("SELECT * FROM checklist_items WHERE habitId = :habitId ORDER BY sortOrder ASC")
     fun getItemsForHabit(habitId: Long): Flow<List<ChecklistItem>>
 
+    @Query("SELECT * FROM checklist_items WHERE habitId = :habitId ORDER BY sortOrder ASC")
+    suspend fun getItemsForHabitOnce(habitId: Long): List<ChecklistItem>
+
+    @Insert
+    suspend fun insertChecklistItem(item: ChecklistItem): Long
+
     @Query("DELETE FROM checklist_items WHERE habitId = :habitId")
     suspend fun deleteAllItemsForHabit(habitId: Long)
 
@@ -139,6 +156,11 @@ interface HabitDao {
         AND cic.dateCompleted = :date
     """)
     suspend fun getItemCompletionsByHabitsOnDateSync(habitIds: List<Long>, date: String): List<ChecklistItemCompletion>
+
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM checklist_item_completions WHERE itemId = :itemId")
+    suspend fun getCompletionsForItemOnce(itemId: Long): List<ChecklistItemCompletion>
 
     // ── Backup / Restore ──────────────────────────────────────────────────────
 

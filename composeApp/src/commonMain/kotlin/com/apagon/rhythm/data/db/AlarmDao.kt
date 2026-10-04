@@ -32,6 +32,14 @@ interface AlarmDao {
     @Delete
     suspend fun delete(alarm: Alarm)
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM alarms WHERE syncId = :syncId")
+    suspend fun getAlarmBySyncId(syncId: String): Alarm?
+
+    @Query("SELECT * FROM alarms WHERE updatedAt > :since")
+    suspend fun getAlarmsUpdatedSince(since: Long): List<Alarm>
+
     @Query("SELECT * FROM alarms")
     suspend fun getAllAlarmsForBackup(): List<Alarm>
 

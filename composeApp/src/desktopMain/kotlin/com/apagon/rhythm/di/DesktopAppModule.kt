@@ -39,6 +39,7 @@ import com.apagon.rhythm.platform.DesktopPurchaseLauncher
 import com.apagon.rhythm.platform.DesktopQrCodeRenderer
 import com.apagon.rhythm.platform.DesktopReminderScheduling
 import com.apagon.rhythm.platform.DesktopFilePickerService
+import com.apagon.rhythm.platform.DesktopVaultFileSync
 import com.apagon.rhythm.platform.DesktopWidgetRefresher
 import com.apagon.rhythm.platform.FilePicker
 import com.apagon.rhythm.platform.HapticAlerter
@@ -48,6 +49,7 @@ import com.apagon.rhythm.platform.PhotoStorage
 import com.apagon.rhythm.platform.PurchaseLauncher
 import com.apagon.rhythm.platform.QrCodeRenderer
 import com.apagon.rhythm.platform.ReminderScheduling
+import com.apagon.rhythm.platform.VaultFileSync
 import com.apagon.rhythm.platform.WidgetRefresher
 import com.apagon.rhythm.ui.alarms.AlarmViewModel
 import com.apagon.rhythm.ui.alarms.TimerViewModel
@@ -92,19 +94,23 @@ val desktopAppModule = module {
     single { get<DesktopHabitDatabase>().alarmDao() }
     single { get<DesktopHabitDatabase>().reminderDao() }
     single { get<DesktopHabitDatabase>().timerDao() }
+    single { get<DesktopHabitDatabase>().eventReminderDao() }
+    single { get<DesktopHabitDatabase>().todoSubtaskDao() }
+    single { get<DesktopHabitDatabase>().noteLinkDao() }
     single<WidgetRefresher> { DesktopWidgetRefresher() }
     single<SyncPreferences> { DesktopSyncPreferences() }
     single { ThemePreferences(buildDesktopThemeDataStore()) }
     single { SecurityRepository(buildDesktopSecurityDataStore()) }
     single { HabitRepository(get(), get()) }
-    single { TodoRepository(get()) }
-    single { CalendarEventRepository(get()) }
+    single { TodoRepository(get(), get()) }
+    single { CalendarEventRepository(get(), get()) }
     single { JournalRepository(get()) }
-    single { NotesRepository(get()) }
+    single { NotesRepository(get(), get()) }
     single { AlarmRepository(get()) }
     single { ReminderRepository(get()) }
     single { TimerRepository(get()) }
-    single { SyncEngine(get(), get()) }
+    single<VaultFileSync> { DesktopVaultFileSync() }
+    single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SyncClient(get(), desktopDeviceId) }
     single { SyncServer(get(), desktopDeviceId) }
     // Stage 13: resolved once at Koin start, same lifetime as the Tailscale
@@ -125,7 +131,7 @@ val desktopAppModule = module {
     single<ImageBitmapLoader> { DesktopImageBitmapLoader() }
     single<FilePicker> { DesktopFilePickerService() }
     single<com.apagon.rhythm.platform.GlassBlur> { com.apagon.rhythm.platform.DesktopGlassBlur() }
-    viewModel { DesktopHabitViewModel(get(), get(), get(), get(), get()) }
+    viewModel { DesktopHabitViewModel(get(), get()) }
     // The Habits/Today screen's grouped/streak/%-done state — see
     // ref_notes for the layout-parity round this was activated in. Every
     // dependency below was already registered for other screens (Todo,
@@ -143,7 +149,7 @@ val desktopAppModule = module {
 
     // ── Stage 11: Settings ───────────────────────────────────────────────────
     single<BackupManaging> { DesktopBackupManager(get(), get()) }
-    viewModel { DesktopSettingsViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { DesktopSettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     // Custom accent/Crystal-room/Crystal-mesh colour pickers — ColorPickerViewModel itself was
     // already commonMain (ported alongside Stage 11) but never registered, since nothing called
     // it until the custom-colour picker UI landed.

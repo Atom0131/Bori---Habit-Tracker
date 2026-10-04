@@ -65,7 +65,9 @@ class DesktopAlarmClockService(
     }
 
     private suspend fun checkAlarms(now: LocalDateTime) {
-        val bit = 1 shl (now.dayOfWeek.isoDayNumber - 1)
+        // Alarm.repeatDaysMask: bit0=Sun, bit1=Mon, ... bit6=Sat (Android's convention). isoDayNumber
+        // is Mon=1..Sun=7, so `% 7` maps Mon..Sat to bits 1..6 and Sun (7 % 7 = 0) to bit 0.
+        val bit = 1 shl (now.dayOfWeek.isoDayNumber % 7)
         alarmDao.getEnabledAlarms().forEach { alarm ->
             val matchesTime = alarm.hour == now.hour && alarm.minute == now.minute
             val matchesDay = alarm.repeatDaysMask == 0 || (alarm.repeatDaysMask and bit) != 0

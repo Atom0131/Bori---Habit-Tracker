@@ -12,14 +12,17 @@ import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
+import com.apagon.rhythm.data.model.EventReminder
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Note
+import com.apagon.rhythm.data.model.NoteLink
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.data.model.TodoSubtask
 import kotlinx.coroutines.Dispatchers
 import java.io.File
 
@@ -34,8 +37,8 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class],
-    version = 7,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class],
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -48,6 +51,9 @@ abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun reminderDao(): ReminderDao
     abstract fun timerDao(): TimerDao
+    abstract fun eventReminderDao(): EventReminderDao
+    abstract fun noteLinkDao(): NoteLinkDao
+    abstract fun todoSubtaskDao(): TodoSubtaskDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -273,6 +279,214 @@ val DESKTOP_HABIT_MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+// Stage 1 of the backup/sync-prep plan: new tables for schema parity with Android's
+// EventReminder/NoteLink/TodoSubtask — DAO + entity only, no repository/UI wiring this pass.
+// None of the three entities declares @ColumnInfo(defaultValue=...), so (matching every prior
+// brand-new-table migration in this file — DESKTOP_HABIT_MIGRATION_3_4/_4_5/_5_6/_6_7, all
+// verified against their entities' actual annotations) this migration carries no SQL DEFAULT
+// clauses. FKs/indices are copied directly from each entity's @Entity annotation:
+// EventReminder (FK->calendar_events CASCADE, index on eventId), NoteLink (indices on both
+// id columns, no FK), TodoSubtask (FK->todos CASCADE, indices on todoId and parentId, no FK
+// on parentId — see TodoSubtask.kt's own KDoc for why).
+val DESKTOP_HABIT_MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS event_reminders (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                eventId            INTEGER NOT NULL,
+                minutesBefore      INTEGER,
+                absoluteDateTime   TEXT,
+                soundUri           TEXT NOT NULL,
+                vibrationPatternId TEXT NOT NULL,
+                createdAt          INTEGER NOT NULL,
+                FOREIGN KEY(eventId) REFERENCES calendar_events(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_event_reminders_eventId ON event_reminders(eventId)")
+
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS note_links (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                sourceNoteId INTEGER NOT NULL,
+                targetNoteId INTEGER NOT NULL
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_note_links_sourceNoteId ON note_links(sourceNoteId)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_note_links_targetNoteId ON note_links(targetNoteId)")
+
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS todo_subtasks (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                todoId     INTEGER NOT NULL,
+                label      TEXT NOT NULL,
+                isDone     INTEGER NOT NULL,
+                sortOrder  INTEGER NOT NULL,
+                parentId   INTEGER,
+                FOREIGN KEY(todoId) REFERENCES todos(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent())
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_todo_subtasks_todoId ON todo_subtasks(todoId)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS index_todo_subtasks_parentId ON todo_subtasks(parentId)")
+    }
+}
+
+// Stage 1: new columns on notebooks/notes/alarms/reminders for Android schema parity, all
+// inert pass-through on desktop except Note.bodyPreview/uuid (see Note.kt). Column names are
+// the Kotlin property names here — none of these four new fields uses @ColumnInfo(name=...)
+// (unlike Alarm.repeatDaysMask/repeatDays, untouched by this migration). SQLite requires a
+// literal DEFAULT on any NOT NULL column added to a non-empty table, so the four NOT-NULL
+// additions (notebooks.isPrivate, notes.bodyPreview, alarms.dismissMission,
+// alarms.missionDifficulty) carry one, matching each property's Kotlin default exactly; the
+// nullable additions carry none, matching this file's established no-default convention.
+val DESKTOP_HABIT_MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN isPrivate INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN vaultFolderName TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN folderDocUriCache TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN parentId INTEGER DEFAULT NULL")
+
+        connection.execSQL("ALTER TABLE notes ADD COLUMN bodyPreview TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE notes ADD COLUMN filePointer TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE notes ADD COLUMN fileDocUriCache TEXT DEFAULT NULL")
+        connection.execSQL("ALTER TABLE notes ADD COLUMN fileSyncedAt INTEGER DEFAULT NULL")
+        connection.execSQL("ALTER TABLE notes ADD COLUMN uuid TEXT DEFAULT NULL")
+
+        connection.execSQL("ALTER TABLE alarms ADD COLUMN dismissMission TEXT NOT NULL DEFAULT 'none'")
+        connection.execSQL("ALTER TABLE alarms ADD COLUMN missionDifficulty INTEGER NOT NULL DEFAULT 1")
+
+        connection.execSQL("ALTER TABLE reminders ADD COLUMN noteId INTEGER DEFAULT NULL")
+    }
+}
+
+// Stage 1: one-time data migration remapping alarms.repeatDays from desktop's old bit order
+// (bit0=Mon, bit1=Tue, ..., bit6=Sun) to Android's (bit0=Sun, bit1=Mon, ..., bit6=Sat) — see
+// Alarm.kt's KDoc. Column name is `repeatDays` (the @ColumnInfo name), not `repeatDaysMask` —
+// commonMain's (dead-code) MIGRATION_32_33 got this exact thing wrong.
+//
+// Every old bit N (weekday) must land at new bit (N+1) mod 7: old bit0=Mon -> new bit1=Mon,
+// old bit1=Tue -> new bit2=Tue, ..., old bit5=Sat -> new bit6=Sat, old bit6=Sun -> new bit0=Sun.
+// That is a left-rotate by one bit within the low 7 bits:
+//   new = ((old << 1) | (old >> 6)) & 0x7F
+// (mask to 7 bits first in case any stray high bits are present, which the app has never set).
+//
+// Hand-verified against two known values before use:
+//   Mon+Wed, old = bit0|bit2 = 0b0000101 = 5.
+//     (5*2)=10, 5/64=0 -> 10|0 = 10 = 0b0001010 = new bit1|bit3 = Mon|Wed. Correct (Mon,Wed
+//     both still set, just moved to their new bit positions).
+//   Sun+Sat, old = bit6|bit5 = 0b1100000 = 96.
+//     (96*2)&127 = 192&127 = 64 = 0b1000000 = new bit6 (Sat). 96/64 = 1 = new bit0 (Sun).
+//     64|1 = 65 = 0b1000001 = new bit0|bit6 = Sun|Sat. Correct.
+val DESKTOP_HABIT_MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "UPDATE alarms SET repeatDays = " +
+                "(((repeatDays & 127) * 2) & 127) | ((repeatDays & 127) / 64) " +
+                "WHERE repeatDays != 0"
+        )
+    }
+}
+
+// Stage 1 of the full-entity-sync plan: adds syncId/updatedAt sync bookkeeping to every
+// remaining entity (everything except Habit/HabitCompletion, which already got this in
+// DESKTOP_HABIT_MIGRATION_1_2). Schema only — the sync engine itself isn't wired to these
+// tables yet (that's Stage 2, a separate pass).
+//
+// Column-name check done against each entity's actual @ColumnInfo annotations before writing
+// this (per the Alarm.repeatDaysMask/repeatDays lesson from DESKTOP_HABIT_MIGRATION_1_2/_9_10):
+// none of the 13 entities touched here declare a @ColumnInfo(name=...) that differs from its
+// Kotlin property name, so every ALTER/UPDATE below uses the property name directly.
+//
+// notebooks/notes/journal_entries already have `updatedAt` (used for sort order, not sync) —
+// only `syncId` is added for those three, no second ALTER, to avoid a duplicate-column crash.
+// The other ten entities get both columns. updatedAt is backfilled from `createdAt` where that
+// column exists (todos, calendar_events, alarms, timers, reminders, event_reminders); the five
+// full-replace child tables with neither syncId/updatedAt/createdAt before now (todo_subtasks,
+// checklist_items, checklist_item_completions, note_links) backfill updatedAt from current time,
+// same reasoning DESKTOP_HABIT_MIGRATION_1_2 used for habit_completions.
+val DESKTOP_HABIT_MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(connection: SQLiteConnection) {
+        val now = com.apagon.rhythm.core.time.System.currentTimeMillis()
+
+        // --- Entities with existing deletedAt, backfill updatedAt from createdAt ---
+        connection.execSQL("ALTER TABLE todos ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE todos ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE todos SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE calendar_events ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE calendar_events ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE calendar_events SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE alarms ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE alarms ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE alarms SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE timers ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE timers ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE timers SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE reminders ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE reminders ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE reminders SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        // --- Entities that already have updatedAt: syncId only ---
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE notes ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE journal_entries ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+
+        // --- Full-replace-per-parent child tables: both columns, no deletedAt, backfill updatedAt
+        // from createdAt where that column exists, else from "now" ---
+        connection.execSQL("ALTER TABLE event_reminders ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE event_reminders ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE event_reminders SET updatedAt = createdAt WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE todo_subtasks ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE todo_subtasks ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE todo_subtasks SET updatedAt = $now WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE checklist_items ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE checklist_items ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE checklist_items SET updatedAt = $now WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE checklist_item_completions ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE checklist_item_completions ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE checklist_item_completions SET updatedAt = $now WHERE updatedAt = 0")
+
+        connection.execSQL("ALTER TABLE note_links ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE note_links ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("UPDATE note_links SET updatedAt = $now WHERE updatedAt = 0")
+
+        // --- Backfill real per-row UUIDs (SQL ADD COLUMN DEFAULT can't express "fresh UUID per row") ---
+        backfillSyncIds(connection, "todos")
+        backfillSyncIds(connection, "calendar_events")
+        backfillSyncIds(connection, "alarms")
+        backfillSyncIds(connection, "timers")
+        backfillSyncIds(connection, "reminders")
+        backfillSyncIds(connection, "notebooks")
+        backfillSyncIds(connection, "notes")
+        backfillSyncIds(connection, "journal_entries")
+        backfillSyncIds(connection, "event_reminders")
+        backfillSyncIds(connection, "todo_subtasks")
+        backfillSyncIds(connection, "checklist_items")
+        backfillSyncIds(connection, "checklist_item_completions")
+        backfillSyncIds(connection, "note_links")
+
+        // --- Unique indices on syncId ---
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_todos_syncId ON todos(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_calendar_events_syncId ON calendar_events(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_alarms_syncId ON alarms(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_timers_syncId ON timers(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_reminders_syncId ON reminders(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_notebooks_syncId ON notebooks(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_notes_syncId ON notes(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journal_entries_syncId ON journal_entries(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_event_reminders_syncId ON event_reminders(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_todo_subtasks_syncId ON todo_subtasks(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_checklist_items_syncId ON checklist_items(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_checklist_item_completions_syncId ON checklist_item_completions(syncId)")
+        connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_note_links_syncId ON note_links(syncId)")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -284,6 +498,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11)
         .build()
 }

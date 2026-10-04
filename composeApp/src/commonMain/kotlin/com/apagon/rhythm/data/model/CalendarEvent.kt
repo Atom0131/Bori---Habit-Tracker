@@ -4,9 +4,13 @@ import com.apagon.rhythm.core.time.System
 
 import androidx.room.Entity
 import androidx.room.Ignore
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
-@Entity(tableName = "calendar_events")
+@OptIn(ExperimentalUuidApi::class)
+@Entity(tableName = "calendar_events", indices = [Index(value = ["syncId"], unique = true)])
 data class CalendarEvent(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
@@ -21,7 +25,11 @@ data class CalendarEvent(
     @Ignore val accountName: String? = null,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    /** Stable cross-device id for the Tailscale sync engine. Minted once, never overwritten. */
+    val syncId: String = Uuid.random().toString(),
+    /** Bumped on every local mutation; sync's last-write-wins conflict signal. */
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     // Room (KSP) requires a constructor whose parameters all map to DB columns.
     // The secondary constructor here omits the @Ignore fields so Room can use it.
@@ -37,9 +45,11 @@ data class CalendarEvent(
         colorArgb: Int?,
         isActive: Boolean,
         createdAt: Long,
-        deletedAt: Long?
+        deletedAt: Long?,
+        syncId: String,
+        updatedAt: Long
     ) : this(
         id, title, note, startDate, endDate, startTime, endTime,
-        colorIndex, colorArgb, null, null, isActive, createdAt, deletedAt
+        colorIndex, colorArgb, null, null, isActive, createdAt, deletedAt, syncId, updatedAt
     )
 }

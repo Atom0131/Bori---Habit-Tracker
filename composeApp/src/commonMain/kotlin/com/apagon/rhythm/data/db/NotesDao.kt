@@ -63,6 +63,26 @@ interface NotesDao {
     @Query("SELECT notebookId, COUNT(*) as count FROM notes WHERE deletedAt IS NULL GROUP BY notebookId")
     fun getNoteCounts(): Flow<List<NoteCountResult>>
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+    // Private notebooks/notes are excluded at the query itself, not filtered after the fact —
+    // a privacy boundary, not an optimization. See SyncEngine's own defensive re-check on apply.
+
+    @Query("SELECT * FROM notebooks WHERE syncId = :syncId")
+    suspend fun getNotebookBySyncId(syncId: String): Notebook?
+
+    @Query("SELECT * FROM notebooks WHERE updatedAt > :since AND isPrivate = 0")
+    suspend fun getNonPrivateNotebooksUpdatedSince(since: Long): List<Notebook>
+
+    @Query("SELECT * FROM notes WHERE syncId = :syncId")
+    suspend fun getNoteBySyncId(syncId: String): Note?
+
+    @Query("""
+        SELECT notes.* FROM notes
+        JOIN notebooks ON notebooks.id = notes.notebookId
+        WHERE notes.updatedAt > :since AND notebooks.isPrivate = 0
+    """)
+    suspend fun getNonPrivateNotesUpdatedSince(since: Long): List<Note>
+
     // Backup/restore
     @Query("SELECT * FROM notebooks")
     suspend fun getAllNotebooksForBackup(): List<Notebook>

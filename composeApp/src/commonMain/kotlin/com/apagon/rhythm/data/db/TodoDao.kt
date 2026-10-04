@@ -39,11 +39,19 @@ interface TodoDao {
     @Update
     suspend fun update(todo: Todo)
 
-    @Query("UPDATE todos SET isCompleted = 1, completedAt = :completedAt WHERE id = :id")
-    suspend fun markCompleteById(id: Long, completedAt: Long)
+    @Query("UPDATE todos SET isCompleted = 1, completedAt = :completedAt, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun markCompleteById(id: Long, completedAt: Long, updatedAt: Long)
 
     @Delete
     suspend fun delete(todo: Todo)
+
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM todos WHERE syncId = :syncId")
+    suspend fun getTodoBySyncId(syncId: String): Todo?
+
+    @Query("SELECT * FROM todos WHERE updatedAt > :since")
+    suspend fun getTodosUpdatedSince(since: Long): List<Todo>
 
     @Query("SELECT * FROM todos")
     suspend fun getAllTodosForBackup(): List<Todo>

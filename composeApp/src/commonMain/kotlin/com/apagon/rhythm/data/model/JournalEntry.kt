@@ -6,7 +6,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 @Entity(
     tableName = "journal_entries",
     foreignKeys = [
@@ -17,7 +20,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("habitId"), Index("date")]
+    indices = [Index("habitId"), Index("date"), Index(value = ["syncId"], unique = true)]
 )
 data class JournalEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -31,5 +34,7 @@ data class JournalEntry(
     val tags: String = "",       // JSON array: ["workout","grateful"]
     val photoUris: String = "",  // JSON array of content:// URIs
     val feelings: String = "",   // JSON array: ["happy","calm"]
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    /** Stable cross-device id for the Tailscale sync engine. Minted once, never overwritten. */
+    val syncId: String = Uuid.random().toString()
 )

@@ -32,6 +32,14 @@ interface TimerDao {
     @Delete
     suspend fun delete(timer: Timer)
 
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM timers WHERE syncId = :syncId")
+    suspend fun getTimerBySyncId(syncId: String): Timer?
+
+    @Query("SELECT * FROM timers WHERE updatedAt > :since")
+    suspend fun getTimersUpdatedSince(since: Long): List<Timer>
+
     @Query("SELECT * FROM timers")
     suspend fun getAllTimersForBackup(): List<Timer>
 

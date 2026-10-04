@@ -11,19 +11,23 @@ import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistItemCompletion
+import com.apagon.rhythm.data.model.EventReminder
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.model.JournalEntry
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Notebook
+import com.apagon.rhythm.data.model.NoteLink
 import com.apagon.rhythm.data.model.Reminder
 import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
+import com.apagon.rhythm.data.model.TodoSubtask
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.crypto.AEADBadTagException
 
 // Desktop-native counterpart to androidMain's BackupManager.kt — not a
 // straight port. That class calls Android-only ReminderScheduler post-import
@@ -32,7 +36,11 @@ import java.io.File
 // on its own ticker, so there's nothing to explicitly reschedule after a
 // restore. As of Stage 12, DesktopHabitDatabase carries all the same entities
 // Android's exporter does (alarms/reminders/timers landed this stage), so the
-// JSON shape now matches Android's field-for-field.
+// JSON shape now matches Android's field-for-field. Stage 2/3 of the
+// backup/sync-prep plan added AES-256-GCM encryption (DesktopBackupCrypto,
+// byte-compatible with Android's BackupCrypto) and the remaining
+// EventReminder/NoteLink/TodoSubtask/field parity Android's BackupManager.kt
+// already had.
 class DesktopBackupManager(
     private val db: DesktopHabitDatabase,
     private val themePreferences: ThemePreferences
@@ -46,18 +54,30 @@ class DesktopBackupManager(
 
     /** Exports and writes straight to an absolute file path — keeps java.io.File
      *  usage out of the commonMain ViewModel (iosArm64 targets are declared,
-     *  even though dormant, and can't see java.io). */
-    override suspend fun exportToPath(path: String) {
-        val json = exportToJson()
+     *  even though dormant, and can't see java.io).
+     *
+     *  @param password when non-null, the written file is an encrypted envelope
+     *  (see [DesktopBackupCrypto]) rather than plain JSON. */
+    override suspend fun exportToPath(path: String, password: CharArray?) {
+        val json = exportToJson(password)
         withContext(Dispatchers.IO) { File(path).writeText(json) }
     }
 
-    override suspend fun importFromPath(path: String) {
+    /**
+     * @return null on a clean restore, or a short warning/error message when part of it did not
+     *   apply — matching [importFromJson]'s own contract.
+     */
+    override suspend fun importFromPath(path: String, password: CharArray?): String? {
         val json = withContext(Dispatchers.IO) { File(path).readText() }
-        importFromJson(json)
+        return importFromJson(json, password)
     }
 
-    suspend fun exportToJson(): String {
+    suspend fun exportToJson(password: CharArray? = null): String {
+        val plain = buildBackupJson()
+        return if (password == null) plain else DesktopBackupCrypto.encrypt(plain, password)
+    }
+
+    private suspend fun buildBackupJson(): String {
         val habitDao = db.habitDao()
         val todoDao = db.todoDao()
         val calendarDao = db.calendarEventDao()
@@ -66,21 +86,38 @@ class DesktopBackupManager(
         val alarmDao = db.alarmDao()
         val reminderDao = db.reminderDao()
         val timerDao = db.timerDao()
+        val eventReminderDao = db.eventReminderDao()
+        val noteLinkDao = db.noteLinkDao()
+        val todoSubtaskDao = db.todoSubtaskDao()
 
         val habits = habitDao.getAllHabitsForBackup()
         val completions = habitDao.getAllCompletionsForBackup()
         val checklistItems = habitDao.getAllChecklistItemsForBackup()
         val checklistItemCompletions = habitDao.getAllChecklistItemCompletionsForBackup()
+        val reminders = reminderDao.getAllRemindersForBackup()
         val calendarEvents = calendarDao.getAllEventsForBackup()
+        val eventReminders = eventReminderDao.getAllForBackup()
+        val alarms = alarmDao.getAllAlarmsForBackup()
+        val timers = timerDao.getAllTimersForBackup()
         val todos = todoDao.getAllTodosForBackup()
+        val todoSubtasks = todoSubtaskDao.getAllSubtasksForBackup()
         val notebooks = notesDao.getAllNotebooksForBackup()
         val notes = notesDao.getAllNotesForBackup()
         val journalEntries = journalDao.getAllForBackup()
-        val alarms = alarmDao.getAllAlarmsForBackup()
-        val reminders = reminderDao.getAllRemindersForBackup()
-        val timers = timerDao.getAllTimersForBackup()
+        val noteLinks = noteLinkDao.getAllNoteLinksForBackup()
         val preferences = themePreferences.exportPreferences()
 
+        // Desktop has no note-image/profile-picture feature at all (re-confirmed this stage via
+        // grep across commonMain/desktopMain for "noteimage|profileimage|note_image|
+        // profile_image" — zero matches). Emitting an empty object rather than omitting the key
+        // entirely matches Android's own "absent means none" reading on import, and means
+        // re-exporting an Android backup from desktop doesn't silently misrepresent images that
+        // were never processed — they're preserved as "absent," not corrupted. profileImage is
+        // omitted outright, matching what every pre-image-feature Android backup looks like.
+        val noteImages = JSONObject()
+
+        // Key order matches Android's BackupManager.kt exactly, for cross-platform diffability —
+        // no functional effect since both sides read by key.
         return JSONObject().apply {
             put("version", 1)
             put("exportedAt", LocalDate.now().toString())
@@ -88,20 +125,39 @@ class DesktopBackupManager(
             put("habitCompletions", completionsToJson(completions))
             put("checklistItems", checklistItemsToJson(checklistItems))
             put("checklistItemCompletions", checklistItemCompletionsToJson(checklistItemCompletions))
+            put("reminders", remindersToJson(reminders))
             put("calendarEvents", calendarEventsToJson(calendarEvents))
+            put("eventReminders", eventRemindersToJson(eventReminders))
+            put("alarms", alarmsToJson(alarms))
+            put("timers", timersToJson(timers))
             put("todos", todosToJson(todos))
+            put("todoSubtasks", todoSubtasksToJson(todoSubtasks))
             put("notebooks", notebooksToJson(notebooks))
             put("notes", notesToJson(notes))
             put("journalEntries", journalEntriesToJson(journalEntries))
-            put("alarms", alarmsToJson(alarms))
-            put("reminders", remindersToJson(reminders))
-            put("timers", timersToJson(timers))
+            put("noteLinks", noteLinksToJson(noteLinks))
+            put("noteImages", noteImages)
+            // No profileImage key — see comment above.
             put("preferences", preferences)
         }.toString(2)
     }
 
-    suspend fun importFromJson(json: String) {
-        val root = JSONObject(json)
+    suspend fun importFromJson(json: String, password: CharArray? = null): String? {
+        val outer = JSONObject(json)
+
+        // Decrypt BEFORE anything else touches the database — a wrong password must leave
+        // nothing written. needsPassword-style detection is just isEncrypted() here; desktop
+        // always prompts rather than remembering a password (no BackupKeyStore port).
+        val root = if (DesktopBackupCrypto.isEncrypted(outer)) {
+            if (password == null) {
+                return "This backup is password protected. Please provide a password and try again."
+            }
+            try {
+                JSONObject(DesktopBackupCrypto.decrypt(outer, password))
+            } catch (e: AEADBadTagException) {
+                return "Incorrect password."
+            }
+        } else outer
 
         withTransaction {
             val habitDao = db.habitDao()
@@ -112,42 +168,82 @@ class DesktopBackupManager(
             val alarmDao = db.alarmDao()
             val reminderDao = db.reminderDao()
             val timerDao = db.timerDao()
+            val eventReminderDao = db.eventReminderDao()
+            val noteLinkDao = db.noteLinkDao()
+            val todoSubtaskDao = db.todoSubtaskDao()
 
+            // Clear in FK-safe order (children before parents).
             habitDao.deleteAllChecklistItemCompletions()
             habitDao.deleteAllChecklistItems()
             habitDao.deleteAllCompletions()
             habitDao.deleteAllHabits()
-            calendarDao.deleteAll()
-            todoDao.deleteAll()
-            alarmDao.deleteAll()
             reminderDao.deleteAll()
+            // Before the events themselves — event_reminders cascades off calendar_events, same
+            // ordering reasoning as Android's BackupManager.
+            eventReminderDao.deleteAll()
+            calendarDao.deleteAll()
+            alarmDao.deleteAll()
             timerDao.deleteAll()
+            // Before the to-dos themselves, for the same cascade reason.
+            todoSubtaskDao.deleteAllSubtasks()
+            todoDao.deleteAll()
 
+            // Insert in FK-safe order (parents before children).
             habitDao.insertAllHabits(jsonToHabits(root.optJSONArray("habits") ?: JSONArray()))
             habitDao.insertChecklistItems(jsonToChecklistItems(root.optJSONArray("checklistItems") ?: JSONArray()))
             habitDao.insertAllChecklistItemCompletions(jsonToChecklistItemCompletions(root.optJSONArray("checklistItemCompletions") ?: JSONArray()))
             habitDao.insertAllCompletions(jsonToCompletions(root.optJSONArray("habitCompletions") ?: JSONArray()))
-            calendarDao.insertAll(jsonToCalendarEvents(root.optJSONArray("calendarEvents") ?: JSONArray()))
-            todoDao.insertAll(jsonToTodos(root.optJSONArray("todos") ?: JSONArray()))
-            alarmDao.insertAll(jsonToAlarms(root.optJSONArray("alarms") ?: JSONArray()))
             reminderDao.insertAll(jsonToReminders(root.optJSONArray("reminders") ?: JSONArray()))
+            calendarDao.insertAll(jsonToCalendarEvents(root.optJSONArray("calendarEvents") ?: JSONArray()))
+            // Strictly after the events — the foreign key would reject these otherwise. A backup
+            // written before event reminders existed simply has no key here and restores fine.
+            eventReminderDao.insertAll(jsonToEventReminders(root.optJSONArray("eventReminders") ?: JSONArray()))
+            alarmDao.insertAll(jsonToAlarms(root.optJSONArray("alarms") ?: JSONArray()))
             timerDao.insertAll(jsonToTimers(root.optJSONArray("timers") ?: JSONArray()))
+            todoDao.insertAll(jsonToTodos(root.optJSONArray("todos") ?: JSONArray()))
+            // Strictly after the to-dos — same reasoning as eventReminders above.
+            todoSubtaskDao.insertAllSubtasks(jsonToTodoSubtasks(root.optJSONArray("todoSubtasks") ?: JSONArray()))
 
             if (root.has("notebooks")) {
                 notesDao.deleteAllNotes()
                 notesDao.deleteAllNotebooks()
+                // notes are being replaced; stale links must not survive.
+                noteLinkDao.deleteAllNoteLinks()
                 jsonToNotebooks(root.getJSONArray("notebooks")).forEach { notesDao.insertNotebook(it) }
                 jsonToNotes(root.optJSONArray("notes") ?: JSONArray()).forEach { notesDao.insertNote(it) }
+            }
+            if (root.has("noteLinks")) {
+                noteLinkDao.deleteAllNoteLinks()
+                noteLinkDao.insertAllNoteLinks(jsonToNoteLinks(root.getJSONArray("noteLinks")))
             }
             if (root.has("journalEntries")) {
                 journalDao.deleteAll()
                 journalDao.insertAll(jsonToJournalEntries(root.getJSONArray("journalEntries")))
             }
+
+            // noteImages/profileImage: desktop has no image-embedding feature to restore into.
+            // Read tolerantly so importing a real Android backup with embedded images doesn't
+            // crash — it just no-ops on them, same as every key this importer doesn't recognize.
+            root.optJSONObject("noteImages")
+            root.optJSONObject("profileImage")
         }
-        // Applied after the transaction, same reasoning as Android's BackupManager:
-        // no DataStore emission can race with the Room transaction and trigger a
-        // recomposition mid-write.
-        root.optJSONObject("preferences")?.let { themePreferences.importPreferences(it) }
+        // Applied after the transaction, same reasoning as Android's BackupManager: no DataStore
+        // emission can race with the Room transaction and trigger a recomposition mid-write.
+        //
+        // Isolated from the entity import — a malformed preferences blob must not report "Import
+        // failed" over entity data already committed above — but the failure is not swallowed,
+        // matching Android's own fix for exactly that gap.
+        var preferencesError: Exception? = null
+        try {
+            root.optJSONObject("preferences")?.let { themePreferences.importPreferences(it) }
+        } catch (e: Exception) {
+            preferencesError = e
+        }
+
+        return preferencesError?.let {
+            "Your habits and notes were restored, but your settings could not be " +
+                "(${it.message ?: it::class.simpleName})."
+        }
     }
 
     // ── Serializers ───────────────────────────────────────────────────────────
@@ -174,6 +270,8 @@ class DesktopBackupManager(
                 put("deletedAt", h.deletedAt ?: JSONObject.NULL)
                 put("soundUri", h.soundUri)
                 put("vibrationPatternId", h.vibrationPatternId)
+                put("syncId", h.syncId)
+                put("updatedAt", h.updatedAt)
             })
         }
     }
@@ -184,6 +282,9 @@ class DesktopBackupManager(
                 put("id", c.id)
                 put("habitId", c.habitId)
                 put("dateCompleted", c.dateCompleted)
+                put("syncId", c.syncId)
+                put("updatedAt", c.updatedAt)
+                put("deletedAt", c.deletedAt ?: JSONObject.NULL)
             })
         }
     }
@@ -228,6 +329,20 @@ class DesktopBackupManager(
         }
     }
 
+    private fun eventRemindersToJson(reminders: List<EventReminder>) = JSONArray().also { arr ->
+        reminders.forEach { r ->
+            arr.put(JSONObject().apply {
+                put("id", r.id)
+                put("eventId", r.eventId)
+                put("minutesBefore", r.minutesBefore ?: JSONObject.NULL)
+                put("absoluteDateTime", r.absoluteDateTime ?: JSONObject.NULL)
+                put("soundUri", r.soundUri)
+                put("vibrationPatternId", r.vibrationPatternId)
+                put("createdAt", r.createdAt)
+            })
+        }
+    }
+
     private fun todosToJson(todos: List<Todo>) = JSONArray().also { arr ->
         todos.forEach { t ->
             arr.put(JSONObject().apply {
@@ -248,6 +363,19 @@ class DesktopBackupManager(
         }
     }
 
+    private fun todoSubtasksToJson(subtasks: List<TodoSubtask>) = JSONArray().also { arr ->
+        subtasks.forEach { s ->
+            arr.put(JSONObject().apply {
+                put("id", s.id)
+                put("todoId", s.todoId)
+                put("label", s.label)
+                put("isDone", s.isDone)
+                put("sortOrder", s.sortOrder)
+                put("parentId", s.parentId ?: JSONObject.NULL)
+            })
+        }
+    }
+
     private fun notebooksToJson(notebooks: List<Notebook>) = JSONArray().also { arr ->
         notebooks.forEach { n ->
             arr.put(JSONObject().apply {
@@ -258,6 +386,14 @@ class DesktopBackupManager(
                 put("createdAt", n.createdAt)
                 put("updatedAt", n.updatedAt)
                 put("deletedAt", n.deletedAt ?: JSONObject.NULL)
+                put("isPrivate", n.isPrivate)
+                // vaultFolderName is portable and human-meaningful so it's carried across a
+                // restore, matching Android exactly. folderDocUriCache is deliberately NOT
+                // backed up, also matching Android: a per-document content/file-handle cache is
+                // device-local and self-healing (re-resolved by name on next use), so carrying a
+                // stale one across devices would only ever be wrong.
+                put("vaultFolderName", n.vaultFolderName ?: JSONObject.NULL)
+                put("parentId", n.parentId ?: JSONObject.NULL)
             })
         }
     }
@@ -276,6 +412,13 @@ class DesktopBackupManager(
                 put("tags", n.tags)
                 put("fontFamily", n.fontFamily)
                 put("fontSize", n.fontSize)
+                // bodyPreview/filePointer/uuid carried for the same reason as notebooks' fields
+                // above, matching Android's notesToJson exactly. fileDocUriCache/fileSyncedAt are
+                // deliberately NOT backed up — device-local and self-healing, same exclusion
+                // Android applies to those two fields.
+                put("bodyPreview", n.bodyPreview)
+                put("filePointer", n.filePointer ?: JSONObject.NULL)
+                put("uuid", n.uuid ?: JSONObject.NULL)
             })
         }
     }
@@ -299,6 +442,16 @@ class DesktopBackupManager(
         }
     }
 
+    private fun noteLinksToJson(links: List<NoteLink>) = JSONArray().also { arr ->
+        links.forEach { l ->
+            arr.put(JSONObject().apply {
+                put("id", l.id)
+                put("sourceNoteId", l.sourceNoteId)
+                put("targetNoteId", l.targetNoteId)
+            })
+        }
+    }
+
     private fun alarmsToJson(alarms: List<Alarm>) = JSONArray().also { arr ->
         alarms.forEach { a ->
             arr.put(JSONObject().apply {
@@ -310,6 +463,8 @@ class DesktopBackupManager(
                 put("isEnabled", a.isEnabled)
                 put("soundUri", a.soundUri)
                 put("vibrationPatternId", a.vibrationPatternId)
+                put("dismissMission", a.dismissMission)
+                put("missionDifficulty", a.missionDifficulty)
                 put("createdAt", a.createdAt)
                 put("deletedAt", a.deletedAt ?: JSONObject.NULL)
             })
@@ -329,6 +484,7 @@ class DesktopBackupManager(
                 put("createdAt", r.createdAt)
                 put("soundUri", r.soundUri)
                 put("deletedAt", r.deletedAt ?: JSONObject.NULL)
+                put("noteId", r.noteId ?: JSONObject.NULL)
             })
         }
     }
@@ -342,6 +498,7 @@ class DesktopBackupManager(
                 put("remainingSeconds", t.remainingSeconds)
                 put("endTimeMillis", 0L) // never restore a running state
                 put("soundUri", t.soundUri)
+                put("vibrationPatternId", t.vibrationPatternId)
                 put("createdAt", t.createdAt)
                 put("isPomo", t.isPomo)
                 put("pomoWorkSecs", t.pomoWorkSecs)
@@ -380,7 +537,12 @@ class DesktopBackupManager(
             colorArgb = if (o.isNull("colorArgb")) null else o.optInt("colorArgb"),
             deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt"),
             soundUri = o.optString("soundUri", ""),
-            vibrationPatternId = o.optString("vibrationPatternId", "default")
+            vibrationPatternId = o.optString("vibrationPatternId", "default"),
+            // A pre-sync-feature backup has neither key — mint a fresh syncId (there is no prior
+            // one to recover) and fall back to createdAt for updatedAt, matching Android's own
+            // jsonToHabits fallback exactly.
+            syncId = if (o.has("syncId")) o.getString("syncId") else uuidString(),
+            updatedAt = o.optLong("updatedAt", o.optLong("createdAt", System.currentTimeMillis()))
         )
     }
 
@@ -389,9 +551,15 @@ class DesktopBackupManager(
         HabitCompletion(
             id = o.getLong("id"),
             habitId = o.getLong("habitId"),
-            dateCompleted = o.getString("dateCompleted")
+            dateCompleted = o.getString("dateCompleted"),
+            syncId = if (o.has("syncId")) o.getString("syncId") else uuidString(),
+            updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
         )
     }
+
+    @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+    private fun uuidString(): String = kotlin.uuid.Uuid.random().toString()
 
     private fun jsonToChecklistItems(arr: JSONArray) = (0 until arr.length()).map { i ->
         val o = arr.getJSONObject(i)
@@ -430,6 +598,19 @@ class DesktopBackupManager(
         )
     }
 
+    private fun jsonToEventReminders(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        EventReminder(
+            id = o.getLong("id"),
+            eventId = o.getLong("eventId"),
+            minutesBefore = if (o.isNull("minutesBefore")) null else o.optInt("minutesBefore"),
+            absoluteDateTime = if (o.isNull("absoluteDateTime")) null else o.optString("absoluteDateTime"),
+            soundUri = o.optString("soundUri", ""),
+            vibrationPatternId = o.optString("vibrationPatternId", "default"),
+            createdAt = o.optLong("createdAt", System.currentTimeMillis())
+        )
+    }
+
     private fun jsonToTodos(arr: JSONArray) = (0 until arr.length()).map { i ->
         val o = arr.getJSONObject(i)
         Todo(
@@ -437,7 +618,7 @@ class DesktopBackupManager(
             title = o.getString("title"),
             note = o.optString("note", ""),
             dueDate = o.optString("dueDate", ""),
-            priority = o.optString("priority", "NONE"),
+            priority = normalizePriority(o.optString("priority", "")),
             isCompleted = o.optBoolean("isCompleted", false),
             completedAt = if (o.isNull("completedAt")) null else o.optLong("completedAt"),
             iconIndex = o.optInt("iconIndex", 0),
@@ -446,6 +627,27 @@ class DesktopBackupManager(
             vibrationPatternId = o.optString("vibrationPatternId", "default"),
             deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt"),
             createdAt = o.optLong("createdAt", System.currentTimeMillis())
+        )
+    }
+
+    // Android's own jsonToTodos reader (BackupManager.kt) defaults a missing priority key to
+    // "LOW", and Android's Todo has no "NONE" value at all. Desktop's Todo keeps NONE (its own
+    // default, no enum change), but to round-trip an Android-authored backup sensibly, a missing
+    // key OR an explicit "NONE" (which Android would never write but desktop itself might have,
+    // pre-parity) both read as LOW here — matching the tolerant-read behaviour Stage 1 called for,
+    // without changing the entity's own default.
+    private fun normalizePriority(raw: String): String =
+        if (raw.isBlank() || raw == "NONE") "LOW" else raw
+
+    private fun jsonToTodoSubtasks(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        TodoSubtask(
+            id = o.getLong("id"),
+            todoId = o.getLong("todoId"),
+            label = o.optString("label", ""),
+            isDone = o.optBoolean("isDone", false),
+            sortOrder = o.optInt("sortOrder", 0),
+            parentId = if (o.isNull("parentId")) null else o.optLong("parentId")
         )
     }
 
@@ -458,7 +660,15 @@ class DesktopBackupManager(
             colorArgb = if (o.isNull("colorArgb")) null else o.optInt("colorArgb"),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()),
             updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
-            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt"),
+            // Absent in a pre-parity backup; false is the safe reading of a missing key.
+            isPrivate = o.optBoolean("isPrivate", false),
+            // Absent in a pre-parity backup; null forces a re-resolve/recreate by name rather
+            // than trust a foreign device's stale folder reference.
+            vaultFolderName = if (o.isNull("vaultFolderName")) null else o.optString("vaultFolderName"),
+            // folderDocUriCache is never read from a backup — see notebooksToJson's comment;
+            // every restored notebook gets null here and self-heals on next vault write.
+            parentId = if (o.isNull("parentId")) null else o.optLong("parentId")
         )
     }
 
@@ -475,7 +685,12 @@ class DesktopBackupManager(
             deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt"),
             tags = o.optString("tags", ""),
             fontFamily = o.optString("fontFamily", "default"),
-            fontSize = o.optString("fontSize", "normal")
+            fontSize = o.optString("fontSize", "normal"),
+            bodyPreview = o.optString("bodyPreview", ""),
+            filePointer = if (o.isNull("filePointer")) null else o.optString("filePointer"),
+            // fileDocUriCache/fileSyncedAt are never read from a backup — see notesToJson's
+            // comment; both stay at their entity defaults (null) and self-heal on next use.
+            uuid = if (o.isNull("uuid")) null else o.optString("uuid")
         )
     }
 
@@ -497,6 +712,15 @@ class DesktopBackupManager(
         )
     }
 
+    private fun jsonToNoteLinks(arr: JSONArray) = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        NoteLink(
+            id = o.getLong("id"),
+            sourceNoteId = o.getLong("sourceNoteId"),
+            targetNoteId = o.getLong("targetNoteId")
+        )
+    }
+
     private fun jsonToAlarms(arr: JSONArray) = (0 until arr.length()).map { i ->
         val o = arr.getJSONObject(i)
         Alarm(
@@ -508,6 +732,10 @@ class DesktopBackupManager(
             isEnabled = o.optBoolean("isEnabled", true),
             soundUri = o.optString("soundUri", ""),
             vibrationPatternId = o.optString("vibrationPatternId", "default"),
+            // Defaults keep backups written before missions existed restoring cleanly, matching
+            // Android's own jsonToAlarms defaults exactly.
+            dismissMission = o.optString("dismissMission", "none"),
+            missionDifficulty = o.optInt("missionDifficulty", 1),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()),
             deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
         )
@@ -525,7 +753,8 @@ class DesktopBackupManager(
             isActive = o.optBoolean("isActive", true),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()),
             soundUri = o.optString("soundUri", ""),
-            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt")
+            deletedAt = if (o.isNull("deletedAt")) null else o.optLong("deletedAt"),
+            noteId = if (o.isNull("noteId")) null else o.optLong("noteId")
         )
     }
 
@@ -538,6 +767,7 @@ class DesktopBackupManager(
             remainingSeconds = o.optInt("remainingSeconds", o.getInt("durationSeconds")),
             endTimeMillis = 0L,
             soundUri = o.optString("soundUri", ""),
+            vibrationPatternId = o.optString("vibrationPatternId", "default"),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()),
             isPomo = o.optBoolean("isPomo", false),
             pomoWorkSecs = o.optInt("pomoWorkSecs", 1500),

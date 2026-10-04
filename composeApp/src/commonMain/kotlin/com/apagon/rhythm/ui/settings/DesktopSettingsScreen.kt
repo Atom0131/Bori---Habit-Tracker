@@ -22,9 +22,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -33,7 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +58,10 @@ import com.apagon.rhythm.data.preferences.CrystalStyle
 import com.apagon.rhythm.data.preferences.DarkReadability
 import com.apagon.rhythm.data.preferences.ThemeMode
 import com.apagon.rhythm.data.preferences.ThemeStyle
+import com.apagon.rhythm.platform.QrCodeRenderer
 import com.apagon.rhythm.ui.components.DesktopLayout
+import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
+import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalRadioButtonColors
@@ -68,6 +77,7 @@ import com.apagon.rhythm.ui.theme.AmbientBaseLight
 import com.apagon.rhythm.ui.theme.crystalFieldBlobs
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import kotlin.math.roundToInt
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
@@ -674,10 +684,16 @@ private fun DataSectionContent(
     onShowArchivedHabits: () -> Unit,
     onShowArchivedTodos: () -> Unit
 ) {
+    var showExportDialog by remember { mutableStateOf(false) }
+    // True once an import attempt reports back that the chosen file is encrypted (or that the
+    // password just tried was wrong) — reusing one dialog for both "ask up front" and "retry"
+    // rather than guessing whether a file needs a password before picking it.
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+
     SettingsSection("Data Management") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { viewModel.exportBackup() }) { Text("Export Backup") }
+                TextButton(onClick = { showExportDialog = true }) { Text("Export Backup") }
                 TextButton(onClick = { viewModel.importBackup() }) { Text("Import Backup") }
             }
             when (backupState) {
@@ -685,12 +701,226 @@ private fun DataSectionContent(
                 is DesktopBackupState.Error -> Text(backupState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 DesktopBackupState.Idle -> {}
             }
+            // "password protected" / "Incorrect password" are the two strings
+            // DesktopBackupManager.importFromJson returns for an encrypted file — surface the
+            // password prompt automatically rather than making the user notice the error text
+            // and re-click Import themselves.
+            LaunchedEffect(backupState) {
+                val message = (backupState as? DesktopBackupState.Error)?.message
+                if (message != null && message.contains("password", ignoreCase = true)) {
+                    showImportPasswordDialog = true
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onShowArchivedHabits) { Text("Archived Habits (${archivedHabits.size})") }
                 TextButton(onClick = onShowArchivedTodos) { Text("Archived To-dos (${archivedTodos.size})") }
             }
         }
     }
+
+    SyncWithPhoneSection(viewModel)
+
+    if (showExportDialog) {
+        ExportBackupDialog(
+            onDismiss = { showExportDialog = false },
+            onConfirm = { password ->
+                viewModel.exportBackup(password)
+                showExportDialog = false
+            }
+        )
+    }
+
+    if (showImportPasswordDialog) {
+        ImportPasswordDialog(
+            onDismiss = {
+                showImportPasswordDialog = false
+                viewModel.clearBackupState()
+            },
+            onConfirm = { password ->
+                viewModel.importBackup(password)
+                showImportPasswordDialog = false
+            }
+        )
+    }
+}
+
+/** Moved here from the Today screen so "Sync with phone" lives under Settings -> Data,
+ *  matching Android's own placement (Settings -> Data Management -> "Pair with Desktop")
+ *  instead of sitting on the Today screen. Desktop is always the sync server. */
+@Composable
+private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
+    var showSync by remember { mutableStateOf(false) }
+    var showQrCode by remember { mutableStateOf(false) }
+    val qrCodeRenderer = koinInject<QrCodeRenderer>()
+    val peerAddress by viewModel.peerAddress.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val vaultFileSyncEnabled by viewModel.vaultFileSyncEnabled.collectAsState()
+
+    SettingsSection("Sync with Phone") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { showSync = !showSync }) {
+                Text(if (showSync) "Hide sync with phone" else "Pair with phone")
+            }
+
+            if (showSync) {
+                // This device's own address, read-only — the user reads it off this line and
+                // types it into the phone's peer-address field (desktop is always the sync
+                // server). The QR toggle below is the easier path — same address, scanned
+                // instead of typed.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
+                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                    horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Your address: ${viewModel.ownSyncAddress}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    TextButton(onClick = { showQrCode = !showQrCode }) {
+                        Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
+                    }
+                }
+                if (showQrCode) {
+                    qrCodeRenderer.QrCodeImage(
+                        text = viewModel.ownSyncAddressForPairing,
+                        modifier = Modifier.size(200.dp).padding(top = 8.dp)
+                    )
+                }
+
+                // Local sync test UI, still used for the reverse direction (desktop-initiates-
+                // sync) and local dev testing.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
+                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                    horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = peerAddress,
+                        onValueChange = { viewModel.updatePeerAddress(it) },
+                        label = { Text("Peer address (host:port)") },
+                        colors = crystalBareTextFieldColors(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
+                        Text("Sync")
+                    }
+                }
+                if (syncStatus != null) {
+                    Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
+                }
+                // Resets this device's "last synced at" watermark to 0 before syncing, so rows
+                // created/last-edited before sync ever ran (or before an entity type was added to
+                // sync's scope) are swept in too — the normal incremental sync only ever looks
+                // forward from the watermark, so it can't retroactively pick these up on its own.
+                // Meant to be tapped once per device after a meaningful sync-scope change, not
+                // routinely.
+                TextButton(onClick = { viewModel.forceFullResyncThenSync() }) {
+                    Text("Force full resync (first-time or after an update)")
+                }
+
+                // Stage 3.5 — optional, default-off vault *file* sync. Off unless explicitly
+                // turned on here, independently on each device (not something a sync round can
+                // enable on the peer) — see ThemePreferences.vaultFileSyncEnabled's own KDoc.
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
+                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    SettingsRow("Sync Notes vault files (experimental)") {
+                        Switch(
+                            checked = vaultFileSyncEnabled,
+                            onCheckedChange = { viewModel.setVaultFileSyncEnabled(it) },
+                            colors = crystalSwitchColors()
+                        )
+                    }
+                    Text(
+                        "Also syncs the Notes Markdown vault folder (files, manifest, and images) " +
+                            "so an external tool indexed against it stays current on both devices. " +
+                            "Private notebooks are always excluded. Both devices must turn this on " +
+                            "for files to transfer.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Minimal password prompt for an encrypted export — a checkbox reveals the field, matching
+ *  the plan's "functional, not elaborate" bar for this UI. */
+@Composable
+private fun ExportBackupDialog(onDismiss: () -> Unit, onConfirm: (CharArray?) -> Unit) {
+    var encrypt by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Backup") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = encrypt, onCheckedChange = { encrypt = it })
+                    Text("Encrypt this backup")
+                }
+                if (encrypt) {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(if (encrypt && password.isNotEmpty()) password.toCharArray() else null) },
+                enabled = !encrypt || password.isNotEmpty()
+            ) { Text("Export") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+/** Shown when an import turns out to need a password — either up front (the file is an
+ *  encrypted envelope) or again after a wrong guess. */
+@Composable
+private fun ImportPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -> Unit) {
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Password Required") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "This backup is password protected. Enter the password to restore it.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(password.toCharArray()) },
+                enabled = password.isNotEmpty()
+            ) { Text("Unlock") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

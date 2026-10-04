@@ -14,9 +14,12 @@ class ReminderRepository constructor(private val dao: ReminderDao) {
 
     suspend fun addReminder(reminder: Reminder): Long = dao.insert(reminder)
 
-    suspend fun updateReminder(reminder: Reminder) = dao.update(reminder)
+    suspend fun updateReminder(reminder: Reminder) = dao.update(reminder.copy(updatedAt = System.currentTimeMillis()))
 
-    suspend fun deleteReminder(reminder: Reminder) = dao.update(reminder.copy(deletedAt = System.currentTimeMillis()))
+    suspend fun deleteReminder(reminder: Reminder) {
+        val now = System.currentTimeMillis()
+        dao.update(reminder.copy(deletedAt = now, updatedAt = now))
+    }
 
     suspend fun hardDeleteReminder(reminder: Reminder) = dao.delete(reminder)
 
@@ -25,4 +28,14 @@ class ReminderRepository constructor(private val dao: ReminderDao) {
     suspend fun purgeOldDeletedItems(olderThan: Long) {
         dao.purgeDeletedReminders(olderThan)
     }
+
+    // ── Sync (Stage 2) ───────────────────────────────────────────────────────
+
+    suspend fun getReminderBySyncId(syncId: String): Reminder? = dao.getReminderBySyncId(syncId)
+
+    suspend fun getRemindersUpdatedSince(since: Long): List<Reminder> = dao.getRemindersUpdatedSince(since)
+
+    suspend fun insertReminderFromSync(reminder: Reminder): Long = dao.insert(reminder)
+
+    suspend fun updateReminderFromSync(reminder: Reminder) = dao.update(reminder)
 }

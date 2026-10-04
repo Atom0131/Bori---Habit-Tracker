@@ -6,14 +6,17 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.core.MutablePreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.apagon.rhythm.core.json.JSONObject
+import com.apagon.rhythm.core.time.System
 
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -78,6 +81,24 @@ class ThemePreferences(
         val CRYSTAL_MESH_CUSTOM_ARGB_KEY = intPreferencesKey("crystal_mesh_custom_argb")
         val CRYSTAL_MESH_CUSTOM_CHROMA_KEY = floatPreferencesKey("crystal_mesh_custom_chroma")
 
+        /** Bumped by every setter whose key `exportPreferences()` includes (i.e. everything that
+         * would cross devices in a sync blob) — see [touchPreferences]. Device-local-only setters
+         * such as [setRunInBackground] deliberately do not bump this: the sync engine uses it to
+         * decide whether the preferences blob changed since the last sync, and a key that is
+         * stripped from that blob anyway (see `exportPreferencesForSync`) shouldn't make the engine
+         * think otherwise. */
+        val PREFERENCES_UPDATED_AT_KEY = longPreferencesKey("preferences_updated_at")
+
+        /** Stage 3.5 — optional, default-OFF Markdown vault *file* sync (separate from Stage 2's
+         * Note/Notebook *row* sync, which is always on). A local sync-behavior setting, not an
+         * appearance/content setting — deliberately NOT included in [exportPreferences]/
+         * [importPreferences] (so it never rides along in a portable backup) and therefore
+         * automatically excluded from [exportPreferencesForSync] too, which is built from
+         * [exportPreferences]. Each device opts in independently — this is never flipped on one
+         * device by a sync from the other. See [setVaultFileSyncEnabled] for why its setter skips
+         * [touchPreferences]. */
+        val VAULT_FILE_SYNC_ENABLED_KEY = booleanPreferencesKey("vault_file_sync_enabled")
+
         /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
         const val CRYSTAL_BG_NEUTRAL = -1
 
@@ -85,6 +106,24 @@ class ThemePreferences(
         const val DEFAULT_CRYSTAL_INTENSITY = 0.5f
         const val DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA = 1.0f
         const val MIN_CRYSTAL_MESH_CUSTOM_CHROMA = 0.18f
+    }
+
+    /** Last time any setter whose key `exportPreferences()` includes ran — see
+     * [PREFERENCES_UPDATED_AT_KEY]. Used by the sync engine to decide whether the whole
+     * preferences blob needs to go out this round. */
+    val preferencesUpdatedAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[PREFERENCES_UPDATED_AT_KEY] ?: 0L
+    }
+
+    /** Every setter below whose key is part of `exportPreferences()`'s set calls this instead of
+     * `dataStore.edit` directly, so [PREFERENCES_UPDATED_AT_KEY] can never drift out of sync with
+     * an actual exportable change. Device-local-only setters (e.g. [setRunInBackground]) call
+     * `dataStore.edit` directly and deliberately skip this. */
+    private suspend fun touchPreferences(block: (MutablePreferences) -> Unit) {
+        dataStore.edit { prefs ->
+            block(prefs)
+            prefs[PREFERENCES_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
@@ -148,37 +187,58 @@ class ThemePreferences(
     }
 
     suspend fun setHomeViewCalendar(enabled: Boolean) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[HOME_VIEW_CALENDAR_KEY] = enabled
         }
     }
 
+    // Desktop-only, deliberately NOT routed through touchPreferences (see RUN_IN_BACKGROUND_KEY's
+    // own KDoc) — it is excluded from exportPreferences/importPreferences and from the sync blob,
+    // so bumping the tracking key here would make the sync engine think something syncable changed.
     suspend fun setRunInBackground(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[RUN_IN_BACKGROUND_KEY] = enabled
         }
     }
 
-    suspend fun setCalendarListMode(enabled: Boolean) {
+    /** Off by default — a file-tree sync (partial writes, conflicting concurrent file edits,
+     * orphaned assets) is a materially higher-risk mechanism than the row-level entity sync, so it
+     * stays opt-in until proven. See [VAULT_FILE_SYNC_ENABLED_KEY]'s own KDoc for why it's excluded
+     * from backup and from the preferences sync blob. */
+    val vaultFileSyncEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[VAULT_FILE_SYNC_ENABLED_KEY] ?: false
+    }
+
+    /** Deliberately NOT routed through [touchPreferences] — same reasoning as
+     * [setRunInBackground]: this key is never part of [exportPreferences]'s set, so bumping
+     * [PREFERENCES_UPDATED_AT_KEY] here would make the sync engine think an exportable setting
+     * changed when none did, triggering a needless preferences-blob resync. */
+    suspend fun setVaultFileSyncEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
+            prefs[VAULT_FILE_SYNC_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setCalendarListMode(enabled: Boolean) {
+        touchPreferences { prefs ->
             prefs[CALENDAR_LIST_MODE_KEY] = enabled
         }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[THEME_MODE_KEY] = mode.name
         }
     }
 
     suspend fun setAmoledMode(enabled: Boolean) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[AMOLED_MODE_KEY] = enabled
         }
     }
 
     suspend fun setAccentColor(index: Int, argb: Int? = null) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[ACCENT_COLOR_KEY] = index
             if (argb != null) prefs[ACCENT_COLOR_ARGB_KEY] = argb
             else prefs.remove(ACCENT_COLOR_ARGB_KEY)
@@ -191,7 +251,7 @@ class ThemePreferences(
     }
 
     suspend fun setSwipeSectionsEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[SWIPE_SECTIONS_KEY] = enabled
         }
     }
@@ -214,7 +274,7 @@ class ThemePreferences(
     }
 
     suspend fun setNotesToolbarPinned(pinned: Boolean) {
-        dataStore.edit { it[NOTES_TOOLBAR_PINNED] = pinned }
+        touchPreferences { it[NOTES_TOOLBAR_PINNED] = pinned }
     }
 
     val darkReadability: Flow<DarkReadability> = dataStore.data.map { prefs ->
@@ -226,7 +286,7 @@ class ThemePreferences(
     }
 
     suspend fun setDarkReadability(mode: DarkReadability) {
-        dataStore.edit { it[DARK_READABILITY_KEY] = mode.name }
+        touchPreferences { it[DARK_READABILITY_KEY] = mode.name }
     }
 
     // Defaults to MATERIAL3 — an unknown or absent value must land on today's look.
@@ -239,7 +299,7 @@ class ThemePreferences(
     }
 
     suspend fun setThemeStyle(style: ThemeStyle) {
-        dataStore.edit { it[THEME_STYLE_KEY] = style.name }
+        touchPreferences { it[THEME_STYLE_KEY] = style.name }
     }
 
     val crystalStyle: Flow<CrystalStyle> = dataStore.data.map { prefs ->
@@ -250,7 +310,7 @@ class ThemePreferences(
     }
 
     suspend fun setCrystalStyle(style: CrystalStyle) {
-        dataStore.edit { it[CRYSTAL_STYLE_KEY] = style.name }
+        touchPreferences { it[CRYSTAL_STYLE_KEY] = style.name }
     }
 
     // Transient in-memory override used only while the Settings slider is under a thumb —
@@ -268,7 +328,7 @@ class ThemePreferences(
     }
 
     suspend fun setCrystalIntensity(value: Float) {
-        dataStore.edit { it[CRYSTAL_INTENSITY_KEY] = value.coerceIn(0f, 1f) }
+        touchPreferences { it[CRYSTAL_INTENSITY_KEY] = value.coerceIn(0f, 1f) }
         crystalIntensityPreview.value = null
     }
 
@@ -290,7 +350,7 @@ class ThemePreferences(
     ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalBackground(background: CrystalBackground) {
-        dataStore.edit { it[CRYSTAL_BACKGROUND_KEY] = background.name }
+        touchPreferences { it[CRYSTAL_BACKGROUND_KEY] = background.name }
     }
 
     val crystalMesh: Flow<CrystalMesh> = combine(
@@ -313,7 +373,7 @@ class ThemePreferences(
     ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalMesh(mesh: CrystalMesh) {
-        dataStore.edit { it[CRYSTAL_MESH_KEY] = mesh.name }
+        touchPreferences { it[CRYSTAL_MESH_KEY] = mesh.name }
     }
 
     // Transient in-memory override for the mesh Custom field's own seed/chroma, same shape as
@@ -350,7 +410,7 @@ class ThemePreferences(
     }
 
     suspend fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
-        dataStore.edit {
+        touchPreferences {
             it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = argb
             it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
         }
@@ -384,7 +444,7 @@ class ThemePreferences(
     }
 
     suspend fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[CRYSTAL_BG_COLOR_KEY] = index
             if (argb != null) prefs[CRYSTAL_BG_COLOR_ARGB_KEY] = argb
             else prefs.remove(CRYSTAL_BG_COLOR_ARGB_KEY)
@@ -397,7 +457,7 @@ class ThemePreferences(
     }
 
     suspend fun setCalendarIntegrationEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[CALENDAR_INTEGRATION_KEY] = enabled
         }
     }
@@ -407,7 +467,7 @@ class ThemePreferences(
     }
 
     suspend fun setEnabledCalendars(ids: Set<String>) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             prefs[ENABLED_CALENDARS_KEY] = ids
         }
     }
@@ -421,7 +481,7 @@ class ThemePreferences(
     }
 
     suspend fun setCustomColor(index: Int, argb: Int?) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             val raw = prefs[CUSTOM_COLORS_KEY] ?: ""
             val parts = raw.split(",").toMutableList()
             while (parts.size < 6) parts.add("")
@@ -432,19 +492,19 @@ class ThemePreferences(
         }
     }
 
-    suspend fun setUserName(name: String) { dataStore.edit { it[USER_NAME_KEY] = name } }
-    suspend fun setUserNickname(nickname: String) { dataStore.edit { it[USER_NICKNAME_KEY] = nickname } }
-    suspend fun setUserAge(age: String) { dataStore.edit { it[USER_AGE_KEY] = age } }
-    suspend fun setUserPronouns(pronouns: String) { dataStore.edit { it[USER_PRONOUNS_KEY] = pronouns } }
-    suspend fun setIsPro(isPro: Boolean) { dataStore.edit { it[IS_PRO_KEY] = isPro } }
-    suspend fun setHasSeenOnboarding(seen: Boolean) { dataStore.edit { it[HAS_SEEN_ONBOARDING_KEY] = seen } }
-    suspend fun setHasCompletedInteractiveTutorial(completed: Boolean) { dataStore.edit { it[HAS_COMPLETED_INTERACTIVE_TUTORIAL_KEY] = completed } }
-    suspend fun setHasSeenHabitCreationTutorial(seen: Boolean) { dataStore.edit { it[HAS_SEEN_HABIT_CREATION_TUTORIAL_KEY] = seen } }
-    suspend fun setHasSeenNotesTemplateTutorial(seen: Boolean) { dataStore.edit { it[HAS_SEEN_NOTES_TEMPLATE_TUTORIAL_KEY] = seen } }
-    suspend fun setHasSeenChecklistHabitTutorial(seen: Boolean) { dataStore.edit { it[HAS_SEEN_CHECKLIST_HABIT_TUTORIAL_KEY] = seen } }
-    suspend fun setHasSeenSwipeGestureTutorial(seen: Boolean) { dataStore.edit { it[HAS_SEEN_SWIPE_GESTURE_TUTORIAL_KEY] = seen } }
+    suspend fun setUserName(name: String) { touchPreferences { it[USER_NAME_KEY] = name } }
+    suspend fun setUserNickname(nickname: String) { touchPreferences { it[USER_NICKNAME_KEY] = nickname } }
+    suspend fun setUserAge(age: String) { touchPreferences { it[USER_AGE_KEY] = age } }
+    suspend fun setUserPronouns(pronouns: String) { touchPreferences { it[USER_PRONOUNS_KEY] = pronouns } }
+    suspend fun setIsPro(isPro: Boolean) { touchPreferences { it[IS_PRO_KEY] = isPro } }
+    suspend fun setHasSeenOnboarding(seen: Boolean) { touchPreferences { it[HAS_SEEN_ONBOARDING_KEY] = seen } }
+    suspend fun setHasCompletedInteractiveTutorial(completed: Boolean) { touchPreferences { it[HAS_COMPLETED_INTERACTIVE_TUTORIAL_KEY] = completed } }
+    suspend fun setHasSeenHabitCreationTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_HABIT_CREATION_TUTORIAL_KEY] = seen } }
+    suspend fun setHasSeenNotesTemplateTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_NOTES_TEMPLATE_TUTORIAL_KEY] = seen } }
+    suspend fun setHasSeenChecklistHabitTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_CHECKLIST_HABIT_TUTORIAL_KEY] = seen } }
+    suspend fun setHasSeenSwipeGestureTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_SWIPE_GESTURE_TUTORIAL_KEY] = seen } }
     suspend fun setProfilePictureUri(uri: String?) {
-        dataStore.edit { prefs ->
+        touchPreferences { prefs ->
             if (uri != null) prefs[PROFILE_PICTURE_URI_KEY] = uri
             else prefs.remove(PROFILE_PICTURE_URI_KEY)
         }
@@ -582,5 +642,37 @@ class ThemePreferences(
             }
 
         }
+    }
+
+    /**
+     * [exportPreferences] with device-local-only keys stripped — the basis for the Stage 3
+     * preferences sync blob (`PreferencesDto`). `RUN_IN_BACKGROUND_KEY` is the one desktop-only
+     * setting (no Android equivalent), but it is already omitted from [exportPreferences] itself
+     * (see that key's own KDoc) — there is nothing left to strip today. This wrapper exists anyway
+     * so the sync call site has one stable name to call, and so a future desktop-only preference
+     * added to [exportPreferences] without also being added here is the one place that would need
+     * updating, rather than every call site re-deriving its own exclusion list.
+     */
+    suspend fun exportPreferencesForSync(): JSONObject = exportPreferences()
+
+    /**
+     * [importPreferences] applied verbatim — kept as its own name (rather than calling
+     * `importPreferences` directly from the sync engine) purely so it reads symmetrically with
+     * [exportPreferencesForSync] at the call site, and so a future exclusion need only be added
+     * here without touching the unmodified backup functions above.
+     */
+    suspend fun importPreferencesForSync(json: JSONObject) = importPreferences(json)
+
+    /**
+     * Records the sender's own `updatedAt`, not "now" — called by the sync engine right after
+     * [importPreferencesForSync] applies an incoming blob. [importPreferences] (and therefore
+     * [importPreferencesForSync]) is deliberately left outside [touchPreferences] so it never
+     * bumps [PREFERENCES_UPDATED_AT_KEY] to the current time itself; writing the peer's timestamp
+     * here instead means both devices converge on the same value after a sync round, rather than
+     * this device immediately looking "newer" than the peer it just matched and re-sending an
+     * identical blob back on the very next round.
+     */
+    suspend fun setPreferencesUpdatedAtFromSync(updatedAt: Long) {
+        dataStore.edit { it[PREFERENCES_UPDATED_AT_KEY] = updatedAt }
     }
 }
