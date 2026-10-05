@@ -15,7 +15,7 @@ This system relies on color to define structure, not lines. We use a sophisticat
 *   *Implementation:* A card (`surface-container-lowest`) sits on a background (`surface`) naturally. Use vertical rhythm to separate ideas, never a horizontal rule.
 
 ### Surface Hierarchy & Nesting
-Treat the UI as a series of physical layers—like stacked sheets of fine paper.
+Treat the UI as a series of physical layers, like stacked sheets of fine paper.
 *   **Base:** `surface` (#fcf8ff)
 *   **Sectioning:** `surface-container-low` (#f5f2ff)
 *   **Primary Interaction Surface:** `surface-container-lowest` (#ffffff)

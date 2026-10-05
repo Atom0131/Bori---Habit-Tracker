@@ -25,3 +25,5 @@ about rythmhabittracker.txt
 RHYTHM_STITCH_REFINEMENT_BRIEF.txt
 scripts/capture_screenshots.sh
 test_settings_on_emulator.sh
+docs/ARCHITECTURE.md
+docs/AUDIT.md

@@ -1,15 +1,15 @@
 # Rhythm (Desktop)
 
-A Kotlin Multiplatform / Compose Desktop port of [Rhythm](https://play.google.com/store/apps),
-an Android habit tracker, journal, and planner — habits, to-dos, calendar events, alarms, timers,
-reminders, notes/notebooks, and journaling, all local-first with no backend.
+A Kotlin Multiplatform / Compose Desktop port of [Rhythm](https://play.google.com/store/apps), an
+Android habit tracker, journal, and planner. It covers habits, to-dos, calendar events, alarms,
+timers, reminders, notes and notebooks, and journaling, and it's local-first with no backend.
 
-This build runs natively on Linux (and should run on any JVM desktop target) and can optionally
+This build runs natively on Linux (and should run on any JVM desktop target). It can optionally
 sync with the Android app over a local network or [Tailscale](https://tailscale.com/), with no
 account, server, or cloud dependency of any kind.
 
-The desktop build is free and fully featured — there's no paywall or license check here. (The
-Android app's own subscription model is unrelated to this repo.)
+The desktop build is free and fully featured. There's no paywall or license check here. (The
+Android app's own subscription model doesn't apply to this repo.)
 
 ## Stack
 
@@ -20,15 +20,14 @@ Android app's own subscription model is unrelated to this repo.)
 - [MaterialKolor](https://github.com/material-foundation/material-color-utilities) for dynamic,
   seed-color-based Material 3 theming
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full architecture map and
-[`DESIGN.md`](DESIGN.md) for the design system.
+See [`DESIGN.md`](DESIGN.md) for the design system.
 
 ## Installing
 
 ### Download (recommended for most users)
 
-Grab the latest `.deb` (Debian, Ubuntu, Mint, …) or `.rpm` (Fedora, openSUSE, RHEL, …) from the
-[Releases](../../releases) page and install it the normal way:
+Grab the latest `.deb` (Debian, Ubuntu, Mint, and friends) or `.rpm` (Fedora, openSUSE, RHEL, and
+friends) from the [Releases](../../releases) page and install it the normal way:
 
 ```bash
 sudo apt install ./rhythm_<version>_amd64.deb      # Debian/Ubuntu-family
@@ -36,12 +35,12 @@ sudo dnf install ./rhythm-<version>.x86_64.rpm      # Fedora/RHEL-family
 ```
 
 (Or just double-click it in your distro's GUI package installer.) Each package bundles its own
-Java runtime — you don't need Java installed separately. Data is stored under `~/.rhythm`.
+Java runtime, so you don't need Java installed separately. Data is stored under `~/.rhythm`.
 
 #### Arch / Artix (pacman)
 
-Not on the AUR yet, so there's no `yay -S rhythm` — a `PKGBUILD` is included in this repo so you
-can build and install a real pacman package yourself:
+Not on the AUR yet, so there's no `yay -S rhythm`. A `PKGBUILD` is included in this repo so you can
+build and install a real pacman package yourself:
 
 ```bash
 sudo pacman -S jdk17-openjdk dpkg rpm-tools   # build-time deps (jpackage + packaging tools)
@@ -50,14 +49,15 @@ cd rhythm-desktop
 makepkg -si                                   # builds rhythm-<version>-1-x86_64.pkg.tar.zst and installs it
 ```
 
-(`dpkg`/`rpm-tools` aren't actually needed to *run* the app, just to build the `.deb`/`.rpm` targets
-elsewhere in this same Gradle config that `makepkg` shells out to — harmless to have installed
-either way.) Once someone publishes this `PKGBUILD` to the AUR, `yay -S rhythm` will work directly;
-until then, building it yourself via `makepkg -si` is the pacman-native path.
+(`dpkg` and `rpm-tools` aren't actually needed to *run* the app. They're only there to build the
+`.deb`/`.rpm` targets elsewhere in this same Gradle config, which `makepkg` shells out to, so it's
+harmless to have them installed either way.) Once this `PKGBUILD` gets published to the AUR,
+`yay -S rhythm` will work directly. Until then, building it yourself with `makepkg -si` is the
+pacman-native path.
 
 ### Build from source
 
-Requires a JDK with `jpackage` (17+) — a stripped JRE like Android Studio's bundled JBR won't work
+Requires a JDK with `jpackage` (17+). A stripped JRE like Android Studio's bundled JBR won't work
 for packaging, though it's fine for `:composeApp:run`. Building the `.deb`/`.rpm` also needs
 `dpkg-deb`/`rpmbuild` on your `PATH` (on Arch/Artix: `sudo pacman -S jdk17-openjdk dpkg rpm-tools`).
 
@@ -75,12 +75,11 @@ Installer output lands in `composeApp/build/compose/binaries/main/{deb,rpm,app}/
 
 ### Contributing
 
-Fork it, branch, open a PR — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the
-architecture map before diving in.
+Fork it, branch, open a PR.
 
 ## Syncing with the Android app
 
-Sync is opt-in, peer-to-peer, and manually triggered — there's no background or cloud sync. From
+Sync is opt-in, peer-to-peer, and manually triggered. There's no background or cloud sync. From
 Settings → Data → Sync with Phone, pair by entering the other device's local network or Tailscale
 address and tapping Sync. Two desktop instances can also sync with each other for local testing by
 launching each with its own data directory and port:
@@ -92,4 +91,4 @@ java -Drhythm.home=/path/to/device-b -Drhythm.syncPort=47891 -jar ...
 
 ## License
 
-Apache License 2.0 — see [`LICENSE`](LICENSE).
+Apache License 2.0. See [`LICENSE`](LICENSE).

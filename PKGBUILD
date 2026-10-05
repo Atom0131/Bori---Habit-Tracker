@@ -3,7 +3,7 @@
 pkgname=rhythm
 pkgver=1.0.0
 pkgrel=1
-pkgdesc="Habit tracker, journal, and planner — local-first, with optional sync to the Android app"
+pkgdesc="Habit tracker, journal, and planner, local-first, with optional sync to the Android app"
 arch=('x86_64')
 url="https://github.com/Atom0131/rhythm-desktop"
 license=('Apache-2.0')
