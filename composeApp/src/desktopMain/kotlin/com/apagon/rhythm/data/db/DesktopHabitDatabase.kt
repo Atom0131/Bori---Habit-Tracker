@@ -38,7 +38,7 @@ import java.io.File
 // they don't need to match Android's schema version.
 @Database(
     entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -487,6 +487,18 @@ val DESKTOP_HABIT_MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+// Stage 2 of the full-entity-sync plan: the unsynced-notebook-by-name dedup fix (ported from
+// Android's SyncEngine.kt, commit 6f58f5d) needs a way to tell "this notebook has never been
+// exchanged with a peer" apart from "this notebook has a syncId" — unlike Android, desktop mints
+// syncId eagerly at row creation (see DESKTOP_HABIT_MIGRATION_1_2/_10_11's backfillSyncIds), so
+// syncId is never null here and can't serve as that signal the way it does on Android. See
+// Notebook.firstSyncedAt's KDoc and SyncEngine.kt's notebook-matching block.
+val DESKTOP_HABIT_MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE notebooks ADD COLUMN firstSyncedAt INTEGER DEFAULT NULL")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -498,6 +510,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12)
         .build()
 }

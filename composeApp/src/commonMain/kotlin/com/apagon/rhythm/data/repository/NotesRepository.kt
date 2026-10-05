@@ -53,6 +53,8 @@ class NotesRepository constructor(
     suspend fun getNonPrivateNotebooksUpdatedSince(since: Long): List<Notebook> =
         notesDao.getNonPrivateNotebooksUpdatedSince(since)
 
+    suspend fun getUnsyncedNotebookByName(name: String): Notebook? = notesDao.getUnsyncedNotebookByName(name)
+
     suspend fun insertNotebookFromSync(notebook: Notebook): Long = notesDao.insertNotebook(notebook)
 
     suspend fun updateNotebookFromSync(notebook: Notebook) = notesDao.updateNotebook(notebook)

@@ -73,6 +73,16 @@ interface NotesDao {
     @Query("SELECT * FROM notebooks WHERE updatedAt > :since AND isPrivate = 0")
     suspend fun getNonPrivateNotebooksUpdatedSince(since: Long): List<Notebook>
 
+    /**
+     * First-merge dedup: a notebook created independently on two devices before they ever synced
+     * has no shared syncId, so plain syncId matching sees two different notebooks and sync
+     * duplicates it — see SyncEngine's notebook-matching block. Only matches a notebook that has
+     * **never synced before** (`firstSyncedAt IS NULL`); once a notebook has synced, two
+     * different notebooks that happen to share a name later must stay distinct.
+     */
+    @Query("SELECT * FROM notebooks WHERE name = :name AND firstSyncedAt IS NULL AND deletedAt IS NULL LIMIT 1")
+    suspend fun getUnsyncedNotebookByName(name: String): Notebook?
+
     @Query("SELECT * FROM notes WHERE syncId = :syncId")
     suspend fun getNoteBySyncId(syncId: String): Note?
 

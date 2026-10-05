@@ -115,8 +115,14 @@ class SyncEngine(
         // here, so there's exactly one place that decision is made for the outgoing side.
         val notebooks = notesRepository.getNonPrivateNotebooksUpdatedSince(since)
         val notebookDtos = notebooks.map { nb ->
-            val parentSyncId = nb.parentId?.let { notesRepository.getNotebookById(it)?.syncId }
-            nb.toDto(parentSyncId)
+            // Stamp firstSyncedAt the moment a notebook actually crosses the wire — this is what
+            // takes it out of eligibility for the unsynced-notebook-by-name dedup below (see
+            // Notebook.firstSyncedAt's KDoc and applyIncomingBatch's notebook-matching block).
+            val marked = if (nb.firstSyncedAt == null) {
+                nb.copy(firstSyncedAt = System.currentTimeMillis()).also { notesRepository.updateNotebookFromSync(it) }
+            } else nb
+            val parentSyncId = marked.parentId?.let { notesRepository.getNotebookById(it)?.syncId }
+            marked.toDto(parentSyncId)
         }
 
         val notes = notesRepository.getNonPrivateNotesUpdatedSince(since)
@@ -274,11 +280,49 @@ class SyncEngine(
             val localParentId = dto.parentSyncId?.let { notesRepository.getNotebookBySyncId(it)?.id }
             when {
                 existing == null -> {
-                    notesRepository.insertNotebookFromSync(dto.toEntity(localParentId))
-                    otherInserted++
+                    // First-merge dedup: before inserting a new notebook, check for a local one
+                    // with the same name that's never synced before (firstSyncedAt still null) —
+                    // plain syncId matching can't tell "these are the same notebook" apart from
+                    // "these are coincidentally named alike" when neither side has a shared
+                    // history yet. Adopting the incoming syncId onto the existing row instead of
+                    // inserting a duplicate is safe specifically because it only matches a row
+                    // that's never synced — once a notebook has synced, a same-named-but-different
+                    // notebook created later must stay distinct. Ported from Android's SyncEngine
+                    // (commit 6f58f5d); see Notebook.firstSyncedAt's KDoc for why this is gated on
+                    // that field rather than `syncId IS NULL` the way Android's fix is.
+                    val unsyncedMatch = notesRepository.getUnsyncedNotebookByName(dto.name)
+                    when {
+                        unsyncedMatch == null -> {
+                            notesRepository.insertNotebookFromSync(
+                                dto.toEntity(localParentId).copy(firstSyncedAt = System.currentTimeMillis())
+                            )
+                            otherInserted++
+                        }
+                        // Still last-write-wins for content — a first merge only decides identity
+                        // (which row owns this syncId going forward), not which side's edits win.
+                        dto.updatedAt > unsyncedMatch.updatedAt -> {
+                            notesRepository.updateNotebookFromSync(
+                                dto.toEntity(localParentId).copy(id = unsyncedMatch.id, firstSyncedAt = System.currentTimeMillis())
+                            )
+                            otherUpdated++
+                        }
+                        else -> {
+                            // Local copy is newer or tied — keep its content, but it must adopt
+                            // the shared syncId now or the next sync round duplicates it again.
+                            notesRepository.updateNotebookFromSync(
+                                unsyncedMatch.copy(syncId = dto.syncId, firstSyncedAt = System.currentTimeMillis())
+                            )
+                            otherUpdated++
+                        }
+                    }
                 }
                 dto.updatedAt > existing.updatedAt -> {
-                    notesRepository.updateNotebookFromSync(dto.toEntity(localParentId).copy(id = existing.id))
+                    notesRepository.updateNotebookFromSync(
+                        dto.toEntity(localParentId).copy(
+                            id = existing.id,
+                            firstSyncedAt = existing.firstSyncedAt ?: System.currentTimeMillis()
+                        )
+                    )
                     otherUpdated++
                 }
             }
