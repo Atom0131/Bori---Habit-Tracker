@@ -1,3 +1,5 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose)
@@ -97,5 +99,23 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.apagon.rhythm.MainKt"
+
+        // First public release's installer packaging — no auto-versioning scheme exists yet,
+        // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so
+        // an end user installing the .deb/.rpm needs no separate Java install.
+        nativeDistributions {
+            targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
+            packageName = "rhythm"
+            packageVersion = "1.0.0"
+            description = "Rhythm — habit tracker, journal, and planner"
+            copyright = "© 2026 Apagon. Licensed under Apache 2.0."
+            vendor = "Apagon"
+
+            linux {
+                iconFile.set(project.file("../new_icon_assets/new_app_icon_512.png"))
+                menuGroup = "Utility"
+                appCategory = "Utility"
+            }
+        }
     }
 }

@@ -23,21 +23,42 @@ Android app's own subscription model is unrelated to this repo.)
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full architecture map and
 [`DESIGN.md`](DESIGN.md) for the design system.
 
-## Building and running
+## Installing
 
-Requires a JDK (17+ recommended). From the repo root:
+### Download (recommended for most users)
 
-```bash
-./gradlew :composeApp:run
-```
-
-To build a distributable package for your platform:
+Grab the latest `.deb` (Debian, Ubuntu, Mint, …) or `.rpm` (Fedora, openSUSE, RHEL, …) from the
+[Releases](../../releases) page and install it the normal way:
 
 ```bash
-./gradlew :composeApp:createDistributable
+sudo apt install ./rhythm_<version>_amd64.deb      # Debian/Ubuntu-family
+sudo dnf install ./rhythm-<version>.x86_64.rpm      # Fedora/RHEL-family
 ```
 
-Data is stored under `~/.rhythm` by default.
+(Or just double-click it in your distro's GUI package installer.) Each package bundles its own
+Java runtime — you don't need Java installed separately. Data is stored under `~/.rhythm`.
+
+### Build from source
+
+Requires a JDK with `jpackage` (17+) — a stripped JRE like Android Studio's bundled JBR won't work
+for packaging, though it's fine for `:composeApp:run`. Building the `.deb`/`.rpm` also needs
+`dpkg-deb`/`rpmbuild` on your `PATH` (on Arch/Artix: `sudo pacman -S jdk17-openjdk dpkg rpm-tools`).
+
+```bash
+git clone <this repo's URL>
+cd Linux_app
+./gradlew :composeApp:run                 # run directly, no packaging
+./gradlew :composeApp:packageDeb          # build an installable .deb yourself
+./gradlew :composeApp:packageRpm          # build an installable .rpm yourself
+./gradlew :composeApp:createDistributable # or just a runnable app-image folder, no installer
+```
+
+Installer output lands in `composeApp/build/compose/binaries/main/{deb,rpm,app}/`.
+
+### Contributing
+
+Fork it, branch, open a PR — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the
+architecture map before diving in.
 
 ## Syncing with the Android app
 
