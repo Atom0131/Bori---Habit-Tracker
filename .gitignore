@@ -9,3 +9,14 @@ hs_err_pid*.log
 
 # Live API keys / per-developer MCP tool config — never commit, see .mcp.json.example
 .mcp.json
+
+# Internal dev notes and Android/Play-Store-specific docs — not part of the public desktop repo
+ref_notes/
+DATA_SAFETY.md
+PLAY_CONSOLE_GUIDE.md
+PRIVACY_POLICY.md
+STORE_LISTING.md
+about rythmhabittracker.txt
+RHYTHM_STITCH_REFINEMENT_BRIEF.txt
+scripts/capture_screenshots.sh
+test_settings_on_emulator.sh
