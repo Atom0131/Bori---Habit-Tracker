@@ -7,6 +7,11 @@ local.properties
 .DS_Store
 hs_err_pid*.log
 
+# makepkg build artifacts (PKGBUILD itself is tracked)
+pkg/
+src/
+*.pkg.tar.*
+
 # Live API keys / per-developer MCP tool config — never commit, see .mcp.json.example
 .mcp.json
 

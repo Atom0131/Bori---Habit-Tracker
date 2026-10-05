@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Rhythm
+Comment=Habit tracker, journal, and planner
+Exec=/opt/rhythm/bin/rhythm
+Icon=rhythm
+Categories=Utility;Office;
+Terminal=false

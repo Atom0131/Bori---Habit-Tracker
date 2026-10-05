@@ -38,6 +38,23 @@ sudo dnf install ./rhythm-<version>.x86_64.rpm      # Fedora/RHEL-family
 (Or just double-click it in your distro's GUI package installer.) Each package bundles its own
 Java runtime — you don't need Java installed separately. Data is stored under `~/.rhythm`.
 
+#### Arch / Artix (pacman)
+
+Not on the AUR yet, so there's no `yay -S rhythm` — a `PKGBUILD` is included in this repo so you
+can build and install a real pacman package yourself:
+
+```bash
+sudo pacman -S jdk17-openjdk dpkg rpm-tools   # build-time deps (jpackage + packaging tools)
+git clone <this repo's URL>
+cd Linux_app
+makepkg -si                                   # builds rhythm-<version>-1-x86_64.pkg.tar.zst and installs it
+```
+
+(`dpkg`/`rpm-tools` aren't actually needed to *run* the app, just to build the `.deb`/`.rpm` targets
+elsewhere in this same Gradle config that `makepkg` shells out to — harmless to have installed
+either way.) Once someone publishes this `PKGBUILD` to the AUR, `yay -S rhythm` will work directly;
+until then, building it yourself via `makepkg -si` is the pacman-native path.
+
 ### Build from source
 
 Requires a JDK with `jpackage` (17+) — a stripped JRE like Android Studio's bundled JBR won't work
@@ -51,6 +68,7 @@ cd Linux_app
 ./gradlew :composeApp:packageDeb          # build an installable .deb yourself
 ./gradlew :composeApp:packageRpm          # build an installable .rpm yourself
 ./gradlew :composeApp:createDistributable # or just a runnable app-image folder, no installer
+makepkg -si                               # or a real pacman package (see Arch/Artix above)
 ```
 
 Installer output lands in `composeApp/build/compose/binaries/main/{deb,rpm,app}/`.

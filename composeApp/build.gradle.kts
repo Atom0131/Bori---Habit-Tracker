@@ -105,6 +105,16 @@ compose.desktop {
         // an end user installing the .deb/.rpm needs no separate Java install.
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
+
+            // jlink's default trimmed runtime only includes modules it can see referenced via
+            // static jdeps analysis — it missed jdk.unsupported (needed for sun.misc.Unsafe,
+            // which DataStore's protobuf implementation reaches via reflection), confirmed live:
+            // `rhythm` crashed at launch with NoClassDefFoundError: sun/misc/Unsafe the moment
+            // ThemePreferences' DataStore tried to read its file. Rather than hand-picking modules
+            // and risking the same class of gap elsewhere (Ktor networking, locale formatting),
+            // bundle the full JDK instead of a jlink-trimmed one.
+            includeAllModules = true
+
             packageName = "rhythm"
             packageVersion = "1.0.0"
             description = "Rhythm — habit tracker, journal, and planner"
