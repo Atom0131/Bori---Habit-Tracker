@@ -45,8 +45,8 @@ can build and install a real pacman package yourself:
 
 ```bash
 sudo pacman -S jdk17-openjdk dpkg rpm-tools   # build-time deps (jpackage + packaging tools)
-git clone <this repo's URL>
-cd Linux_app
+git clone https://github.com/Atom0131/rhythm-desktop.git
+cd rhythm-desktop
 makepkg -si                                   # builds rhythm-<version>-1-x86_64.pkg.tar.zst and installs it
 ```
 
@@ -62,8 +62,8 @@ for packaging, though it's fine for `:composeApp:run`. Building the `.deb`/`.rpm
 `dpkg-deb`/`rpmbuild` on your `PATH` (on Arch/Artix: `sudo pacman -S jdk17-openjdk dpkg rpm-tools`).
 
 ```bash
-git clone <this repo's URL>
-cd Linux_app
+git clone https://github.com/Atom0131/rhythm-desktop.git
+cd rhythm-desktop
 ./gradlew :composeApp:run                 # run directly, no packaging
 ./gradlew :composeApp:packageDeb          # build an installable .deb yourself
 ./gradlew :composeApp:packageRpm          # build an installable .rpm yourself
