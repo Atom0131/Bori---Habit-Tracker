@@ -6,3 +6,6 @@ local.properties
 .idea/
 .DS_Store
 hs_err_pid*.log
+
+# Live API keys / per-developer MCP tool config — never commit, see .mcp.json.example
+.mcp.json
