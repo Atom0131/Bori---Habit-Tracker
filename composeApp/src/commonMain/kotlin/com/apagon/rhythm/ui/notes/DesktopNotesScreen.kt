@@ -28,6 +28,19 @@ import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import com.apagon.rhythm.ui.util.RhythmAddFab
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import com.apagon.rhythm.ui.util.RhythmAlertDialog
+import com.apagon.rhythm.ui.util.legibleMarkerOn
+import com.apagon.rhythm.ui.util.NotebookIcon
 
 /**
  * Stage 10's Notes tab entry point — a small local nav state (list ↔
@@ -157,6 +170,14 @@ private fun LazyColumnRailItems(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    NotebookIcon,
+                    contentDescription = null,
+                    tint = resolveDisplayColor(item.notebook.colorIndex, item.notebook.colorArgb)
+                        .legibleMarkerOn(MaterialTheme.colorScheme.surface.luminance() < 0.5f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = item.notebook.name,
                     style = MaterialTheme.typography.bodyMedium,
@@ -178,7 +199,7 @@ private fun LazyColumnRailItems(
 /**
  * Desktop port of NotesScreen.kt — the Pro paywall is dropped entirely
  * (desktop is unconditionally Pro), so the notebook-count FAB gate never
- * fires; no icons library, text/glyph buttons throughout.
+ * fires.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -198,7 +219,7 @@ fun DesktopNotesScreen(
             TopAppBar(
                 title = { Text("Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
                 actions = {
-                    CrystalIconButton(glyph = "⌕", onClick = onNavigateToSearch)
+                    CrystalIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = onNavigateToSearch)
                 },
                 colors = crystalTopAppBarColors()
             )
@@ -228,7 +249,8 @@ fun DesktopNotesScreen(
                         noteCount = item.count,
                         onClick = { onNavigateToNotebook(item.notebook.id) },
                         onEdit = { editingNotebook = item.notebook },
-                        onDelete = { viewModel.deleteNotebook(item.notebook) }
+                        onDelete = { viewModel.deleteNotebook(item.notebook) },
+                        onTogglePrivate = { viewModel.setNotebookPrivate(item.notebook, !item.notebook.isPrivate) }
                     )
                 }
             }
@@ -253,35 +275,73 @@ fun DesktopNotesScreen(
     }
 }
 
+/** Android's `NotebookCard` (`NotesScreen.kt`): the notebook glyph in the notebook's colour, made
+ * legible, on a soft disc of the same colour; overflow menu with Edit, private lock and Delete
+ * (behind a confirm); a lock beside the name when private. */
 @Composable
 private fun DesktopNotebookCard(
     notebook: Notebook,
     noteCount: Int,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onTogglePrivate: () -> Unit
 ) {
     val displayColor = resolveDisplayColor(notebook.colorIndex, notebook.colorArgb)
     var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        RhythmAlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete notebook?") },
+            text = {
+                Text(
+                    if (noteCount == 1) "\"${notebook.name}\" and the 1 note in it move to the Trash Bin, where they can be restored for 14 days."
+                    else "\"${notebook.name}\" and the $noteCount notes in it move to the Trash Bin, where they can be restored for 14 days."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onClick)) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                val markerColor = displayColor.legibleMarkerOn(MaterialTheme.colorScheme.surface.luminance() < 0.5f)
                 Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(displayColor.copy(alpha = 0.18f)),
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(markerColor.copy(alpha = 0.28f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("📓", style = MaterialTheme.typography.titleMedium)
+                    Icon(NotebookIcon, contentDescription = null, tint = markerColor, modifier = Modifier.size(22.dp))
                 }
                 Box {
-                    CrystalIconButton(glyph = "⋮", onClick = { showMenu = true })
+                    CrystalIconButton(icon = Icons.Default.MoreVert, contentDescription = "Options", onClick = { showMenu = true }, size = 28.dp)
                     RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete() })
+                        DropdownMenuItem(
+                            text = {
+                                Icon(
+                                    if (notebook.isPrivate) Icons.Default.Lock else Icons.Default.LockOpen,
+                                    contentDescription = if (notebook.isPrivate) "Make public" else "Make private"
+                                )
+                            },
+                            onClick = { showMenu = false; onTogglePrivate() }
+                        )
+                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; showDeleteConfirm = true })
                     }
                 }
             }
-            Text(text = notebook.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (notebook.isPrivate) {
+                    Icon(Icons.Default.Lock, contentDescription = "Private notebook", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(text = notebook.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
             Text(
                 text = if (noteCount == 1) "1 note" else "$noteCount notes",
                 style = MaterialTheme.typography.labelSmall,

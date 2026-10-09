@@ -56,6 +56,14 @@ class NotesViewModel constructor(
         }
     }
 
+    /** As Android: a private notebook (and its notes) stays on this device; sync skips it. Bumping
+     * updatedAt makes a notebook made public again go out on the next sync. */
+    fun setNotebookPrivate(notebook: Notebook, private: Boolean) {
+        viewModelScope.launch {
+            repository.updateNotebook(notebook.copy(isPrivate = private, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
     fun deleteNotebook(notebook: Notebook) {
         viewModelScope.launch {
             repository.deleteNotebook(notebook)

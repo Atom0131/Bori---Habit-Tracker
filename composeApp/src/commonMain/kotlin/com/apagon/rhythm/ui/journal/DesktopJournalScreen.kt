@@ -19,6 +19,10 @@ import com.apagon.rhythm.ui.components.crystalBareTextFieldColors
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.util.RhythmAddFab
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Close
 
 /** Stage 15d: which of the two panes' selection state the right column shows, if any. */
 private sealed class JournalEditorState {
@@ -83,7 +87,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     placeholder = { Text("Search journal...") },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
-                            CrystalIconButton(glyph = "×", onClick = { viewModel.setSearchQuery("") }, size = 28.dp)
+                            CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { viewModel.setSearchQuery("") }, size = 28.dp)
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
@@ -91,7 +95,7 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                     singleLine = true
                 )
                 Spacer(Modifier.width(8.dp))
-                CrystalIconButton(glyph = if (lockType == LockType.NONE) "🔓" else "🔒", onClick = { showLockSettings = true })
+                CrystalIconButton(icon = if (lockType == LockType.NONE) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = "Journal lock", onClick = { showLockSettings = true })
             }
             }
 

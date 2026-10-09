@@ -35,6 +35,7 @@ import org.koin.compose.koinInject
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Close
 
 /**
  * Stage 15d: inline right-pane entry editor, not a modal overlay — the
@@ -88,7 +89,7 @@ fun DesktopEntryEditorPane(
     ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CrystalIconButton(glyph = "×", onClick = onDismiss)
+                        CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = onDismiss)
                         if (entry != null) {
                             TextButton(onClick = { onDelete(entry); onDismiss() }) {
                                 Text("Delete", color = MaterialTheme.colorScheme.error)

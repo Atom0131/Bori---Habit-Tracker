@@ -34,6 +34,10 @@ import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import com.apagon.rhythm.ui.util.RhythmSheet
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
 
 /**
  * Desktop port of NotebookDetailScreen.kt. BackHandler dropped (no desktop
@@ -98,8 +102,8 @@ fun DesktopNotebookDetailScreen(
                 },
                 navigationIcon = {
                     when {
-                        searchExpanded -> CrystalIconButton(glyph = "×", onClick = { searchExpanded = false; viewModel.setSearchQuery("") })
-                        isInSelectMode -> CrystalIconButton(glyph = "×", onClick = { viewModel.clearSelection() })
+                        searchExpanded -> CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { searchExpanded = false; viewModel.setSearchQuery("") })
+                        isInSelectMode -> CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { viewModel.clearSelection() })
                         else -> TextButton(onClick = onNavigateBack) { Text("← Back") }
                     }
                 },
@@ -109,7 +113,7 @@ fun DesktopNotebookDetailScreen(
                         TextButton(onClick = { showBulkTagSheet = true }) { Text("Tag") }
                         TextButton(onClick = { showDeleteConfirm = true }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                     } else if (!searchExpanded) {
-                        CrystalIconButton(glyph = "⌕", onClick = { searchExpanded = true })
+                        CrystalIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = { searchExpanded = true })
                         TextButton(onClick = { showSortSheet = true }) { Text("Sort") }
                     }
                 },
@@ -343,7 +347,7 @@ private fun DesktopNoteItem(
                 }
                 if (!isInSelectMode) {
                     Box {
-                        CrystalIconButton(glyph = "⋮", onClick = { showMenu = true })
+                        CrystalIconButton(icon = Icons.Default.MoreVert, contentDescription = "More options", onClick = { showMenu = true })
                         RhythmDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(text = { Text(if (note.isPinned) "Unpin" else "Pin") }, onClick = { showMenu = false; onTogglePin() })
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showMenu = false; onMove() })

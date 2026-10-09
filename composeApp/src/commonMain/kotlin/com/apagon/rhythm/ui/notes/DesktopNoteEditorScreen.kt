@@ -50,6 +50,8 @@ import org.koin.compose.koinInject
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 
 /**
  * Desktop port of NoteEditorScreen.kt. Photo picking goes through Stage 9's
@@ -109,7 +111,7 @@ fun DesktopNoteEditorScreen(
                 actions = {
                     TextButton(onClick = { clipboard.setText(AnnotatedString(viewModel.exportMarkdown())) }) { Text("Copy") }
                     Box {
-                        CrystalIconButton(glyph = "⋮", onClick = { showOverflowMenu = true })
+                        CrystalIconButton(icon = Icons.Default.MoreVert, contentDescription = "More options", onClick = { showOverflowMenu = true })
                         RhythmDropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                             DropdownMenuItem(text = { Text("Move to notebook…") }, onClick = { showOverflowMenu = false; showMoveSheet = true })
                             DropdownMenuItem(

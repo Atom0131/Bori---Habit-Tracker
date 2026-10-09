@@ -220,22 +220,27 @@ fun Modifier.crystalIconButtonSurface(): Modifier = if (isCrystal()) {
     this.crystalSurface(shape = CircleShape, fill = MaterialTheme.colorScheme.surfaceContainerHighest, elevation = 0.dp, crystalElevation = 1.dp)
 } else this
 
-/** Stage 17f: every glyph-only action in this app (search "⌕", overflow "⋮", lock "🔓"/"🔒", close
- * "×") was a bare `TextButton { Text(glyph) }` — `TextButton`'s content padding is sized for text,
- * not a single centered glyph, so these all read as cramped/off-center. A fixed-size circular
- * touch target with the glyph centered inside it, using the already-built (but until now unused)
- * [crystalIconButtonSurface] for the Crystal-only glass fill. */
+/** A fixed-size circular touch target with an icon centred in it, for the top-bar and card
+ * actions (search, overflow, close, lock). */
 @Composable
-fun CrystalIconButton(glyph: String, onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 36.dp) {
+fun CrystalIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 36.dp,
+    tint: Color = LocalContentColor.current
+) {
+    // A plain icon in a circular hit area, as Android's top-bar and card actions are (2026-10-09).
+    // It drew a text glyph (⌕ ⋮ × 🔓) on a glass disc, which no screen on the phone has.
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .crystalIconButtonSurface()
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = glyph, style = MaterialTheme.typography.titleMedium)
+        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(size * 0.6f))
     }
 }
 
