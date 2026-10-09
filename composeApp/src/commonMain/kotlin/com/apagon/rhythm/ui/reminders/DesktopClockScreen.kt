@@ -80,6 +80,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.onClick
 import androidx.compose.foundation.PointerMatcher
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.apagon.rhythm.ui.util.RhythmSheet
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.filled.Edit
 
 // Stage 17d: rebuilt to match the real Android ui/reminders/ClockScreen.kt (titled "Alarms &
 // Timers") instead of the earlier collapsible-accordion guess. Mobile has no collapse behavior at
@@ -104,6 +110,12 @@ fun DesktopClockScreen(
     var showAddTimer by remember { mutableStateOf(false) }
     var addTimerIsPomo by remember { mutableStateOf(false) }
     var showAddMenu by remember { mutableStateOf(false) }
+    // Android's detail sheets: clicking a card opens it; its pencil opens the editor. Held by id
+    // so the sheet follows live changes (a running timer, a toggled alarm).
+    var viewingAlarmId by remember { mutableStateOf<Long?>(null) }
+    var viewingTimerId by remember { mutableStateOf<Long?>(null) }
+    var editingAlarm by remember { mutableStateOf<Alarm?>(null) }
+    var editingTimer by remember { mutableStateOf<com.apagon.rhythm.data.model.Timer?>(null) }
 
     Scaffold(
         containerColor = crystalScaffoldColor(),
@@ -129,7 +141,8 @@ fun DesktopClockScreen(
                             gridColumns = gridColumns,
                             is24Hour = is24Hour,
                             onToggleEnabled = alarmViewModel::toggleEnabled,
-                            onDelete = alarmViewModel::deleteAlarm
+                            onDelete = alarmViewModel::deleteAlarm,
+                            onTap = { viewingAlarmId = it.id }
                         )
                     }
                     if (regularTimers.isNotEmpty()) {
@@ -140,7 +153,8 @@ fun DesktopClockScreen(
                             onStart = timerViewModel::startTimer,
                             onPause = timerViewModel::pauseTimer,
                             onReset = timerViewModel::resetTimer,
-                            onDelete = timerViewModel::deleteTimer
+                            onDelete = timerViewModel::deleteTimer,
+                            onTap = { viewingTimerId = it.id }
                         )
                     }
                     if (pomoTimers.isNotEmpty()) {
@@ -151,7 +165,8 @@ fun DesktopClockScreen(
                             onStart = timerViewModel::startTimer,
                             onPause = timerViewModel::pauseTimer,
                             onReset = timerViewModel::resetTimer,
-                            onDelete = timerViewModel::deleteTimer
+                            onDelete = timerViewModel::deleteTimer,
+                            onTap = { viewingTimerId = it.id }
                         )
                     }
                     if (alarms.isEmpty() && timerStates.isEmpty()) {
@@ -177,6 +192,59 @@ fun DesktopClockScreen(
                     "timer" -> { addTimerIsPomo = false; showAddTimer = true }
                     "pomo" -> { addTimerIsPomo = true; showAddTimer = true }
                 }
+            }
+        )
+    }
+
+    viewingAlarmId?.let { id ->
+        val alarm = alarms.firstOrNull { it.id == id }
+        if (alarm == null) viewingAlarmId = null else AlarmViewSheet(
+            alarm = alarm,
+            is24Hour = koinInject<LocaleFormatting>().is24HourFormat(),
+            onDismiss = { viewingAlarmId = null },
+            onEdit = { viewingAlarmId = null; editingAlarm = alarm },
+            onToggle = { alarmViewModel.toggleEnabled(alarm) },
+            onDelete = { viewingAlarmId = null; alarmViewModel.deleteAlarm(alarm) }
+        )
+    }
+
+    viewingTimerId?.let { id ->
+        val state = timerStates.firstOrNull { it.timer.id == id }
+        if (state == null) viewingTimerId = null else TimerViewSheet(
+            state = state,
+            onDismiss = { viewingTimerId = null },
+            onEdit = { viewingTimerId = null; editingTimer = state.timer },
+            onStart = { timerViewModel.startTimer(state.timer) },
+            onPause = { timerViewModel.pauseTimer(state.timer) },
+            onReset = { timerViewModel.resetTimer(state.timer) },
+            onDelete = { viewingTimerId = null; timerViewModel.deleteTimer(state.timer) }
+        )
+    }
+
+    editingAlarm?.let { alarm ->
+        DesktopAddAlarmSheet(
+            existing = alarm,
+            onDismiss = { editingAlarm = null },
+            onSave = { label, hour, minute, repeatDaysMask ->
+                alarmViewModel.updateAlarm(alarm.copy(label = label, hour = hour, minute = minute, repeatDaysMask = repeatDaysMask))
+                editingAlarm = null
+            }
+        )
+    }
+
+    editingTimer?.let { timer ->
+        DesktopAddTimerSheet(
+            existing = timer,
+            initialPomo = timer.isPomo,
+            onDismiss = { editingTimer = null },
+            // Keep the sound and vibration chosen on the phone; the desktop editor has no picker.
+            onSave = { label, durationSeconds ->
+                timerViewModel.updateTimer(timer.id, label, durationSeconds, timer.soundUri, timer.vibrationPatternId)
+                editingTimer = null
+            },
+            onSavePomo = { label, workMin, shortBreakMin, longBreakMin, sessions ->
+                timerViewModel.updatePomoTimer(timer.id, label, workMin * 60, shortBreakMin * 60, longBreakMin * 60, sessions, timer.soundUri, timer.vibrationPatternId)
+                editingTimer = null
             }
         )
     }
@@ -237,7 +305,8 @@ private fun LazyListScope.alarmsSection(
     gridColumns: Int,
     is24Hour: Boolean,
     onToggleEnabled: (Alarm) -> Unit,
-    onDelete: (Alarm) -> Unit
+    onDelete: (Alarm) -> Unit,
+    onTap: (Alarm) -> Unit
 ) {
     item(key = "alarms_header") { SectionHeader("Scheduled Alarms") }
     items(alarms.chunked(gridColumns), key = { it.first().id }) { row ->
@@ -246,7 +315,7 @@ private fun LazyListScope.alarmsSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             row.forEach { alarm ->
-                AlarmCard(alarm, is24Hour, Modifier.weight(1f), onToggleEnabled = { onToggleEnabled(alarm) }, onDelete = { onDelete(alarm) })
+                AlarmCard(alarm, is24Hour, Modifier.weight(1f), onToggleEnabled = { onToggleEnabled(alarm) }, onDelete = { onDelete(alarm) }, onTap = { onTap(alarm) })
             }
             repeat(gridColumns - row.size) { Spacer(Modifier.weight(1f)) }
         }
@@ -260,7 +329,7 @@ private fun LazyListScope.alarmsSection(
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AlarmCard(alarm: Alarm, is24Hour: Boolean, modifier: Modifier, onToggleEnabled: () -> Unit, onDelete: () -> Unit) {
+private fun AlarmCard(alarm: Alarm, is24Hour: Boolean, modifier: Modifier, onToggleEnabled: () -> Unit, onDelete: () -> Unit, onTap: () -> Unit) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     if (showDeleteConfirm) {
         RhythmAlertDialog(
@@ -279,6 +348,7 @@ private fun AlarmCard(alarm: Alarm, is24Hour: Boolean, modifier: Modifier, onTog
             .crystalCardSurface(
                 fill = if (alarm.isEnabled) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh
             )
+            .clickable(onClick = onTap)
             .onClick(matcher = PointerMatcher.mouse(PointerButton.Secondary)) { showDeleteConfirm = true }
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(14.dp)) {
@@ -315,18 +385,20 @@ private fun AlarmCard(alarm: Alarm, is24Hour: Boolean, modifier: Modifier, onTog
 }
 
 @Composable
-private fun RepeatDaysRow(mask: Int, enabled: Boolean) {
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun RepeatDaysRow(mask: Int, enabled: Boolean, compact: Boolean = true) {
+    val circleSize = if (compact) 16.dp else 24.dp
+    val textStyle = if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp) else MaterialTheme.typography.labelSmall
+    Row(horizontalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp)) {
         DAY_NAMES_SINGLE.forEachIndexed { index, day ->
             val active = (mask and (1 shl index)) != 0
             val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
             Box(
-                modifier = Modifier.size(16.dp).clip(CircleShape).background(if (enabled) color else color.copy(alpha = 0.5f)),
+                modifier = Modifier.size(circleSize).clip(CircleShape).background(if (enabled) color else color.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     day,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
+                    style = textStyle,
                     fontWeight = FontWeight.Bold,
                     color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -342,7 +414,8 @@ private fun LazyListScope.timersSection(
     onStart: (com.apagon.rhythm.data.model.Timer) -> Unit,
     onPause: (com.apagon.rhythm.data.model.Timer) -> Unit,
     onReset: (com.apagon.rhythm.data.model.Timer) -> Unit,
-    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit
+    onDelete: (com.apagon.rhythm.data.model.Timer) -> Unit,
+    onTap: (com.apagon.rhythm.data.model.Timer) -> Unit
 ) {
     item(key = "${title}_header") { SectionHeader(title) }
     items(timerStates.chunked(gridColumns), key = { "${title}_${it.first().timer.id}" }) { row ->
@@ -354,7 +427,8 @@ private fun LazyListScope.timersSection(
                 TimerCard(
                     state, Modifier.weight(1f),
                     onStart = { onStart(state.timer) }, onPause = { onPause(state.timer) },
-                    onReset = { onReset(state.timer) }, onDelete = { onDelete(state.timer) }
+                    onReset = { onReset(state.timer) }, onDelete = { onDelete(state.timer) },
+                    onTap = { onTap(state.timer) }
                 )
             }
             repeat(gridColumns - row.size) { Spacer(Modifier.weight(1f)) }
@@ -368,7 +442,7 @@ private fun LazyListScope.timersSection(
  * Reset, Delete (behind a confirm; timers are hard-deleted) and a larger Play/Pause.
  */
 @Composable
-private fun TimerCard(state: TimerUiState, modifier: Modifier, onStart: () -> Unit, onPause: () -> Unit, onReset: () -> Unit, onDelete: () -> Unit) {
+private fun TimerCard(state: TimerUiState, modifier: Modifier, onStart: () -> Unit, onPause: () -> Unit, onReset: () -> Unit, onDelete: () -> Unit, onTap: () -> Unit) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     if (showDeleteConfirm) {
         val label = state.timer.label
@@ -382,7 +456,7 @@ private fun TimerCard(state: TimerUiState, modifier: Modifier, onStart: () -> Un
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
         )
     }
-    Box(modifier.aspectRatio(1f).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+    Box(modifier.aspectRatio(1f).crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerHighest).clickable(onClick = onTap)) {
         if (state.isRunning) {
             Box(Modifier.align(Alignment.TopEnd).padding(12.dp).size(7.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
         }
@@ -458,4 +532,133 @@ private fun formatDuration(seconds: Int): String {
     val m = (seconds % 3600) / 60
     val s = seconds % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
+}
+
+/** Android's `AlarmViewSheet`: the alarm large, its label and days, an on/off switch, and delete
+ * (with confirm) and edit at the top. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlarmViewSheet(alarm: Alarm, is24Hour: Boolean, onDismiss: () -> Unit, onEdit: () -> Unit, onToggle: () -> Unit, onDelete: () -> Unit) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    if (showDeleteConfirm) {
+        RhythmAlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Alarm?") },
+            text = { Text("Are you sure you want to delete this alarm?") },
+            confirmButton = { TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+        )
+    }
+    RhythmSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary) }
+            }
+            Text(
+                formatTime(alarm.hour, alarm.minute, is24Hour),
+                style = MaterialTheme.typography.displayLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (alarm.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (alarm.label.isNotBlank()) {
+                Text(alarm.label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (alarm.repeatDaysMask == 0) {
+                Text("One-time alarm", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                RepeatDaysRow(mask = alarm.repeatDaysMask, enabled = alarm.isEnabled, compact = false)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (alarm.isEnabled) "Enabled" else "Disabled", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Switch(checked = alarm.isEnabled, onCheckedChange = { onToggle() }, colors = crystalSwitchColors())
+            }
+        }
+    }
+}
+
+/** Android's `TimerViewSheet`: a progress ring with the time left, "Total", the sound, and
+ * Reset / Play-Pause, with delete (with confirm) and edit at the top. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimerViewSheet(
+    state: TimerUiState,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onReset: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val totalSeconds = state.timer.durationSeconds.coerceAtLeast(1)
+    val progress = state.displayRemaining.toFloat() / totalSeconds.toFloat()
+    val ringColor = if (state.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    if (showDeleteConfirm) {
+        val label = state.timer.label
+        RhythmAlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Timer?") },
+            text = { Text(if (label.isBlank()) "This timer will be deleted." else "\"$label\" will be deleted.") },
+            confirmButton = { TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+        )
+    }
+    RhythmSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
+                if (state.timer.label.isNotBlank()) {
+                    Text(state.timer.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary) }
+            }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
+                CircularProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 12.dp,
+                    color = ringColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(formatDuration(state.displayRemaining), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = ringColor)
+                    state.pomoPhaseLabel?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
+                }
+            }
+            Text("Total: ${formatDuration(state.timer.durationSeconds)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val isSilent = state.timer.soundUri == "silent"
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    if (isSilent) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    when { state.timer.soundUri.isEmpty() -> "Default alarm"; isSilent -> "Silent"; else -> "Custom" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                TimerGlassButton(Icons.Default.Refresh, "Reset", 48.dp, onReset)
+                TimerGlassButton(
+                    icon = if (state.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    label = if (state.isRunning) "Pause" else "Start",
+                    diameter = 64.dp,
+                    accent = true,
+                    onClick = { if (state.isRunning) onPause() else onStart() }
+                )
+            }
+        }
+    }
 }
