@@ -83,6 +83,14 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
+import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
+import com.apagon.rhythm.ui.components.crystalSelectedChipColor
+import com.apagon.rhythm.ui.components.crystalChipSurface
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.apagon.rhythm.platform.ImageBitmapLoader
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.layout.ContentScale
 
 /** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
  * every settings card stacked one after another. "Recently Deleted" moves here from the top-level
@@ -199,6 +207,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 userName = userName,
                                 userPronouns = userPronouns,
                                 userAge = userAge,
+                                profilePictureUri = profilePictureUri,
                                 onEdit = { showEditProfile = true }
                             )
                             SettingsSection.APPEARANCE -> AppearanceSectionContent(
@@ -296,31 +305,49 @@ private fun ProfileSectionContent(
     userName: String,
     userPronouns: String,
     userAge: String,
+    profilePictureUri: String?,
     onEdit: () -> Unit
 ) {
-    SettingsSection("Profile") {
+    // Android's profile card: photo, name, @nickname and a chevron, the whole card opening the
+    // editor (it showed the nickname as the name, pronouns/age, and an "Edit" link).
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onEdit).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f, fill = false)) {
+            Box(
+                modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                if (profilePictureUri != null) {
+                    koinInject<ImageBitmapLoader>().LoadedImage(
+                        path = profilePictureUri,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                }
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    userNickname.ifBlank { userName.ifBlank { "Add your name" } },
-                    style = MaterialTheme.typography.titleMedium,
+                    userName.ifBlank { "Set your name" },
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
-                if (userPronouns.isNotBlank() || userAge.isNotBlank()) {
-                    Text(
-                        listOf(userPronouns, userAge).filter { it.isNotBlank() }.joinToString(" • "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (userNickname.isNotBlank()) {
+                    Text("@$userNickname", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            TextButton(onClick = onEdit) { Text("Edit") }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
     }
 }
@@ -365,48 +392,11 @@ private fun AppearanceSectionContent(
             onDismiss = { showMeshCustomDialog = false }
         )
     }
-    SettingsSection("Appearance") {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SettingsRow("Theme") {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                ThemeMode.entries.forEach { mode ->
-                                    TextButton(onClick = { viewModel.setThemeMode(mode) }) {
-                                        Text(
-                                            mode.name.lowercase().replaceFirstChar { it.uppercase() },
-                                            fontWeight = if (mode == themeMode) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        SettingsRow("AMOLED Black") {
-                            Switch(checked = amoledMode, onCheckedChange = { viewModel.setAmoledMode(it) }, colors = crystalSwitchColors())
-                        }
-                        SettingsRow("Dark Readability") {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                DarkReadability.entries.forEach { level ->
-                                    TextButton(onClick = { viewModel.setDarkReadability(level) }) {
-                                        Text(
-                                            level.name.lowercase().replaceFirstChar { it.uppercase() },
-                                            fontWeight = if (level == darkReadability) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Accent Color", style = MaterialTheme.typography.bodyLarge)
-                            com.apagon.rhythm.ui.util.ColorPickerRow(
-                                colorIndex = accentColorIndex,
-                                colorArgb = accentColorArgb,
-                                onColorSelected = { idx, argb -> viewModel.setAccentColor(idx, argb) },
-                                viewModel = colorPickerViewModel,
-                                onPreview = { argb -> viewModel.previewAccentColor(-1, argb) },
-                                onCancelPreview = { viewModel.cancelAccentColorPreview() }
-                            )
-                        }
-        }
-    }
+    // Android's Appearance order and shape: one expandable glass card per setting — Theme Style,
+    // Crystal Background, Glass, Accent Colour, Theme — not a card of rows with text-link choices.
+    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    var accentExpanded by remember { mutableStateOf(false) }
+    var themeExpanded by remember { mutableStateOf(false) }
 
     SettingsExpandableCard(
                     title = "Theme Style",
@@ -627,6 +617,109 @@ private fun AppearanceSectionContent(
                             }
                         }
                     }
+    }
+
+    SettingsExpandableCard(
+        title = "Accent Colour",
+        expanded = accentExpanded,
+        onToggle = { accentExpanded = !accentExpanded }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                "Choose a primary color for the whole app",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            com.apagon.rhythm.ui.util.ColorPickerRow(
+                colorIndex = accentColorIndex,
+                colorArgb = accentColorArgb,
+                onColorSelected = { idx, argb -> viewModel.setAccentColor(idx, argb) },
+                viewModel = colorPickerViewModel,
+                onPreview = { argb -> viewModel.previewAccentColor(-1, argb) },
+                onCancelPreview = { viewModel.cancelAccentColorPreview() }
+            )
+        }
+    }
+
+    SettingsExpandableCard(
+        title = "Theme",
+        expanded = themeExpanded,
+        onToggle = { themeExpanded = !themeExpanded },
+        summary = when (themeMode) {
+            ThemeMode.SYSTEM -> "System default"
+            ThemeMode.LIGHT -> "Light"
+            ThemeMode.DARK -> "Dark"
+        }
+    ) {
+        Column {
+            ThemeMode.entries.forEachIndexed { i, mode ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { viewModel.setThemeMode(mode) }.padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    RadioButton(selected = themeMode == mode, onClick = { viewModel.setThemeMode(mode) }, colors = crystalRadioButtonColors())
+                    Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyLarge)
+                }
+                if (i < ThemeMode.entries.size - 1) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
+            // Android shows Night Readability only outside Crystal (Crystal has its own glass controls).
+            if (themeStyle != ThemeStyle.CRYSTAL) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text("Night Readability", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Controls how much surface contrast is added in dark mode",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DarkReadability.entries.forEach { option ->
+                            val selected = darkReadability == option
+                            Box(
+                                modifier = Modifier
+                                    .crystalChipSurface(
+                                        fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
+                                        else MaterialTheme.colorScheme.surfaceContainerHighest
+                                    )
+                                    .clickable { viewModel.setDarkReadability(option) }
+                                    .padding(vertical = 8.dp, horizontal = 12.dp)
+                            ) {
+                                Text(
+                                    when (option) {
+                                        DarkReadability.STANDARD -> "Standard"
+                                        DarkReadability.COMFORTABLE -> "Comfortable"
+                                        DarkReadability.HIGH -> "High"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            val darkActive = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "AMOLED Black",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (darkActive) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        if (darkActive) "True black backgrounds — saves battery on OLED screens" else "Available when the dark theme is active",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = amoledMode, enabled = darkActive, onCheckedChange = { viewModel.setAmoledMode(it) }, colors = crystalSwitchColors())
+            }
+        }
     }
 }
 
@@ -971,11 +1064,8 @@ private fun SettingsRow(label: String, trailing: @Composable () -> Unit) {
 
 /**
  * Desktop port of the Android app's `SettingsExpandableCard` (`ui/settings/SettingsScreen.kt`) — a
- * collapsed-by-default card with an optional one-line summary, replacing the always-expanded
- * [SettingsSection] for the Crystal theme controls added in the layout-parity round. Desktop has no
- * `material-icons-extended` dependency, so the expand/collapse chevron is a plain glyph via `Text`
- * rather than `Icons.Default.ExpandMore`/`ExpandLess`, matching the convention already established
- * in `DesktopJournalWeekStrip.kt`.
+ * collapsed-by-default card with an optional one-line summary, used for every Appearance setting as
+ * on Android.
  */
 @Composable
 private fun SettingsExpandableCard(
