@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +44,13 @@ import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalSwitchColors
 import com.apagon.rhythm.ui.util.RhythmAddFab
-import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.Icons
+import com.apagon.rhythm.ui.components.AddTypePickerSheet
+import com.apagon.rhythm.ui.components.AddOption
 
 // Stage 17d: rebuilt to match the real Android ui/reminders/ClockScreen.kt (titled "Alarms &
 // Timers") instead of the earlier collapsible-accordion guess. Mobile has no collapse behavior at
@@ -77,23 +81,7 @@ fun DesktopClockScreen(
         contentColor = crystalScaffoldContentColor(),
         topBar = { TopAppBar(title = { Text("Schedule") }, colors = crystalTopAppBarColors()) },
         floatingActionButton = {
-            Box {
-                RhythmAddFab(onClick = { showAddMenu = true })
-                RhythmDropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Alarm") },
-                        onClick = { showAddMenu = false; showAddAlarm = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Timer") },
-                        onClick = { showAddMenu = false; addTimerIsPomo = false; showAddTimer = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Pomodoro") },
-                        onClick = { showAddMenu = false; addTimerIsPomo = true; showAddTimer = true }
-                    )
-                }
-            }
+            RhythmAddFab(onClick = { showAddMenu = true })
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
@@ -133,6 +121,24 @@ fun DesktopClockScreen(
                 }
             }
         }
+    }
+
+    if (showAddMenu) {
+        AddTypePickerSheet(
+            onDismiss = { showAddMenu = false },
+            options = listOf(
+                AddOption("alarm", "Alarm", Icons.Default.Alarm, "Schedule wake-up alerts"),
+                AddOption("timer", "Timer", Icons.Default.Timer, "Countdown for tasks"),
+                AddOption("pomo", "Pomodoro", Icons.Default.Coffee, "Focus/Break sessions")
+            ),
+            onOptionSelected = { id ->
+                when (id) {
+                    "alarm" -> showAddAlarm = true
+                    "timer" -> { addTimerIsPomo = false; showAddTimer = true }
+                    "pomo" -> { addTimerIsPomo = true; showAddTimer = true }
+                }
+            }
+        )
     }
 
     if (showAddAlarm) {

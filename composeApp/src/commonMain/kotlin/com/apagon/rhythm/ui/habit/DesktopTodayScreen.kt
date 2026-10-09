@@ -3,7 +3,6 @@ package com.apagon.rhythm.ui.habit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,6 +31,13 @@ import com.apagon.rhythm.ui.todos.TodoViewModel
 import com.apagon.rhythm.ui.util.RhythmAddFab
 import com.apagon.rhythm.ui.util.RhythmDropdownMenu
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.Icons
+import com.apagon.rhythm.ui.components.AddTypePickerSheet
+import com.apagon.rhythm.ui.components.AddOption
 
 /**
  * Stage 17e: the desktop sidebar's "Today" entry — merges what were three separate sidebar
@@ -49,8 +55,8 @@ import org.koin.compose.viewmodel.koinViewModel
  * Stage 19c: list mode previously had no persistent add affordance at all (the only way to add a
  * habit or to-do was scrolling to their inline fields) — Android's HabitListScreen.kt has a single
  * FAB opening an AddTypePickerSheet with four peer options (Habit/To-Do/Reminder/Event,
- * HabitListScreen.kt:668-707). Desktop has no bottom-sheet UX for the *type* picker, so that part
- * stays a RhythmDropdownMenu off the FAB. What opens after picking a type is a real sheet for all
+ * HabitListScreen.kt:668-707). The type picker is the same AddTypePickerSheet (a
+ * dropdown until 2026-10-09). What opens after picking a type is a real sheet for all
  * four now: Habit/To-do open [DesktopAddHabitSheet]/[DesktopAddTodoSheet] (full field coverage —
  * schedule/color/icon/checklist/reminder for habits, icon/due-date/priority for to-dos — replacing
  * the name-only `RhythmAlertDialog`s this screen used through Stage 19h). Reminder/Event reuse the
@@ -93,27 +99,7 @@ fun DesktopTodayScreen(
         },
         floatingActionButton = {
             if (!calendarMode) {
-                Box {
-                    RhythmAddFab(onClick = { showAddMenu = true })
-                    RhythmDropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Habit") },
-                            onClick = { showAddMenu = false; showAddHabitDialog = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("To-do") },
-                            onClick = { showAddMenu = false; showAddTodoDialog = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Reminder") },
-                            onClick = { showAddMenu = false; showAddReminder = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Event") },
-                            onClick = { showAddMenu = false; showAddEventSheet = true }
-                        )
-                    }
-                }
+                RhythmAddFab(onClick = { showAddMenu = true })
             }
         }
     ) { padding ->
@@ -124,6 +110,26 @@ fun DesktopTodayScreen(
                 DesktopTodayListContent()
             }
         }
+    }
+
+    if (showAddMenu) {
+        AddTypePickerSheet(
+            onDismiss = { showAddMenu = false },
+            options = listOf(
+                AddOption("habit", "Habit", Icons.Default.Add, "Set goals and build routines"),
+                AddOption("todo", "To-Do", Icons.Default.CheckCircle, "Quick tasks and lists"),
+                AddOption("reminder", "Reminder", Icons.Default.AccessTime, "One-time alerts"),
+                AddOption("event", "Event", Icons.Default.Event, "Calendar appointments")
+            ),
+            onOptionSelected = { id ->
+                when (id) {
+                    "habit" -> showAddHabitDialog = true
+                    "todo" -> showAddTodoDialog = true
+                    "reminder" -> showAddReminder = true
+                    "event" -> showAddEventSheet = true
+                }
+            }
+        )
     }
 
     if (showAddHabitDialog) {

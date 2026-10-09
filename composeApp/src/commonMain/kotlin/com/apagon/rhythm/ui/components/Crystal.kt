@@ -672,13 +672,16 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
     MaterialTheme(colorScheme = windowScheme) {
         Box {
             if (paintField && !isSolidField) {
+                // matchParentSize, as on Android: the field covers the window's content and never
+                // sizes it. fillMaxSize made every content-height sheet (the add picker) fill the
+                // whole app window.
                 Box(
-                    Modifier.fillMaxSize()
+                    Modifier.matchParentSize()
                         .let { if (field != null) glassBlur.sourceModifier(field, it) else it }
                         .drawBehind { drawCrystalMeshField(meshBase, meshBlobs, meshDark) }
                 )
             } else if (paintField && isSolidField) {
-                Box(Modifier.fillMaxSize().background(solidFieldColor()))
+                Box(Modifier.matchParentSize().background(solidFieldColor()))
             }
             CompositionLocalProvider(
                 LocalGlassBlurField provides field,
