@@ -52,9 +52,37 @@ import com.apagon.rhythm.ui.util.habitIconLibrary
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.LocalDate
+import com.apagon.rhythm.core.time.now
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.apagon.rhythm.ui.components.crystalCheckboxColors
+import com.apagon.rhythm.ui.theme.resolveDisplayColor
+import com.apagon.rhythm.ui.util.crystalFilterChipColors
+import com.apagon.rhythm.ui.util.crystalSegmentedButtonColors
+import com.apagon.rhythm.ui.util.DayCircle
+import com.apagon.rhythm.ui.util.WeekDayPicker
+import com.apagon.rhythm.ui.util.IconPickerButton
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.ui.util.EditorSection
+import com.apagon.rhythm.ui.util.FluidTextField
+import com.apagon.rhythm.ui.util.EditorialTitle
 
-private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val DURATION_UNITS = listOf("Days", "Weeks", "Months")
+private const val EVERY_WEEKDAY_MASK = 0b111_1111
 
 /**
  * Desktop equivalent of androidMain's `AddHabitSheet.kt` — full field coverage (schedule, color,
@@ -129,6 +157,7 @@ fun DesktopAddHabitSheet(
     var reminderEnabled by remember { mutableStateOf(initialReminder != null) }
     var reminderHour by remember { mutableIntStateOf(initialReminder?.first ?: 9) }
     var reminderMinute by remember { mutableIntStateOf(initialReminder?.second ?: 0) }
+    var untilEndOfYear by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
     val durationDays = run {
@@ -149,181 +178,218 @@ fun DesktopAddHabitSheet(
                 .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(if (initialHabit != null) "Edit Habit" else "New Habit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            // Android's AddHabitSheet layout: title, NAME, DESCRIPTION, then glass panels for
+            // Appearance, Reminder, Schedule and Checklist, and the glass primary button.
+            EditorialTitle(if (initialHabit != null) "Edit Habit" else "New Habit", modifier = Modifier.padding(bottom = 8.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Name") },
-                singleLine = true,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
+            FluidTextField(value = name, onValueChange = { name = it }, label = "NAME")
+            FluidTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Description") },
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
+                label = "DESCRIPTION (OPTIONAL)",
+                singleLine = false,
+                maxLines = 3
             )
 
-            // ── Schedule ──────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("SCHEDULE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HabitFrequency.entries.forEach { freq ->
-                        ChoiceChip(
-                            label = freq.name.lowercase().replaceFirstChar { it.uppercase() },
-                            selected = frequency == freq,
-                            onClick = { frequency = freq }
-                        )
-                    }
-                }
-
-                if (frequency == HabitFrequency.WEEKLY) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DAY_LABELS.forEachIndexed { index, day ->
-                            val bit = 1 shl index
-                            DayChip(
-                                label = day.take(1),
-                                selected = (weekDaysMask and bit) != 0,
-                                onClick = { weekDaysMask = weekDaysMask xor bit }
-                            )
-                        }
-                    }
-                }
-
-                if (frequency == HabitFrequency.MONTHLY) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        (0 until 31 step 7).forEach { rowStart ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                for (day in rowStart until minOf(rowStart + 7, 31)) {
-                                    val bit = 1 shl day
-                                    DayChip(
-                                        label = (day + 1).toString(),
-                                        selected = (monthDaysMask and bit) != 0,
-                                        onClick = { monthDaysMask = monthDaysMask xor bit }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Text("Goal duration (optional)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = durationAmount,
-                        onValueChange = { durationAmount = it.filter { c -> c.isDigit() } },
-                        label = { Text("Amount") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = crystalTextFieldColors(),
-                        shape = crystalTextFieldShape(),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DURATION_UNITS.forEach { unit ->
-                            ChoiceChip(label = unit, selected = durationUnit == unit, onClick = { durationUnit = unit })
-                        }
-                    }
-                }
-            }
-
-            // ── Appearance ────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("APPEARANCE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            EditorSection(label = "APPEARANCE") {
                 ColorPickerRow(
                     colorIndex = colorIndex,
                     colorArgb = colorArgb,
                     onColorSelected = { idx, argb -> colorIndex = idx; colorArgb = argb },
                     viewModel = koinViewModel()
                 )
-                HabitIconPickerRow(selectedIndex = iconIndex, onSelect = { iconIndex = it })
+                IconPickerButton(
+                    selectedIconIndex = iconIndex,
+                    accentColor = resolveDisplayColor(colorIndex, colorArgb),
+                    onIconSelected = { iconIndex = it }
+                )
             }
 
-            // ── Checklist ─────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            EditorSection(label = "REMINDER") {
+                Surface(
+                    onClick = { showTimePicker = true },
+                    shape = MaterialTheme.shapes.small,
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth().crystalControlSurface()
                 ) {
-                    Text("Checklist habit", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = isChecklist, onCheckedChange = { isChecklist = it }, colors = crystalSwitchColors())
-                }
-                if (isChecklist) {
-                    checklistItems.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = item,
-                                onValueChange = { checklistItems[index] = it },
-                                singleLine = true,
-                                colors = crystalTextFieldColors(),
-                                shape = crystalTextFieldShape(),
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(onClick = { checklistItems.removeAt(index) }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Remove step")
-                            }
-                        }
-                    }
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = newChecklistItem,
-                            onValueChange = { newChecklistItem = it },
-                            label = { Text("Add step") },
-                            singleLine = true,
-                            colors = crystalTextFieldColors(),
-                            shape = crystalTextFieldShape(),
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = {
-                            if (newChecklistItem.isNotBlank()) {
-                                checklistItems.add(newChecklistItem.trim())
-                                newChecklistItem = ""
-                            }
-                        }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Add step")
-                        }
-                    }
-                }
-            }
-
-            // ── Reminder ──────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Reminder", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = reminderEnabled, onCheckedChange = { reminderEnabled = it }, colors = crystalSwitchColors())
-                }
-                if (reminderEnabled) {
-                    Row(
-                        modifier = Modifier
-                            .crystalControlSurface(shape = MaterialTheme.shapes.large)
-                            .clickable(onClick = { showTimePicker = true }),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("%02d:%02d".format(reminderHour, reminderMinute), modifier = Modifier.padding(16.dp))
+                        Icon(Icons.Filled.Alarm, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (reminderEnabled) "%02d:%02d".format(reminderHour, reminderMinute) else "Set Reminder Time",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        if (reminderEnabled) {
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                "Clear",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.clickable { reminderEnabled = false }
+                            )
+                        }
                     }
                 }
             }
 
-            Button(
+            EditorSection(label = "SCHEDULE") {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    HabitFrequency.entries.forEachIndexed { index, freq ->
+                        SegmentedButton(
+                            colors = crystalSegmentedButtonColors(),
+                            selected = frequency == freq,
+                            onClick = { frequency = freq },
+                            shape = SegmentedButtonDefaults.itemShape(index, HabitFrequency.entries.size)
+                        ) { Text(freq.name.lowercase().replaceFirstChar { it.uppercaseChar() }) }
+                    }
+                }
+                when (frequency) {
+                    HabitFrequency.WEEKLY -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Repeat on", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        WeekDayPicker(mask = weekDaysMask, onMaskChange = { weekDaysMask = it })
+                    }
+                    HabitFrequency.MONTHLY -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Repeat on days", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            (1..31).toList().chunked(6).forEach { rowDays ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                                    rowDays.forEach { day ->
+                                        val bit = 1 shl (day - 1)
+                                        DayCircle(
+                                            label = day.toString(),
+                                            selected = (monthDaysMask and bit) != 0,
+                                            onClick = { monthDaysMask = monthDaysMask xor bit },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    repeat(6 - rowDays.size) { Spacer(Modifier.weight(1f)) }
+                                }
+                            }
+                        }
+                    }
+                    HabitFrequency.DAILY -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Android: a daily habit with an empty mask repeats every day; unticking this
+                        // narrows it to chosen weekdays.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { weekDaysMask = if (weekDaysMask == 0) EVERY_WEEKDAY_MASK else 0 }
+                        ) {
+                            Checkbox(
+                                colors = crystalCheckboxColors(),
+                                checked = weekDaysMask == 0,
+                                onCheckedChange = { weekDaysMask = if (weekDaysMask == 0) EVERY_WEEKDAY_MASK else 0 }
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Repeats every day", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (weekDaysMask != 0) {
+                            Text("Repeat on", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            WeekDayPicker(mask = weekDaysMask, onMaskChange = { weekDaysMask = it })
+                        }
+                    }
+                }
+                Text("Goal Duration (optional)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().alpha(if (untilEndOfYear) 0.38f else 1f)
+                ) {
+                    FluidTextField(
+                        value = durationAmount,
+                        onValueChange = { durationAmount = it.filter { c -> c.isDigit() } },
+                        label = "AMOUNT",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(100.dp)
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                        DURATION_UNITS.forEachIndexed { index, unit ->
+                            SegmentedButton(
+                                colors = crystalSegmentedButtonColors(),
+                                selected = durationUnit == unit && !untilEndOfYear,
+                                onClick = { if (!untilEndOfYear) durationUnit = unit },
+                                shape = SegmentedButtonDefaults.itemShape(index, DURATION_UNITS.size)
+                            ) { Text(unit) }
+                        }
+                    }
+                }
+                FilterChip(
+                    colors = crystalFilterChipColors(),
+                    selected = untilEndOfYear,
+                    onClick = { untilEndOfYear = !untilEndOfYear },
+                    label = { Text("Until end of year") },
+                    leadingIcon = if (untilEndOfYear) {
+                        { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+
+            EditorSection(label = "CHECKLIST (OPTIONAL)") {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
+                        .clickable { isChecklist = !isChecklist; if (!isChecklist) checklistItems.clear() }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Break this into steps", style = MaterialTheme.typography.bodyLarge)
+                        Text("Counts as done once every step is ticked", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Switch(checked = isChecklist, onCheckedChange = null, colors = crystalSwitchColors())
+                }
+                if (isChecklist) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Subtasks", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        checklistItems.forEachIndexed { index, label ->
+                            FluidTextField(value = label, onValueChange = { checklistItems[index] = it }, label = "ITEM ${index + 1}")
+                        }
+                        val commitNewItem = {
+                            val trimmed = newChecklistItem.trim()
+                            if (trimmed.isNotEmpty()) { checklistItems.add(trimmed); newChecklistItem = "" }
+                        }
+                        FluidTextField(
+                            value = newChecklistItem,
+                            onValueChange = { newChecklistItem = it },
+                            label = "NEW SUBTASK",
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { commitNewItem() })
+                        )
+                        Surface(
+                            onClick = commitNewItem,
+                            enabled = newChecklistItem.isNotBlank(),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                val tint = if (newChecklistItem.isNotBlank()) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                Icon(Icons.Filled.Add, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text("Add item", style = MaterialTheme.typography.bodyMedium, color = tint)
+                            }
+                        }
+                    }
+                }
+            }
+
+            MomentumButton(
+                text = if (initialHabit != null) "Update Habit" else "Create Habit",
+                enabled = name.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
                 onClick = {
+                    val finalItems = (if (newChecklistItem.isNotBlank()) checklistItems + newChecklistItem.trim() else checklistItems.toList())
+                        .map { it.trim() }.filter { it.isNotEmpty() }
+                    val totalDays = if (untilEndOfYear) {
+                        val today = LocalDate.now()
+                        today.daysUntil(LocalDate(today.year, 12, 31)) + 1
+                    } else durationDays
                     onSave(
                         name,
                         description,
@@ -331,18 +397,15 @@ fun DesktopAddHabitSheet(
                         weekDaysMask,
                         monthDaysMask,
                         isChecklist,
-                        checklistItems.toList(),
+                        finalItems,
                         colorIndex,
                         colorArgb,
-                        durationDays,
+                        totalDays,
                         iconIndex,
                         if (reminderEnabled) "%02d:%02d".format(reminderHour, reminderMinute) else null
                     )
-                },
-                enabled = name.isNotBlank(),
-                colors = crystalButtonColors(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text(if (initialHabit != null) "Update Habit" else "Create Habit") }
+                }
+            )
         }
     }
 
@@ -354,6 +417,7 @@ fun DesktopAddHabitSheet(
                 TextButton(onClick = {
                     reminderHour = state.hour
                     reminderMinute = state.minute
+                    reminderEnabled = true
                     showTimePicker = false
                 }) { Text("OK") }
             },
@@ -363,71 +427,3 @@ fun DesktopAddHabitSheet(
     }
 }
 
-@Composable
-private fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .crystalChipSurface(
-                fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                else MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-            .clickable(onClick = onClick)
-    ) {
-        Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp), contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun DayChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .crystalChipSurface(
-                fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                else MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-            .clickable(onClick = onClick)
-    ) {
-        Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp).widthIn(min = 24.dp), contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun HabitIconPickerRow(selectedIndex: Int, onSelect: (Int) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Icon (optional)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(habitIconLibrary.size) { index ->
-                val (label, icon) = habitIconLibrary[index]
-                val isSelected = selectedIndex == index
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .crystalChipSurface(
-                            fill = if (isSelected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                            else MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                        .clickable { onSelect(if (isSelected) -1 else index) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = label,
-                        tint = if (isSelected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}
