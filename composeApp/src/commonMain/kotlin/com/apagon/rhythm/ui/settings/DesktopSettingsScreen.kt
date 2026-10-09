@@ -437,7 +437,7 @@ private fun AppearanceSectionContent(
                                 )
                                 Text(
                                     when (style) {
-                                        ThemeStyle.MATERIAL3 -> "The classic Rhythm look"
+                                        ThemeStyle.MATERIAL3 -> "The classic Bori look"
                                         ThemeStyle.EXPRESSIVE -> "Flat and bold, with a punchier palette"
                                         ThemeStyle.CRYSTAL -> "Frosted glass panels over a soft colour field"
                                     },
@@ -651,8 +651,8 @@ private fun LayoutSectionContent(
                 Switch(checked = runInBackground, onCheckedChange = { viewModel.setRunInBackground(it) }, colors = crystalSwitchColors())
             }
             Text(
-                "Keep Rhythm running when the window is closed, so alarms, reminders, and timers " +
-                    "can still fire. Relaunch Rhythm to bring the window back.",
+                "Keep Bori running when the window is closed, so alarms, reminders, and timers " +
+                    "can still fire. Relaunch Bori to bring the window back.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -927,7 +927,7 @@ private fun ImportPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -
 private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit) {
     SettingsSection("About") {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Rhythm", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text("Bori", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
                 Text("Privacy Policy")
             }

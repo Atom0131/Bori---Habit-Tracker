@@ -1,6 +1,8 @@
-# Rhythm (Desktop)
+# Bori (Desktop)
 
-A Kotlin Multiplatform / Compose Desktop port of [Rhythm](https://play.google.com/store/apps), an
+*Formerly Rhythm. Renamed to Bori in October 2026.*
+
+A Kotlin Multiplatform / Compose Desktop port of [Bori](https://play.google.com/store/apps/details?id=com.apagon.rhythm), an
 Android habit tracker, journal, and planner. It covers habits, to-dos, calendar events, alarms,
 timers, reminders, notes and notebooks, and journaling, and it's local-first with no backend.
 
@@ -30,29 +32,30 @@ Grab the latest `.deb` (Debian, Ubuntu, Mint, and friends) or `.rpm` (Fedora, op
 friends) from the [Releases](../../releases) page and install it the normal way:
 
 ```bash
-sudo apt install ./rhythm_<version>_amd64.deb      # Debian/Ubuntu-family
-sudo dnf install ./rhythm-<version>.x86_64.rpm      # Fedora/RHEL-family
+sudo apt install ./bori_<version>_amd64.deb      # Debian/Ubuntu-family
+sudo dnf install ./bori-<version>.x86_64.rpm      # Fedora/RHEL-family
 ```
 
 (Or just double-click it in your distro's GUI package installer.) Each package bundles its own
-Java runtime, so you don't need Java installed separately. Data is stored under `~/.rhythm`.
+Java runtime, so you don't need Java installed separately. Data is stored under `~/.bori`. An existing `~/.rhythm` from before the rename is moved there
+automatically on first launch, with a `~/.rhythm` link left behind so older photo paths still work.
 
 #### Arch / Artix (pacman)
 
-Not on the AUR yet, so there's no `yay -S rhythm`. A `PKGBUILD` is included in this repo so you can
+Not on the AUR yet, so there's no `yay -S bori`. A `PKGBUILD` is included in this repo so you can
 build and install a real pacman package yourself:
 
 ```bash
 sudo pacman -S jdk17-openjdk dpkg rpm-tools   # build-time deps (jpackage + packaging tools)
 git clone https://github.com/Atom0131/rhythm-desktop.git
 cd rhythm-desktop
-makepkg -si                                   # builds rhythm-<version>-1-x86_64.pkg.tar.zst and installs it
+makepkg -si                                   # builds bori-<version>-1-x86_64.pkg.tar.zst and installs it (replacing an installed rhythm package)
 ```
 
 (`dpkg` and `rpm-tools` aren't actually needed to *run* the app. They're only there to build the
 `.deb`/`.rpm` targets elsewhere in this same Gradle config, which `makepkg` shells out to, so it's
 harmless to have them installed either way.) Once this `PKGBUILD` gets published to the AUR,
-`yay -S rhythm` will work directly. Until then, building it yourself with `makepkg -si` is the
+`yay -S bori` will work directly. Until then, building it yourself with `makepkg -si` is the
 pacman-native path.
 
 ### Build from source
@@ -85,8 +88,8 @@ address and tapping Sync. Two desktop instances can also sync with each other fo
 launching each with its own data directory and port:
 
 ```bash
-java -Drhythm.home=/path/to/device-a -Drhythm.syncPort=47890 -jar ...
-java -Drhythm.home=/path/to/device-b -Drhythm.syncPort=47891 -jar ...
+java -Dbori.home=/path/to/device-a -Dbori.syncPort=47890 -jar ...
+java -Dbori.home=/path/to/device-b -Dbori.syncPort=47891 -jar ...
 ```
 
 ## License

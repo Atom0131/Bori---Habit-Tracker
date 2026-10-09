@@ -120,7 +120,7 @@ val desktopAppModule = module {
     // module block would otherwise make this single available to it.
     single {
         val host = findTailscaleAddress()
-        val port = System.getProperty("rhythm.syncPort")?.toIntOrNull() ?: DEFAULT_SYNC_PORT
+        val port = (System.getProperty("bori.syncPort") ?: System.getProperty("rhythm.syncPort"))?.toIntOrNull() ?: DEFAULT_SYNC_PORT
         val addressForPairing = "${host ?: "127.0.0.1"}:$port"
         val display = if (host != null) addressForPairing else "Tailscale not detected (using $addressForPairing)"
         LocalSyncAddress(display = display, addressForPairing = addressForPairing)

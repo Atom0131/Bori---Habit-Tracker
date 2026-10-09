@@ -99,6 +99,8 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.apagon.rhythm.MainKt"
+        // Lets main() set the X11 window class to "bori" (taskbar icon matching via bori.desktop).
+        jvmArgs += listOf("--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED")
 
         // First public release's installer packaging — no auto-versioning scheme exists yet,
         // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so
@@ -115,14 +117,14 @@ compose.desktop {
             // bundle the full JDK instead of a jlink-trimmed one.
             includeAllModules = true
 
-            packageName = "rhythm"
+            packageName = "bori"
             packageVersion = "1.0.0"
-            description = "Rhythm — habit tracker, journal, and planner"
+            description = "Bori — habit tracker, journal, and planner"
             copyright = "© 2026 Apagon. Licensed under Apache 2.0."
             vendor = "Apagon"
 
             linux {
-                iconFile.set(project.file("../new_icon_assets/new_app_icon_512.png"))
+                iconFile.set(project.file("../new_icon_assets/bori_app_icon_512.png"))
                 menuGroup = "Utility"
                 appCategory = "Utility"
             }

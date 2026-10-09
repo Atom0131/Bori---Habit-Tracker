@@ -75,7 +75,7 @@ fun DesktopPrivacyPolicySheet(onDismiss: () -> Unit) {
             )
 
             Text(
-                text = "Rhythm is committed to protecting your privacy. This policy explains how we handle your data.",
+                text = "Bori is committed to protecting your privacy. This policy explains how we handle your data.",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold
             )

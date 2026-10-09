@@ -62,6 +62,7 @@ import org.koin.compose.koinInject
 import org.koin.core.context.startKoin
 import rhythm.composeapp.generated.resources.Res
 import rhythm.composeapp.generated.resources.app_icon
+import rhythm.composeapp.generated.resources.tray_icon
 
 // Stage 4b checkpoint: adds the local loopback sync engine (Ktor WebSocket
 // server + client) on top of Stage 3's Habit list/add/complete screen. See
@@ -86,7 +87,7 @@ import rhythm.composeapp.generated.resources.app_icon
 private fun ensureEmojiFontInstalled() {
     if (System.getProperty("os.name")?.lowercase()?.contains("linux") != true) return
     val fontDir = java.io.File(System.getProperty("user.home"), ".local/share/fonts")
-    val fontFile = java.io.File(fontDir, "rhythm-noto-color-emoji.ttf")
+    val fontFile = java.io.File(fontDir, "bori-noto-color-emoji.ttf")
     if (fontFile.exists()) return
     runCatching {
         fontDir.mkdirs()
@@ -97,6 +98,16 @@ private fun ensureEmojiFontInstalled() {
 }
 
 fun main() {
+    // Window class "bori", so KDE/GNOME match the window to bori.desktop (StartupWMClass=bori) and
+    // show its icon in the taskbar instead of Java's Duke. AWT derives the class from the main
+    // class name otherwise. Must run before the first window exists; needs
+    // --add-opens java.desktop/sun.awt.X11 (set in build.gradle.kts), and is a harmless no-op
+    // anywhere that field isn't there.
+    runCatching {
+        val toolkit = java.awt.Toolkit.getDefaultToolkit()
+        toolkit.javaClass.getDeclaredField("awtAppClassName").apply { isAccessible = true }.set(toolkit, "bori")
+    }
+
     // Must run before any DB/Koin setup — a second launch while a "run in background" instance
     // is already alive should just signal it and exit, not open a second connection to the same
     // Room database. See DesktopSingleInstance's own doc comment for why there's no tray icon to
@@ -111,12 +122,12 @@ fun main() {
     }
 
     // -Drhythm.syncPort=<port> lets two local instances (Stage 4b's test)
-    // each bind to a distinct port on loopback; -Drhythm.home=<dir> (read in
+    // each bind to a distinct port on loopback; -Dbori.home=<dir> (read in
     // DesktopHabitDatabase.kt) gives each its own database. Stage 13: binds
     // to the real Tailscale interface IP when one is found, falling back to
     // 127.0.0.1 (never 0.0.0.0) so Stage 4b's local-loopback two-instance
     // dev workflow keeps working when Tailscale isn't installed/running.
-    val syncPort = System.getProperty("rhythm.syncPort")?.toIntOrNull() ?: DEFAULT_SYNC_PORT
+    val syncPort = (System.getProperty("bori.syncPort") ?: System.getProperty("rhythm.syncPort"))?.toIntOrNull() ?: DEFAULT_SYNC_PORT
     val bindHost = findTailscaleAddress() ?: "127.0.0.1"
     koinApp.koin.get<SyncServer>().start(bindHost = bindHost, port = syncPort)
 
@@ -193,7 +204,8 @@ fun main() {
                     exitApplication()
                 }
             },
-            title = "Rhythm",
+            title = "Bori",
+            icon = painterResource(Res.drawable.app_icon),
             state = rememberWindowState(width = 1280.dp, height = 800.dp)
         ) {
             window.minimumSize = java.awt.Dimension(960, 600)
@@ -216,12 +228,16 @@ fun main() {
         if (isTraySupported) {
             val trayState = rememberTrayState()
             Tray(
-                icon = painterResource(Res.drawable.app_icon),
+                // Its own image on purpose: KDE shows Java tray icons through its XEmbed bridge,
+                // which zooms them (the app icon came out cropped to its middle) and can't do
+                // transparency (padding showed as a grey box). So tray_icon is solid Bori blue
+                // edge to edge with the art shrunk to ~75%: the zoom only ever eats plain blue.
+                icon = painterResource(Res.drawable.tray_icon),
                 state = trayState,
-                tooltip = "Rhythm",
+                tooltip = "Bori",
                 onAction = showMainWindow,
                 menu = {
-                    Item("Show Rhythm", onClick = showMainWindow)
+                    Item("Show Bori", onClick = showMainWindow)
                     Separator()
                     Item("Quit", onClick = { exitApplication() })
                 }
@@ -249,7 +265,8 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
     activeAlert?.let { alert ->
         Window(
             onCloseRequest = { activeAlert = null },
-            title = "Rhythm Alert",
+            title = "Bori Alert",
+            icon = painterResource(Res.drawable.app_icon),
             alwaysOnTop = true,
             state = rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), width = 380.dp, height = 220.dp)
         ) {
@@ -297,7 +314,7 @@ private fun DesktopAppRoot() {
                 .padding(vertical = 12.dp, horizontal = 8.dp)
         ) {
             Text(
-                text = "Rhythm",
+                text = "Bori",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,

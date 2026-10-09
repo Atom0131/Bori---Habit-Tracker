@@ -1,8 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Rhythm
+Name=Bori
 Comment=Habit tracker, journal, and planner
-Exec=/opt/rhythm/bin/rhythm
-Icon=rhythm
+Exec=/opt/bori/bin/bori
+Icon=bori
 Categories=Utility;Office;
 Terminal=false
+StartupWMClass=bori

@@ -1,5 +1,7 @@
 package com.apagon.rhythm.data.preferences
 
+import com.apagon.rhythm.platform.AppHome
+
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -12,9 +14,7 @@ import okio.Path.Companion.toPath
 // lose Compose's collectAsState() reactivity). Same ~/.rhythm/ convention as
 // DesktopHabitDatabase.kt and DesktopSyncPreferences.kt.
 fun buildDesktopThemeDataStore(): DataStore<Preferences> {
-    val dir = System.getProperty("rhythm.home")?.let { File(it) }
-        ?: File(System.getProperty("user.home"), ".rhythm")
-    dir.mkdirs()
+    val dir = AppHome.dir
     val file = File(dir, "settings.preferences_pb")
     return PreferenceDataStoreFactory.createWithPath(
         produceFile = { file.absolutePath.toPath() }
@@ -26,9 +26,7 @@ fun buildDesktopThemeDataStore(): DataStore<Preferences> {
 // (AppModule.kt wires SecurityRepository to a distinct securityDataStore),
 // not because desktop security has different requirements.
 fun buildDesktopSecurityDataStore(): DataStore<Preferences> {
-    val dir = System.getProperty("rhythm.home")?.let { File(it) }
-        ?: File(System.getProperty("user.home"), ".rhythm")
-    dir.mkdirs()
+    val dir = AppHome.dir
     val file = File(dir, "security.preferences_pb")
     return PreferenceDataStoreFactory.createWithPath(
         produceFile = { file.absolutePath.toPath() }

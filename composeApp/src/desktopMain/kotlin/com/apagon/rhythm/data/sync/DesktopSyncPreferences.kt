@@ -1,5 +1,7 @@
 package com.apagon.rhythm.data.sync
 
+import com.apagon.rhythm.platform.AppHome
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,7 +21,7 @@ private data class SyncPrefsData(
 // worth it for two small values, so this is a plain JSON file, mirroring
 // DesktopHabitDatabase.kt's existing ~/.rhythm/ convention exactly.
 class DesktopSyncPreferences : SyncPreferences {
-    private val file = File(File(System.getProperty("user.home"), ".rhythm"), "sync_prefs.json").apply {
+    private val file = File(AppHome.dir, "sync_prefs.json").apply {
         parentFile.mkdirs()
     }
     private val json = Json { ignoreUnknownKeys = true }

@@ -13,7 +13,7 @@ import java.nio.channels.FileLock
  * GNOME 45+ by recent JDKs, entirely unsupported under Wayland), so there's nothing reliable to
  * put a "show window" menu item on.
  *
- * Instead: an OS-level exclusive file lock on `~/.rhythm/instance.lock` (same `rhythm.home`
+ * Instead: an OS-level exclusive file lock on `~/.bori/instance.lock` (same `bori.home`
  * convention `DesktopHabitDatabase.kt`/`DesktopThemeDataStore.kt` already use) identifies the
  * primary instance. A second launch that can't acquire it just touches a marker file and exits
  * immediately — no second JVM, no second DB connection, no second poller racing the first. The
@@ -21,8 +21,7 @@ import java.nio.channels.FileLock
  * `DesktopAlarmClockService`'s own tick loop already uses) and raises its window.
  */
 class DesktopSingleInstance {
-    private val dir = (System.getProperty("rhythm.home")?.let { File(it) }
-        ?: File(System.getProperty("user.home"), ".rhythm")).apply { mkdirs() }
+    private val dir = AppHome.dir
     private val lockFile = File(dir, "instance.lock")
     private val showSignalFile = File(dir, "show-window")
 

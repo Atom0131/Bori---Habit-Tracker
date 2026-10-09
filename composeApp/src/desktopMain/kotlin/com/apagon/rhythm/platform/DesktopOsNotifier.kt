@@ -23,7 +23,7 @@ class DesktopOsNotifier {
             val urgency = if (alert.kind == FiredAlertKind.REMINDER) "normal" else "critical"
             ProcessBuilder(
                 "notify-send",
-                "--app-name=Rhythm",
+                "--app-name=Bori",
                 "--urgency=$urgency",
                 alert.title,
                 alert.subtitle

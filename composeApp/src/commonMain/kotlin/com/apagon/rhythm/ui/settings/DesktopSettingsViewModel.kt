@@ -304,7 +304,7 @@ class DesktopSettingsViewModel(
     fun exportBackup(password: CharArray? = null) {
         viewModelScope.launch {
             try {
-                val path = filePicker.pickBackupExportPath("rhythm-backup.json") ?: return@launch
+                val path = filePicker.pickBackupExportPath("bori-backup.json") ?: return@launch
                 backupManager.exportToPath(path, password)
                 _backupState.value = DesktopBackupState.Success("Backup exported successfully")
             } catch (e: Exception) {

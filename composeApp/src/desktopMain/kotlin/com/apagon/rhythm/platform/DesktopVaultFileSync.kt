@@ -10,7 +10,7 @@ import java.util.Base64
  * Stage 3.5 — desktop has no Markdown-vault mirroring system of its own (unlike Android's
  * `NoteVaultRepository`), so this is a deliberately minimal, passive **receive-only** mirror:
  * incoming vault files from a paired phone are written verbatim under `~/.rhythm/vault_mirror/`
- * (or `-Drhythm.home=<dir>` in tests — same property `DesktopPhotoStorage` reads), preserving
+ * (or `-Dbori.home=<dir>` in tests — same property `DesktopPhotoStorage` reads), preserving
  * their relative path. Nothing here reads these files back into any desktop UI or feature — that
  * would be new desktop functionality outside this stage's stated scope (see the Stage 3.5 plan's
  * own scope note on preferring this over building a desktop vault feature from scratch).
@@ -22,9 +22,7 @@ import java.util.Base64
 class DesktopVaultFileSync : VaultFileSync {
 
     private fun mirrorRoot(): File {
-        val homeDir = System.getProperty("rhythm.home")?.let { File(it) }
-            ?: File(System.getProperty("user.home"), ".rhythm")
-        return File(homeDir, "vault_mirror").also { it.mkdirs() }
+        return File(AppHome.dir, "vault_mirror").also { it.mkdirs() }
     }
 
     override suspend fun exportFiles(): VaultFileSyncExport = VaultFileSyncExport(emptyList(), 0)

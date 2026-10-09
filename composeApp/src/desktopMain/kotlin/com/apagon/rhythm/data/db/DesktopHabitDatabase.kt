@@ -1,5 +1,7 @@
 package com.apagon.rhythm.data.db
 
+import com.apagon.rhythm.platform.AppHome
+
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -500,12 +502,10 @@ val DESKTOP_HABIT_MIGRATION_11_12 = object : Migration(11, 12) {
 }
 
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
-    // -Drhythm.home=<dir> overrides ~/.rhythm — lets Stage 4b's local loopback
+    // -Dbori.home=<dir> overrides ~/.bori (see AppHome) — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
     // this one machine, each pointed at its own database directory.
-    val dbDir = System.getProperty("rhythm.home")?.let { File(it) }
-        ?: File(System.getProperty("user.home"), ".rhythm")
-    dbDir.mkdirs()
+    val dbDir = AppHome.dir
     val dbFile = File(dbDir, "habit_database.db")
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())

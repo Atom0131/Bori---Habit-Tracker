@@ -17,9 +17,7 @@ class DesktopPhotoStorage : PhotoStorage {
             runCatching {
                 val source = File(sourceUri)
                 if (!source.isFile) return@runCatching null
-                val homeDir = System.getProperty("rhythm.home")?.let { File(it) }
-                    ?: File(System.getProperty("user.home"), ".rhythm")
-                val dir = File(File(homeDir, "photos"), subdirectory).also { it.mkdirs() }
+                val dir = File(File(AppHome.dir, "photos"), subdirectory).also { it.mkdirs() }
                 val dest = File(dir, "${UUID.randomUUID()}${source.extension.let { if (it.isNotEmpty()) ".$it" else ".jpg" }}")
                 source.copyTo(dest, overwrite = true)
                 dest.absolutePath
