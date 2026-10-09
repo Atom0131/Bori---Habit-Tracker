@@ -1,4 +1,4 @@
-# Bori (Desktop) <img src="docs/pr-flag-celeste.svg" height="22" alt="Puerto Rico flag, celeste" title="Bori, from Borinquen">
+# Bori (Desktop) <img src="docs/pr-flag-celeste.svg" height="22" alt="Puerto Rico flag, celeste" title="Bori, from Borikén">
 
 *Formerly Rhythm. Renamed to Bori in October 2026.*
 
