@@ -1,4 +1,4 @@
-# Bori (Desktop)
+# Bori (Desktop) <img src="docs/pr-flag-celeste.svg" height="22" alt="Puerto Rico flag, celeste" title="Bori, from Borinquen">
 
 *Formerly Rhythm. Renamed to Bori in October 2026.*
 
@@ -82,7 +82,7 @@ Fork it, branch, open a PR.
 
 ## Syncing with the Android app
 
-Sync is opt-in, peer-to-peer, and manually triggered. There's no background or cloud sync. From
+Sync is opt-in, peer-to-peer, and manually triggered. Syncing with the phone needs Bori Pro on the Android app; the desktop side is free. There's no background or cloud sync. From
 Settings → Data → Sync with Phone, pair by entering the other device's local network or Tailscale
 address and tapping Sync. Two desktop instances can also sync with each other for local testing by
 launching each with its own data directory and port:

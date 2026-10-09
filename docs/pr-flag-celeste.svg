@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+<title>Puerto Rico (celeste)</title>
+<rect y="0" width="300" height="40" fill="#ED0000"/><rect y="40" width="300" height="40" fill="#FFFFFF"/><rect y="80" width="300" height="40" fill="#ED0000"/><rect y="120" width="300" height="40" fill="#FFFFFF"/><rect y="160" width="300" height="40" fill="#ED0000"/>
+<polygon points="0,0 173.21,100.0 0,200" fill="#6CB4EE"/>
+<polygon points="57.74,62.00 66.27,88.26 93.88,88.26 71.54,104.49 80.07,130.74 57.74,114.52 35.40,130.74 43.93,104.49 21.59,88.26 49.20,88.26" fill="#FFFFFF"/>
+</svg>
