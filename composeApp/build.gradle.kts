@@ -77,6 +77,10 @@ kotlin {
             // Dispatchers.Main.immediate) throws at runtime on desktop.
             implementation(libs.kotlinx.coroutines.swing)
 
+            // Native tray icon on KDE/GNOME-with-AppIndicator (see LinuxStatusNotifierTray).
+            implementation(libs.dbus.java.core)
+            implementation(libs.dbus.java.transport)
+
             // QR pairing (Stage 13 follow-up) — pure-Java QR bit-matrix
             // generation, no Android dependency needed for encoding.
             implementation(libs.zxing.core)

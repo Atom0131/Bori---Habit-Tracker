@@ -12,6 +12,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +42,7 @@ import com.apagon.rhythm.di.desktopAppModule
 import com.apagon.rhythm.platform.AlertCenter
 import com.apagon.rhythm.platform.DesktopAlarmClockService
 import com.apagon.rhythm.platform.DesktopSingleInstance
+import com.apagon.rhythm.platform.LinuxStatusNotifierTray
 import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
 import com.apagon.rhythm.ui.alarms.DesktopAlertContent
@@ -225,7 +227,17 @@ fun main() {
         // universally implemented there); runInBackground still works without it since a second
         // launch's DesktopSingleInstance signal (wired to the same showMainWindow above) is the
         // fallback recovery path in that case.
-        if (isTraySupported) {
+        // Native StatusNotifierItem first (a real transparent, round icon on Plasma); Compose's
+        // AWT Tray only where no SNI watcher exists. See LinuxStatusNotifierTray for why.
+        val nativeTray = remember {
+            LinuxStatusNotifierTray.start(
+                title = "Bori",
+                onShow = showMainWindow,
+                onQuit = { java.awt.EventQueue.invokeLater { exitApplication() } }
+            )
+        }
+        DisposableEffect(nativeTray) { onDispose { nativeTray?.close() } }
+        if (nativeTray == null && isTraySupported) {
             val trayState = rememberTrayState()
             Tray(
                 // Its own image on purpose: KDE shows Java tray icons through its XEmbed bridge,

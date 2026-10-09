@@ -27,6 +27,7 @@ kotlinxDatetime = "0.7.1"
 kotlinxSerialization = "1.9.0"
 ktor = "3.5.2"
 zxing = "3.5.3"
+dbusJava = "5.2.2"
 zxingAndroidEmbedded = "4.3.0"
 haze = "1.5.3"
 [libraries]
@@ -88,6 +89,11 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 # Android a ready-made camera scanning activity rather than hand-building
 # CameraX + ML Kit for this one use case.
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# Native Linux tray (StatusNotifierItem over D-Bus) — pure Java, the native-unixsocket
+# transport uses the JDK's own UnixDomainSocketAddress. See LinuxStatusNotifierTray.kt.
+dbus-java-core = { group = "com.github.hypfvieh", name = "dbus-java-core", version.ref = "dbusJava" }
+dbus-java-transport = { group = "com.github.hypfvieh", name = "dbus-java-transport-native-unixsocket", version.ref = "dbusJava" }
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 
 # Crystal theme (Stage 14) — the one third-party rendering dependency, and only
