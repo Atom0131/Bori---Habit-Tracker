@@ -22,8 +22,8 @@ import javax.imageio.ImageIO
  *
  * Why not Compose's `Tray`: it is `java.awt.TrayIcon`, which speaks the old XEmbed protocol. On
  * Plasma that goes through `xembedsniproxy`, which zooms the image (the icon came out cropped to
- * its middle) and has no transparency (a round icon sat in a grey square). Talking SNI directly
- * gets a real transparent, round icon like every other app in the tray. `start` returns null when
+ * its middle) and has no transparency (a shaped icon sat in a grey square). Talking SNI directly
+ * gets a real transparent icon, the same squircle as the app and taskbar icon. `start` returns null when
  * no `org.kde.StatusNotifierWatcher` is on the bus, and the caller falls back to Compose's `Tray`.
  *
  * Two objects are exported: the item at [ITEM_PATH], and its right-click menu at [MENU_PATH] in
