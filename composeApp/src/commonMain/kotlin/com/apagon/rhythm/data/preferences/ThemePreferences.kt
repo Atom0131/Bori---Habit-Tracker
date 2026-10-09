@@ -681,8 +681,9 @@ class ThemePreferences(
      * updating, rather than every call site re-deriving its own exclusion list.
      */
     suspend fun exportPreferencesForSync(): JSONObject =
-        // The path points into this computer's storage; the picture travels separately.
-        exportPreferences().apply { remove("profilePictureUri") }
+        // The path points into this computer's storage; the picture travels separately. Purchase
+        // status and the per-category sync toggles are device-local and never sent, as on Android.
+        exportPreferences().apply { SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { remove(it) } }
 
     /**
      * [importPreferences] applied verbatim — kept as its own name (rather than calling
@@ -691,7 +692,14 @@ class ThemePreferences(
      * here without touching the unmodified backup functions above.
      */
     suspend fun importPreferencesForSync(json: JSONObject) =
-        importPreferences(json.apply { remove("profilePictureUri") })
+        importPreferences(json.apply { SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { remove(it) } })
+
+    /** Device-local preference names: never sent, and ignored if a peer sends them anyway. */
+    private val SYNC_DEVICE_LOCAL_JSON_KEYS = listOf(
+        "isPro", "isLifetimePro", "profilePictureUri",
+        "syncHabitsEnabled", "syncRemindersEnabled", "syncEventsEnabled", "syncTodosEnabled",
+        "syncClockEnabled", "syncNotesEnabled", "syncJournalEnabled", "syncPreferencesEnabled"
+    )
 
     /**
      * Records the sender's own `updatedAt`, not "now" — called by the sync engine right after
