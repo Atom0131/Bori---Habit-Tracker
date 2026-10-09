@@ -37,6 +37,23 @@ class TodoRepository constructor(
         dao.markCompleteById(todoId, now, now)
     }
 
+    /** Android's `setCompleted`: the to-do's own check carries its steps both ways (completing
+     * ticks them all, reopening clears them, or the row would sit "open with every step done"). */
+    suspend fun setCompleted(todo: Todo, completed: Boolean) {
+        val now = System.currentTimeMillis()
+        dao.update(todo.copy(isCompleted = completed, completedAt = if (completed) now else null, updatedAt = now))
+        subtaskDao.setAllSubtasksDone(todo.id, completed, now)
+    }
+
+    fun getSubtasksForLiveTodos(): Flow<List<TodoSubtask>> = subtaskDao.getSubtasksForLiveTodos()
+
+    suspend fun getSubtasksForTodo(todoId: Long): List<TodoSubtask> = subtaskDao.getSubtasksForTodoOnce(todoId)
+
+    suspend fun toggleSubtask(subtask: TodoSubtask): Boolean = subtaskDao.toggleSubtask(subtask, System.currentTimeMillis())
+
+    suspend fun replaceSubtasks(todoId: Long, drafts: List<TodoSubtask>) =
+        subtaskDao.replaceSubtasks(todoId, drafts, System.currentTimeMillis())
+
     suspend fun markTodoComplete(todo: Todo) {
         val now = System.currentTimeMillis()
         dao.update(todo.copy(isCompleted = true, completedAt = now, updatedAt = now))

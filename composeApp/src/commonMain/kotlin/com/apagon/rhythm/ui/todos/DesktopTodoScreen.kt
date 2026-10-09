@@ -49,6 +49,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.onClick
 import androidx.compose.foundation.PointerMatcher
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import com.apagon.rhythm.data.model.TodoSubtask
 
 // Stage 17e: To-dos is no longer a standalone sidebar screen — the real Android app has no
 // separate To-dos destination at all; HabitListScreen.kt (the "Today" tab) composes TodoViewModel
@@ -81,7 +85,9 @@ internal fun LazyListScope.todoSection(
     completedExpanded: Boolean,
     onToggleCompletedExpanded: () -> Unit,
     onToggle: (Todo) -> Unit,
-    onEdit: (Todo) -> Unit
+    onEdit: (Todo) -> Unit,
+    subtasksByTodo: Map<Long, List<TodoSubtask>> = emptyMap(),
+    onToggleSubtask: (TodoSubtask) -> Unit = {}
 ) {
     item(key = "todos_header") {
         CollapsibleSectionHeader(
@@ -97,7 +103,7 @@ internal fun LazyListScope.todoSection(
         item(key = "todos_empty") { SectionEmptyCard("Nothing to do here", horizontalPadding = DesktopLayout.screenPadding) }
     } else {
         items(dueToday, key = { "todo_${it.id}" }) { todo ->
-            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) })
+            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
         }
     }
 
@@ -106,7 +112,7 @@ internal fun LazyListScope.todoSection(
             SectionFoldToggle("${overdue.size} overdue", overdueExpanded, onToggleOverdueExpanded)
         }
         if (overdueExpanded) items(overdue, key = { "todo_overdue_${it.id}" }) { todo ->
-            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) })
+            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
         }
     }
 
@@ -115,7 +121,7 @@ internal fun LazyListScope.todoSection(
             SectionFoldToggle("${completed.size} done", completedExpanded, onToggleCompletedExpanded)
         }
         if (completedExpanded) items(completed, key = { "done_todo_${it.id}" }) { todo ->
-            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) })
+            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
         }
     }
 }
@@ -139,7 +145,14 @@ private fun formatTime(hour: Int, minute: Int, is24Hour: Boolean): String =
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onEdit: () -> Unit) {
+internal fun DesktopTodoRow(
+    todo: Todo,
+    onToggle: () -> Unit,
+    onEdit: () -> Unit,
+    subtasks: List<TodoSubtask> = emptyList(),
+    onToggleSubtask: (TodoSubtask) -> Unit = {}
+) {
+    var checklistExpanded by remember(todo.id) { mutableStateOf(false) }
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
     val today = remember { LocalDate.now() }
@@ -160,11 +173,16 @@ internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onEdit: () -> Unit
     val priority = TodoPriority.entries.firstOrNull { it.name == todo.priority && it != TodoPriority.NONE } ?: TodoPriority.LOW
     val monthDay = remember { DateTimeFormatter.ofPattern("MMM d") }
 
-    Row(
+    // Clicking the card unfolds its checklist when it has one (as on Android); otherwise it opens
+    // the editor. The pencil and right-click always edit.
+    Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)
             .crystalTileSurface()
-            .clickable { onEdit() }
             .onClick(matcher = PointerMatcher.mouse(PointerButton.Secondary)) { onEdit() }
+    ) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clickable { if (subtasks.isNotEmpty()) checklistExpanded = !checklistExpanded else onEdit() }
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -186,6 +204,10 @@ internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onEdit: () -> Unit
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+            if (subtasks.isNotEmpty()) {
+                Spacer(Modifier.height(2.dp))
+                SubtaskProgress(subtasks, checklistExpanded)
             }
             if (dueDate != null) {
                 Spacer(Modifier.height(2.dp))
@@ -226,5 +248,9 @@ internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onEdit: () -> Unit
         IconButton(onClick = onEdit) {
             Icon(Icons.Default.Edit, contentDescription = "Edit to-do", tint = MaterialTheme.colorScheme.primary)
         }
+    }
+    if (checklistExpanded && subtasks.isNotEmpty()) {
+        TodoChecklistBody(subtasks, todoDone = todo.isCompleted, onToggleSubtask = onToggleSubtask)
+    }
     }
 }

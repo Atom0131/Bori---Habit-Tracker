@@ -130,6 +130,7 @@ internal fun DesktopTodayListContent(
     var todosOverdueExpanded by remember { mutableStateOf(false) }
     var todosCompletedExpanded by remember { mutableStateOf(false) }
     var editingTodo by remember { mutableStateOf<Todo?>(null) }
+    val subtasksByTodo by todoViewModel.subtasksByTodo.collectAsState()
     // Stage 18: matches the phone app's HabitListScreen — its "todos" section uses the exact same
     // collapsedSections set as the habit frequency sections, seeded closed. Kept as its own flag
     // here rather than widening collapsedSections' type, since To-dos isn't a HabitFrequency.
@@ -202,7 +203,9 @@ internal fun DesktopTodayListContent(
                         completedExpanded = todosCompletedExpanded,
                         onToggleCompletedExpanded = { todosCompletedExpanded = !todosCompletedExpanded },
                         onToggle = { todoViewModel.toggleCompletion(it) },
-                        onEdit = { editingTodo = it }
+                        onEdit = { editingTodo = it },
+                        subtasksByTodo = subtasksByTodo,
+                        onToggleSubtask = { todoViewModel.toggleSubtask(it) }
                     )
                 }
             )
@@ -221,9 +224,10 @@ internal fun DesktopTodayListContent(
             DesktopAddTodoSheet(
                 onDismiss = { editingTodo = null },
                 existing = todo,
+                existingSubtasks = subtasksByTodo[todo.id].orEmpty(),
                 onDelete = { todoViewModel.deleteTodo(todo); editingTodo = null },
-                onSave = { title, note, dueDate, priority, iconIndex ->
-                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex)
+                onSave = { title, note, dueDate, priority, iconIndex, subtasks ->
+                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex, subtasks = subtasks)
                     editingTodo = null
                 }
             )

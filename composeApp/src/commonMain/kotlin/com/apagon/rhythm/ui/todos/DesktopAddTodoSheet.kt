@@ -71,13 +71,13 @@ import com.apagon.rhythm.ui.components.crystalControlColor
 import com.apagon.rhythm.ui.util.MomentumButton
 import com.apagon.rhythm.ui.util.FluidTextField
 import com.apagon.rhythm.ui.util.EditorialTitle
+import androidx.compose.runtime.LaunchedEffect
+import com.apagon.rhythm.data.model.TodoSubtask
 
 /**
  * Desktop equivalent of androidMain's `AddTodoSheet.kt` — icon, due date/time, and priority, not
- * the title-only dialog this replaces in [DesktopTodayScreen]. Subtasks are deliberately out of
- * scope: unlike habits' checklist items, this app has no `TodoSubtask` table/DAO at all yet (Android's
- * is a separate entity with its own cascading FK and parent/child nesting — a real schema addition,
- * not a UI gap), so there is nothing here for a subtask editor to call into.
+ * the title-only dialog this replaces in [DesktopTodayScreen]. The checklist is Android's
+ * CHECKLIST (OPTIONAL) block (TodoChecklistEditor).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,12 +87,15 @@ fun DesktopAddTodoSheet(
     existing: Todo? = null,
     /** Shown only when editing: the trash button beside save, behind a confirm, as on Android. */
     onDelete: (() -> Unit)? = null,
+    /** The to-do's checklist when editing; the sheet hands back the edited list on save. */
+    existingSubtasks: List<TodoSubtask> = emptyList(),
     onSave: (
         title: String,
         note: String,
         dueDate: String,
         priority: TodoPriority,
-        iconIndex: Int
+        iconIndex: Int,
+        subtasks: List<TodoSubtask>
     ) -> Unit
 ) {
     val localeFormatting = koinInject<LocaleFormatting>()
@@ -118,6 +121,9 @@ fun DesktopAddTodoSheet(
     var hour by remember { mutableIntStateOf(existingTime?.first ?: 9) }
     var minute by remember { mutableIntStateOf(existingTime?.second ?: 0) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var subtaskDrafts by remember { mutableStateOf(existingSubtasks) }
+    // The steps load asynchronously when editing, so they can arrive after the first composition.
+    LaunchedEffect(existingSubtasks) { if (subtaskDrafts.isEmpty()) subtaskDrafts = existingSubtasks }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -161,6 +167,8 @@ fun DesktopAddTodoSheet(
 
             FluidTextField(value = title, onValueChange = { title = it }, label = "TITLE")
             FluidTextField(value = note, onValueChange = { note = it }, label = "NOTE (OPTIONAL)", singleLine = false, maxLines = 3)
+
+            TodoChecklistEditor(drafts = subtaskDrafts, onDraftsChange = { subtaskDrafts = it }, todoId = existing?.id ?: 0L)
 
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("PRIORITY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -236,7 +244,7 @@ fun DesktopAddTodoSheet(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val dueDate = date.format(ISO_LOCAL_DATE) + if (hasTime) " %02d:%02d".format(hour, minute) else ""
-                        onSave(title, note, dueDate, priority, iconIndex)
+                        onSave(title, note, dueDate, priority, iconIndex, subtaskDrafts.cleanedForSave())
                     }
                 )
             }

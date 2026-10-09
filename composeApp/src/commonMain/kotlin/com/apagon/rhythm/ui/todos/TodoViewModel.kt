@@ -17,6 +17,7 @@ import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
 import com.apagon.rhythm.ui.util.toDayStartEndMillis
 import kotlinx.datetime.LocalDate
 import com.apagon.rhythm.core.time.ZoneId
+import com.apagon.rhythm.data.model.TodoSubtask
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodoViewModel constructor(
@@ -78,7 +79,23 @@ class TodoViewModel constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun addTodo(title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = 0, soundUri: String = "", vibrationPatternId: String = "default") {
+    /** Every live to-do's checklist steps, grouped by to-do, for the planner rows. */
+    val subtasksByTodo: StateFlow<Map<Long, List<TodoSubtask>>> = repository.getSubtasksForLiveTodos()
+        .map { list -> list.groupBy { it.todoId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** One to-do's steps, for pre-filling the editor. */
+    suspend fun subtasksFor(todoId: Long): List<TodoSubtask> = repository.getSubtasksForTodo(todoId)
+
+    fun toggleSubtask(subtask: TodoSubtask) {
+        viewModelScope.launch {
+            val autoCompleted = repository.toggleSubtask(subtask)
+            if (autoCompleted) scheduler.cancelTodo(subtask.todoId)
+            widgetRefresher.refreshAll()
+        }
+    }
+
+    fun addTodo(title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = 0, soundUri: String = "", vibrationPatternId: String = "default", subtasks: List<TodoSubtask> = emptyList()) {
         viewModelScope.launch {
             val todo = Todo(
                 title = title.trim(),
@@ -90,6 +107,7 @@ class TodoViewModel constructor(
                 vibrationPatternId = vibrationPatternId
             )
             val id = repository.addTodo(todo)
+            if (subtasks.isNotEmpty()) repository.replaceSubtasks(id, subtasks)
             if (dueDate.contains(" ")) {
                 scheduler.scheduleTodo(todo.copy(id = id))
             }
@@ -100,11 +118,7 @@ class TodoViewModel constructor(
     fun toggleCompletion(todo: Todo) {
         viewModelScope.launch {
             val completing = !todo.isCompleted
-            val updated = todo.copy(
-                isCompleted = completing,
-                completedAt = if (completing) System.currentTimeMillis() else null
-            )
-            repository.updateTodo(updated)
+            repository.setCompleted(todo, completing)
             if (completing) scheduler.cancelTodo(todo.id)
             widgetRefresher.refreshAll()
         }
@@ -118,7 +132,7 @@ class TodoViewModel constructor(
         }
     }
 
-    fun updateTodo(todo: Todo, title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = todo.iconIndex, soundUri: String = todo.soundUri, vibrationPatternId: String = todo.vibrationPatternId) {
+    fun updateTodo(todo: Todo, title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = todo.iconIndex, soundUri: String = todo.soundUri, vibrationPatternId: String = todo.vibrationPatternId, subtasks: List<TodoSubtask>? = null) {
         viewModelScope.launch {
             val updated = todo.copy(
                 title = title.trim(),
@@ -130,6 +144,9 @@ class TodoViewModel constructor(
                 vibrationPatternId = vibrationPatternId
             )
             repository.updateTodo(updated)
+            // After the parent write, as on Android: replaceSubtasks re-applies the completion rule.
+            // null = the caller didn't edit steps (leave them alone).
+            if (subtasks != null) repository.replaceSubtasks(todo.id, subtasks)
             scheduler.cancelTodo(todo.id)
             if (dueDate.contains(" ")) {
                 scheduler.scheduleTodo(updated)
