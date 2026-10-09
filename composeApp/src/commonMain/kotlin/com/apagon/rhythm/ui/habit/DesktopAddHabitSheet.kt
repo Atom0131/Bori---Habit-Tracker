@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.platform.LocaleFormatting
 import com.apagon.rhythm.ui.components.crystalButtonColors
@@ -50,6 +51,7 @@ import com.apagon.rhythm.ui.util.RhythmSheet
 import com.apagon.rhythm.ui.util.habitIconLibrary
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.runtime.LaunchedEffect
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val DURATION_UNITS = listOf("Days", "Weeks", "Months")
@@ -65,6 +67,9 @@ private val DURATION_UNITS = listOf("Days", "Weeks", "Months")
 @Composable
 fun DesktopAddHabitSheet(
     onDismiss: () -> Unit,
+    /** Non-null opens the sheet as "Edit Habit", pre-filled from this habit (Android's `initialHabit`). */
+    initialHabit: Habit? = null,
+    initialChecklist: List<String> = emptyList(),
     onSave: (
         name: String,
         description: String,
@@ -83,27 +88,47 @@ fun DesktopAddHabitSheet(
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
 
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    val h = initialHabit
+    val initialDurationUnit = remember(h?.durationDays) {
+        val d = h?.durationDays ?: 0
+        when {
+            d > 0 && d % 30 == 0 -> "Months"
+            d > 0 && d % 7 == 0 -> "Weeks"
+            else -> "Days"
+        }
+    }
+    val initialReminder = remember(h?.reminderTime) {
+        h?.reminderTime?.split(":")?.let { parts -> parts.getOrNull(0)?.toIntOrNull()?.let { hh -> hh to (parts.getOrNull(1)?.toIntOrNull() ?: 0) } }
+    }
 
-    var frequency by remember { mutableStateOf(HabitFrequency.DAILY) }
-    var weekDaysMask by remember { mutableIntStateOf(0) }
-    var monthDaysMask by remember { mutableIntStateOf(0) }
+    var name by remember { mutableStateOf(h?.name ?: "") }
+    var description by remember { mutableStateOf(h?.description ?: "") }
 
-    var durationAmount by remember { mutableStateOf("") }
-    var durationUnit by remember { mutableStateOf("Weeks") }
+    var frequency by remember { mutableStateOf(h?.frequency ?: HabitFrequency.DAILY) }
+    var weekDaysMask by remember { mutableIntStateOf(h?.weekDaysMask ?: 0) }
+    var monthDaysMask by remember { mutableIntStateOf(h?.monthDaysMask ?: 0) }
 
-    var colorIndex by remember { mutableIntStateOf(0) }
-    var colorArgb by remember { mutableStateOf<Int?>(null) }
-    var iconIndex by remember { mutableIntStateOf(-1) }
+    var durationAmount by remember {
+        val d = h?.durationDays ?: 0
+        mutableStateOf(if (d == 0) "" else when (initialDurationUnit) { "Months" -> "${d / 30}"; "Weeks" -> "${d / 7}"; else -> "$d" })
+    }
+    var durationUnit by remember { mutableStateOf(if (h != null) initialDurationUnit else "Weeks") }
 
-    var isChecklist by remember { mutableStateOf(false) }
+    var colorIndex by remember { mutableIntStateOf(h?.colorIndex ?: 0) }
+    var colorArgb by remember { mutableStateOf(h?.colorArgb) }
+    var iconIndex by remember { mutableIntStateOf(h?.iconIndex ?: -1) }
+
+    var isChecklist by remember { mutableStateOf(h?.isChecklist ?: false) }
     val checklistItems = remember { mutableStateListOf<String>() }
+    // The habit's items load asynchronously, so they arrive after the first composition.
+    LaunchedEffect(initialChecklist) {
+        if (checklistItems.isEmpty()) checklistItems.addAll(initialChecklist)
+    }
     var newChecklistItem by remember { mutableStateOf("") }
 
-    var reminderEnabled by remember { mutableStateOf(false) }
-    var reminderHour by remember { mutableIntStateOf(9) }
-    var reminderMinute by remember { mutableIntStateOf(0) }
+    var reminderEnabled by remember { mutableStateOf(initialReminder != null) }
+    var reminderHour by remember { mutableIntStateOf(initialReminder?.first ?: 9) }
+    var reminderMinute by remember { mutableIntStateOf(initialReminder?.second ?: 0) }
     var showTimePicker by remember { mutableStateOf(false) }
 
     val durationDays = run {
@@ -124,7 +149,7 @@ fun DesktopAddHabitSheet(
                 .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("New Habit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(if (initialHabit != null) "Edit Habit" else "New Habit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = name,
@@ -317,7 +342,7 @@ fun DesktopAddHabitSheet(
                 enabled = name.isNotBlank(),
                 colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Create Habit") }
+            ) { Text(if (initialHabit != null) "Update Habit" else "Create Habit") }
         }
     }
 

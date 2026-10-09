@@ -50,6 +50,12 @@ import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import org.koin.compose.koinInject
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.IconButton
+import com.apagon.rhythm.data.model.Todo
 
 /**
  * Desktop equivalent of androidMain's `AddTodoSheet.kt` — icon, due date/time, and priority, not
@@ -62,6 +68,10 @@ import org.koin.compose.koinInject
 @Composable
 fun DesktopAddTodoSheet(
     onDismiss: () -> Unit,
+    /** Non-null opens the sheet as "Edit To-Do", pre-filled (Android's `existing`). */
+    existing: Todo? = null,
+    /** Shown only when editing: the trash button beside save, behind a confirm, as on Android. */
+    onDelete: (() -> Unit)? = null,
     onSave: (
         title: String,
         note: String,
@@ -74,16 +84,25 @@ fun DesktopAddTodoSheet(
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
     val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
 
-    var title by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf(TodoPriority.NONE) }
-    var iconIndex by remember { mutableIntStateOf(-1) }
+    val existingDate = remember(existing) { existing?.dueDate?.takeIf { it.isNotEmpty() }?.substringBefore(" ")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } }
+    val existingTime = remember(existing) {
+        existing?.dueDate?.takeIf { it.contains(" ") }?.substringAfter(" ")?.split(":")
+            ?.let { p -> p.getOrNull(0)?.toIntOrNull()?.let { h -> h to (p.getOrNull(1)?.toIntOrNull() ?: 0) } }
+    }
 
-    var hasDueDate by remember { mutableStateOf(false) }
-    var date by remember { mutableStateOf(LocalDate.now()) }
-    var hasTime by remember { mutableStateOf(false) }
-    var hour by remember { mutableIntStateOf(9) }
-    var minute by remember { mutableIntStateOf(0) }
+    var title by remember { mutableStateOf(existing?.title ?: "") }
+    var note by remember { mutableStateOf(existing?.note ?: "") }
+    var priority by remember {
+        mutableStateOf(existing?.let { e -> TodoPriority.entries.firstOrNull { it.name == e.priority } } ?: TodoPriority.NONE)
+    }
+    var iconIndex by remember { mutableIntStateOf(existing?.iconIndex ?: -1) }
+
+    var hasDueDate by remember { mutableStateOf(existingDate != null) }
+    var date by remember { mutableStateOf(existingDate ?: LocalDate.now()) }
+    var hasTime by remember { mutableStateOf(existingTime != null) }
+    var hour by remember { mutableIntStateOf(existingTime?.first ?: 9) }
+    var minute by remember { mutableIntStateOf(existingTime?.second ?: 0) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -97,7 +116,7 @@ fun DesktopAddTodoSheet(
                 .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("New To-Do", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(if (existing != null) "Edit To-Do" else "New To-Do", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = title,
@@ -198,20 +217,42 @@ fun DesktopAddTodoSheet(
                 }
             }
 
-            Button(
-                onClick = {
-                    val dueDate = when {
-                        !hasDueDate -> ""
-                        hasTime -> "${date.format(ISO_LOCAL_DATE)} " + "%02d:%02d".format(hour, minute)
-                        else -> date.format(ISO_LOCAL_DATE)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (existing != null && onDelete != null) {
+                    IconButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.extraLarge)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete To-Do", tint = MaterialTheme.colorScheme.onErrorContainer)
                     }
-                    onSave(title, note, dueDate, priority, iconIndex)
-                },
-                enabled = title.isNotBlank(),
-                colors = crystalButtonColors(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Create To-Do") }
+                }
+                Button(
+                    onClick = {
+                        val dueDate = when {
+                            !hasDueDate -> ""
+                            hasTime -> "${date.format(ISO_LOCAL_DATE)} " + "%02d:%02d".format(hour, minute)
+                            else -> date.format(ISO_LOCAL_DATE)
+                        }
+                        onSave(title, note, dueDate, priority, iconIndex)
+                    },
+                    enabled = title.isNotBlank(),
+                    colors = crystalButtonColors(),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (existing != null) "Update To-Do" else "Create To-Do") }
+            }
         }
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        RhythmAlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete To-Do?") },
+            text = { Text("Are you sure you want to delete this to-do? It can be recovered later from Recently Deleted.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+        )
     }
 
     if (showDatePicker) {

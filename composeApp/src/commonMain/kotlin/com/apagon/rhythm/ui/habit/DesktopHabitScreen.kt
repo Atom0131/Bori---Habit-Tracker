@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.platform.ImageBitmapLoader
@@ -53,6 +54,15 @@ import com.apagon.rhythm.ui.todos.todoSection
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.runtime.key
+import com.apagon.rhythm.core.time.now
+import kotlinx.datetime.LocalDateTime
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import com.apagon.rhythm.ui.todos.DesktopAddTodoSheet
+import com.apagon.rhythm.data.model.Todo
 
 // Stage 3's minimal desktop Habit screen, extended for the layout-parity round to match the
 // phone app's organization: a greeting/streak/%-done header and Daily/Weekly/Monthly collapsible
@@ -113,8 +123,13 @@ internal fun DesktopTodayListContent(
     val dailyStreak by habitListViewModel.dailyStreak.collectAsState()
     val completionRate by habitListViewModel.completionRate.collectAsState()
 
-    val pendingTodos by todoViewModel.pendingTodos.collectAsState()
-    val completedTodos by todoViewModel.completedTodos.collectAsState()
+    // The selected day's to-dos, bucketed exactly as Android's Today does.
+    val dueTodayTodos by habitListViewModel.selectedDateTodos.collectAsState()
+    val overdueTodos by habitListViewModel.selectedDateOverdueTodos.collectAsState()
+    val completedTodos by habitListViewModel.selectedDateCompletedTodos.collectAsState()
+    var todosOverdueExpanded by remember { mutableStateOf(false) }
+    var todosCompletedExpanded by remember { mutableStateOf(false) }
+    var editingTodo by remember { mutableStateOf<Todo?>(null) }
     // Stage 18: matches the phone app's HabitListScreen — its "todos" section uses the exact same
     // collapsedSections set as the habit frequency sections, seeded closed. Kept as its own flag
     // here rather than widening collapsedSections' type, since To-dos isn't a HabitFrequency.
@@ -122,10 +137,13 @@ internal fun DesktopTodayListContent(
 
     // Seeded fully closed, matching the phone app's HabitListScreen: the planner opens with every
     // primary section closed rather than in a mix of open/closed states.
-    var collapsedSections by remember {
-        mutableStateOf(setOf(HabitFrequency.DAILY, HabitFrequency.WEEKLY, HabitFrequency.MONTHLY))
-    }
-    var expandedDoneGroups by remember { mutableStateOf(setOf<HabitFrequency>()) }
+    LaunchedEffect(selectedDate) { habitListViewModel.setSelectedDate(selectedDate) }
+
+    var habitsExpanded by remember { mutableStateOf(false) }
+    var habitsDoneExpanded by remember { mutableStateOf(false) }
+    // Android's pencil / long-press: the add-habit sheet in edit mode. Desktop had no way to edit a
+    // habit before this (2026-10-09).
+    var editingHabit by remember { mutableStateOf<Habit?>(null) }
 
     // Stage 15e: the habit list stays visible as a left column when a habit is selected, with
     // DesktopHabitDetailScreen filling a right pane instead of replacing the whole screen — lighter
@@ -150,15 +168,12 @@ internal fun DesktopTodayListContent(
                 habitsUiState = habitsUiState,
                 dailyStreak = dailyStreak,
                 completionRate = completionRate,
-                collapsedSections = collapsedSections,
-                onToggleCollapsed = { frequency ->
-                    collapsedSections = if (frequency in collapsedSections) collapsedSections - frequency else collapsedSections + frequency
-                },
-                expandedDoneGroups = expandedDoneGroups,
-                onToggleDoneExpanded = { frequency ->
-                    expandedDoneGroups = if (frequency in expandedDoneGroups) expandedDoneGroups - frequency else expandedDoneGroups + frequency
-                },
+                habitsExpanded = habitsExpanded,
+                onToggleHabitsExpanded = { habitsExpanded = !habitsExpanded },
+                habitsDoneExpanded = habitsDoneExpanded,
+                onToggleHabitsDone = { habitsDoneExpanded = !habitsDoneExpanded },
                 onSelectHabit = { selectedHabitId = it },
+                onEditHabit = { editingHabit = it },
                 remindersEventsItems = {
                     remindersSection(
                         reminders = selectedDayReminders,
@@ -177,12 +192,17 @@ internal fun DesktopTodayListContent(
                 },
                 extraItems = {
                     todoSection(
-                        pending = pendingTodos,
+                        dueToday = dueTodayTodos,
+                        overdue = overdueTodos,
                         completed = completedTodos,
                         expanded = todosExpanded,
                         onToggleExpanded = { todosExpanded = !todosExpanded },
+                        overdueExpanded = todosOverdueExpanded,
+                        onToggleOverdueExpanded = { todosOverdueExpanded = !todosOverdueExpanded },
+                        completedExpanded = todosCompletedExpanded,
+                        onToggleCompletedExpanded = { todosCompletedExpanded = !todosCompletedExpanded },
                         onToggle = { todoViewModel.toggleCompletion(it) },
-                        onDelete = { todoViewModel.deleteTodo(it) }
+                        onEdit = { editingTodo = it }
                     )
                 }
             )
@@ -193,6 +213,40 @@ internal fun DesktopTodayListContent(
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
             }
+        }
+    }
+
+    editingTodo?.let { todo ->
+        key(todo.id) {
+            DesktopAddTodoSheet(
+                onDismiss = { editingTodo = null },
+                existing = todo,
+                onDelete = { todoViewModel.deleteTodo(todo); editingTodo = null },
+                onSave = { title, note, dueDate, priority, iconIndex ->
+                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex)
+                    editingTodo = null
+                }
+            )
+        }
+    }
+
+    editingHabit?.let { habit ->
+        val items by remember(habit.id) { habitListViewModel.getItemsForHabit(habit.id) }.collectAsState(initial = emptyList())
+        // Keyed on the habit so opening a different one starts from its own values.
+        key(habit.id) {
+            DesktopAddHabitSheet(
+                onDismiss = { editingHabit = null },
+                initialHabit = habit,
+                initialChecklist = items.sortedBy { it.sortOrder }.map { it.label },
+                onSave = { name, description, frequency, weekDaysMask, monthDaysMask, isChecklist, checklistItems,
+                           colorIndex, colorArgb, durationDays, iconIndex, reminderTime ->
+                    habitListViewModel.updateHabit(
+                        habit, name, description, frequency, weekDaysMask, monthDaysMask, isChecklist, checklistItems,
+                        colorIndex, colorArgb, durationDays, iconIndex, reminderTime
+                    )
+                    editingHabit = null
+                }
+            )
         }
     }
 }
@@ -213,11 +267,12 @@ internal fun DesktopHabitList(
     habitsUiState: HabitsUiState,
     dailyStreak: Int,
     completionRate: Int,
-    collapsedSections: Set<HabitFrequency>,
-    onToggleCollapsed: (HabitFrequency) -> Unit,
-    expandedDoneGroups: Set<HabitFrequency>,
-    onToggleDoneExpanded: (HabitFrequency) -> Unit,
+    habitsExpanded: Boolean,
+    onToggleHabitsExpanded: () -> Unit,
+    habitsDoneExpanded: Boolean,
+    onToggleHabitsDone: () -> Unit,
     onSelectHabit: (Long) -> Unit,
+    onEditHabit: (Habit) -> Unit,
     remindersEventsItems: LazyListScope.() -> Unit = {},
     extraItems: LazyListScope.() -> Unit = {}
 ) {
@@ -257,32 +312,23 @@ internal fun DesktopHabitList(
             // placement (Settings -> Data Management -> "Pair with Desktop") instead of living on
             // the Today screen. See DesktopSettingsScreen.kt's DataSectionContent.
 
+            // One combined "Habits" section, as on Android (see habitFrequencySection).
             val uiState = habitsUiState
-            val anyHabits = uiState.groupedHabits.values.any { it.isNotEmpty() }
-            if (!anyHabits) {
-                item {
-                    Text(
-                        "No habits scheduled for today yet — tap + to add one.",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            } else {
-                for (frequency in listOf(HabitFrequency.DAILY, HabitFrequency.WEEKLY, HabitFrequency.MONTHLY)) {
-                    val pending = uiState.pendingGroupedHabits[frequency].orEmpty()
-                    val completed = uiState.completedHabits.filter { it.frequency == frequency }
-                    habitFrequencySection(
-                        frequency = frequency,
-                        pending = pending,
-                        completed = completed,
-                        expanded = frequency !in collapsedSections,
-                        onToggleExpanded = { onToggleCollapsed(frequency) },
-                        doneExpanded = frequency in expandedDoneGroups,
-                        onToggleDone = { onToggleDoneExpanded(frequency) },
-                        onToggleCompletion = habitListViewModel::toggleCompletion,
-                        onView = { habit -> onSelectHabit(habit.id) }
-                    )
-                }
-            }
+            habitFrequencySection(
+                sectionKey = "habits",
+                title = "Habits",
+                pending = listOf(HabitFrequency.DAILY, HabitFrequency.WEEKLY, HabitFrequency.MONTHLY)
+                    .flatMap { uiState.pendingGroupedHabits[it].orEmpty() },
+                completed = uiState.completedHabits,
+                expanded = habitsExpanded,
+                onToggleExpanded = onToggleHabitsExpanded,
+                doneExpanded = habitsDoneExpanded,
+                onToggleDone = onToggleHabitsDone,
+                onToggleCompletion = habitListViewModel::toggleCompletion,
+                onView = { habit -> onSelectHabit(habit.id) },
+                onEdit = onEditHabit,
+                isDueToday = selectedDate == LocalDate.now()
+            )
 
             remindersEventsItems()
             extraItems()
@@ -322,8 +368,16 @@ private fun HomeHeader(
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // Android's greeting (HabitListScreen's header), fixed for the session like there.
+                val greeting = remember {
+                    when (LocalDateTime.now().hour) {
+                        in 5..11 -> "Good morning"
+                        in 12..17 -> "Good afternoon"
+                        else -> "Good evening"
+                    }
+                }
                 Text(
-                    text = "Hello",
+                    text = greeting,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -352,12 +406,20 @@ private fun HomeHeader(
                     modifier = Modifier.padding(DesktopLayout.cardPadding).fillMaxHeight(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "🔥 $dailyStreak",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            Icons.Default.Whatshot,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "$dailyStreak",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     Text(
                         text = "Day streak",
                         style = MaterialTheme.typography.labelSmall,
