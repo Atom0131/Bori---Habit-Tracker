@@ -23,6 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Close
+import com.apagon.rhythm.ui.components.crystalTextFieldColors
+import com.apagon.rhythm.ui.components.crystalIconButtonSurface
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 
 /** Stage 15d: which of the two panes' selection state the right column shows, if any. */
 private sealed class JournalEditorState {
@@ -58,13 +65,23 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
     var editorState by remember { mutableStateOf<JournalEditorState>(JournalEditorState.None) }
     var showLockSettings by remember { mutableStateOf(false) }
     var showUnlockPrompt by remember { mutableStateOf(false) }
+    // As Android: entry previews are concealed by default; the eye reveals them for this visit,
+    // asking for the PIN/password first when a lock is set.
+    var revealed by remember { mutableStateOf(false) }
+    var revealAfterUnlock by remember { mutableStateOf(false) }
     var calendarExpanded by remember { mutableStateOf(false) }
 
     if (showUnlockPrompt) {
         DesktopJournalLockScreen(
             lockType = lockType,
-            onUnlock = { if (viewModel.unlock(it)) showUnlockPrompt = false },
-            onCancel = { showUnlockPrompt = false }
+            onUnlock = {
+                if (viewModel.unlock(it)) {
+                    showUnlockPrompt = false
+                    if (revealAfterUnlock) revealed = true
+                    revealAfterUnlock = false
+                }
+            },
+            onCancel = { showUnlockPrompt = false; revealAfterUnlock = false }
         )
     }
 
@@ -74,28 +91,55 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
             // just the search row + list, not the FAB below, so the FAB still pins to this pane's
             // true bottom-right corner rather than trailing the capped column's edge.
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            // Android's header: a search field with a search icon, then glass round buttons for
+            // revealing previews and the journal lock (Settings is in the sidebar on desktop).
             Row(
                 modifier = Modifier.widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
-                    .padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-                    .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                    .padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search journal...") },
+                    placeholder = { Text("Search journal...", maxLines = 1) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
-                            CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { viewModel.setSearchQuery("") }, size = 28.dp)
+                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            }
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
-                    colors = crystalBareTextFieldColors(),
+                    colors = crystalTextFieldColors(),
                     singleLine = true
                 )
                 Spacer(Modifier.width(8.dp))
-                CrystalIconButton(icon = if (lockType == LockType.NONE) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = "Journal lock", onClick = { showLockSettings = true })
+                IconButton(
+                    onClick = {
+                        when {
+                            revealed -> revealed = false
+                            isLocked -> { revealAfterUnlock = true; showUnlockPrompt = true }
+                            else -> revealed = true
+                        }
+                    },
+                    modifier = Modifier.crystalIconButtonSurface()
+                ) {
+                    Icon(
+                        if (revealed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (revealed) "Hide entry previews" else "Show entry previews",
+                        tint = if (revealed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(onClick = { showLockSettings = true }, modifier = Modifier.crystalIconButtonSurface()) {
+                    Icon(
+                        if (lockType == LockType.NONE) Icons.Default.LockOpen else Icons.Default.Lock,
+                        contentDescription = "Journal Lock Settings",
+                        tint = if (lockType == LockType.NONE) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             }
 
@@ -122,7 +166,8 @@ fun DesktopJournalScreen(viewModel: JournalViewModel = koinViewModel()) {
                             DesktopJournalEntryCard(
                                 entry = entry,
                                 habits = activeHabits,
-                                isLocked = isLocked,
+                                concealed = !revealed,
+                                locked = lockType != LockType.NONE,
                                 modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = 6.dp),
                                 onClick = {
                                     if (isLocked) showUnlockPrompt = true

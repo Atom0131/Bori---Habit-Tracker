@@ -69,6 +69,8 @@ import com.apagon.rhythm.ui.theme.crystalSurfaceAlpha
 import com.apagon.rhythm.ui.theme.crystalWindowSurfaceAlpha
 import com.apagon.rhythm.ui.theme.withTranslucentSurfaces
 import org.koin.compose.koinInject
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ChipColors
 
 // =================================================================================================
 // The Crystal component kit — Stage 14 Phase 4 port. See
@@ -747,3 +749,12 @@ fun Modifier.crystalMenuField(): Modifier {
 @ReadOnlyComposable
 fun crystalMenuContainerColor(fallback: Color): Color =
     if (isCrystal() && !isSolidField) Color.Transparent else crystalSheetColor(fallback)
+
+/** Android's chip colours for the journal card's feeling/tag/habit chips: a glass-tinted container
+ * under Crystal instead of Material's flat one. */
+@Composable
+fun crystalAssistChipColors(): ChipColors = if (isCrystal()) {
+    AssistChipDefaults.assistChipColors(containerColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest))
+} else {
+    AssistChipDefaults.assistChipColors()
+}

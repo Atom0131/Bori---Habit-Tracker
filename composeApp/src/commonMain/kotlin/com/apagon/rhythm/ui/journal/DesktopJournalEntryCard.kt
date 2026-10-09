@@ -24,14 +24,67 @@ import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlin.time.Instant
 import org.koin.compose.koinInject
+import com.apagon.rhythm.ui.components.crystalAssistChipColors
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.Icons
 
-/** Desktop port of JournalEntryCard.kt — lock badge is text ("🔒"), photo
- * thumbnails go through ImageBitmapLoader (Stage 9) instead of coil3. */
+/**
+ * Android's `RedactedJournalPreview`: grey bars roughly the shape of the hidden text. The text is
+ * never composed while concealed (not blurred, not transparent), so it can't leak into a
+ * screenshot or a screen reader; the caller passes lengths, not text.
+ */
+@Composable
+fun RedactedJournalPreview(hasTitle: Boolean, contentLength: Int, photoCount: Int) {
+    val barColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+
+    @Composable
+    fun Bar(fraction: Float, height: androidx.compose.ui.unit.Dp) {
+        Box(Modifier.fillMaxWidth(fraction).height(height).clip(RoundedCornerShape(4.dp)).background(barColor))
+    }
+
+    if (photoCount > 0) {
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(photoCount.coerceAtMost(4)) {
+                Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(barColor))
+            }
+            repeat(4 - photoCount.coerceAtMost(4)) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+    if (hasTitle) {
+        Spacer(Modifier.height(10.dp))
+        Bar(fraction = 0.55f, height = 14.dp)
+    }
+    if (contentLength > 0) {
+        val lines = ((contentLength + 39) / 40).coerceIn(1, 3)
+        Spacer(Modifier.height(if (hasTitle) 8.dp else 10.dp))
+        repeat(lines) { index ->
+            if (index > 0) Spacer(Modifier.height(6.dp))
+            val fraction = if (index == lines - 1) {
+                val remainder = contentLength % 40
+                if (remainder == 0) 0.9f else (0.35f + (remainder / 40f) * 0.55f)
+            } else 1f
+            Bar(fraction = fraction, height = 10.dp)
+        }
+    }
+    if (!hasTitle && contentLength == 0 && photoCount == 0) {
+        Spacer(Modifier.height(10.dp))
+        Bar(fraction = 0.4f, height = 10.dp)
+    }
+    Spacer(Modifier.height(4.dp))
+}
+
+/**
+ * Port of Android's `JournalEntryCard`. [concealed] (the default, as on Android) shows
+ * [RedactedJournalPreview] instead of the entry; [locked] only adds the lock glyph by the time —
+ * opening a locked entry is gated by the screen. Photos go through ImageBitmapLoader.
+ */
 @Composable
 fun DesktopJournalEntryCard(
     entry: JournalEntry,
     habits: List<Habit>,
-    isLocked: Boolean,
+    concealed: Boolean,
+    locked: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -59,26 +112,22 @@ fun DesktopJournalEntryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = time, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (isLocked) {
-                    Text("🔒", style = MaterialTheme.typography.labelSmall)
+                if (locked) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = "Locked",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
                 }
             }
 
-            if (isLocked) {
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Content locked · Tap to unlock",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
+            if (concealed) {
+                RedactedJournalPreview(
+                    hasTitle = entry.title.isNotBlank(),
+                    contentLength = entry.content.length,
+                    photoCount = photos.size
+                )
             } else {
                 if (photos.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -118,14 +167,15 @@ fun DesktopJournalEntryCard(
                         feelings.forEach { feeling ->
                             val pair = journalFeelings.firstOrNull { it.first == feeling }
                             val label = if (pair != null) "${pair.second} ${pair.first}" else feeling
-                            SuggestionChip(onClick = {}, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+                            SuggestionChip(colors = crystalAssistChipColors(), onClick = {}, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
                         }
                         tags.forEach { tag ->
-                            SuggestionChip(onClick = {}, label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) })
+                            SuggestionChip(colors = crystalAssistChipColors(), onClick = {}, label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) })
                         }
                         linkedHabit?.let { habit ->
                             val habitColor = resolveDisplayColor(habit.colorIndex, habit.colorArgb)
                             AssistChip(
+                                colors = crystalAssistChipColors(),
                                 onClick = {},
                                 label = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
