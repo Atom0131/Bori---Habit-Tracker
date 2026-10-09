@@ -55,6 +55,9 @@ class JSONObject {
 
     fun has(key: String): Boolean = map.containsKey(key)
 
+    /** Like org.json's remove: drops [key], returning its old value (or null). */
+    fun remove(key: String): Any? = map.remove(key)
+
     /** True if the key is absent OR explicitly null — matching org.json. */
     fun isNull(key: String): Boolean = map[key].let { it == null || it is JsonNull }
 

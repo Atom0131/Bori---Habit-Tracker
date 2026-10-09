@@ -9,6 +9,7 @@ import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.NoteLink
 import com.apagon.rhythm.data.model.TodoSubtask
 import com.apagon.rhythm.data.preferences.ThemePreferences
+import com.apagon.rhythm.platform.ProfileImageStore
 import com.apagon.rhythm.platform.VaultFileSync
 import com.apagon.rhythm.data.repository.AlarmRepository
 import com.apagon.rhythm.data.repository.CalendarEventRepository
@@ -59,7 +60,8 @@ class SyncEngine(
     private val journalRepository: JournalRepository,
     private val preferences: SyncPreferences,
     private val themePreferences: ThemePreferences,
-    private val vaultFileSync: VaultFileSync
+    private val vaultFileSync: VaultFileSync,
+    private val profileImageStore: ProfileImageStore
 ) {
     /**
      * Always requeried fresh against [SyncPreferences.getLastSyncedAt] — never
@@ -69,8 +71,10 @@ class SyncEngine(
      * vanish-bug.md) — the fix there was the same lesson: always re-resolve
      * from source, never trust a stale handle.
      */
-    suspend fun buildOutgoingBatch(deviceId: String): SyncBatch {
-        val since = preferences.getLastSyncedAt()
+    suspend fun buildOutgoingBatch(deviceId: String, peer: String): SyncBatch {
+        // A full sync (watermark 0) must send *everything*: rows that predate sync carry
+        // updatedAt = 0, and every query is `updatedAt > :since`, so 0 would drop them. -1 doesn't.
+        val since = preferences.getLastSyncedAt(peer).let { if (it <= 0L) -1L else it }
 
         val habits = habitRepository.getHabitsUpdatedSince(since)
         val habitDtos = habits.map { habit ->
@@ -149,7 +153,8 @@ class SyncEngine(
         val preferencesDto = if (preferencesUpdatedAt > since) {
             PreferencesDto(
                 updatedAt = preferencesUpdatedAt,
-                values = themePreferences.exportPreferencesForSync().toString()
+                values = themePreferences.exportPreferencesForSync().toString(),
+                profileImage = profileImageStore.export()
             )
         } else {
             null
@@ -521,6 +526,8 @@ class SyncEngine(
         if (incomingPreferences != null &&
             incomingPreferences.updatedAt > themePreferences.preferencesUpdatedAt.first()
         ) {
+            // Picture first; the settings import below then takes the peer's timestamp.
+            incomingPreferences.profileImage?.let { profileImageStore.import(it) }
             themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values))
             themePreferences.setPreferencesUpdatedAtFromSync(incomingPreferences.updatedAt)
             otherUpdated++
@@ -542,7 +549,11 @@ class SyncEngine(
         )
     }
 
-    suspend fun markSynced() {
-        preferences.setLastSyncedAt(System.currentTimeMillis())
+    /**
+     * Records [startedAt] — taken before the outgoing batch was built — as [peer]'s watermark, not
+     * "now", so an edit made while the round trip was in flight still goes out next time.
+     */
+    suspend fun markSynced(peer: String, startedAt: Long) {
+        preferences.setLastSyncedAt(peer, startedAt)
     }
 }

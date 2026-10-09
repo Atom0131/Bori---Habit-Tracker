@@ -31,10 +31,14 @@ class SyncServer(
                 webSocket("/sync") {
                     val incomingFrame = incoming.receive() as? Frame.Text ?: return@webSocket
                     val incomingBatch = json.decodeFromString(SyncBatch.serializer(), incomingFrame.readText())
+                    // Watermark per phone, keyed by the deviceId every batch carries — see
+                    // SyncPreferences.getLastSyncedAt.
+                    val peer = incomingBatch.deviceId
+                    val startedAt = System.currentTimeMillis()
                     syncEngine.applyIncomingBatch(incomingBatch)
-                    val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId)
+                    val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
-                    syncEngine.markSynced()
+                    syncEngine.markSynced(peer, startedAt)
                 }
             }
         }.start(wait = false)

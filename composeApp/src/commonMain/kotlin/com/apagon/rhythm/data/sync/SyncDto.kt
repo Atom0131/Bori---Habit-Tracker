@@ -655,7 +655,10 @@ fun JournalEntryDto.toEntity(localHabitId: Long?) = JournalEntry(
 @Serializable
 data class PreferencesDto(
     val updatedAt: Long,
-    val values: String
+    val values: String,
+    /** Profile picture, base64 JPEG — see ProfileImageStore. null = no information (older peer),
+     * "" = no picture. Defaulted so either side can be the older version. */
+    val profileImage: String? = null
 )
 
 // ── Vault file sync (Stage 3.5, optional, default-OFF) ──────────────────────────────────────────

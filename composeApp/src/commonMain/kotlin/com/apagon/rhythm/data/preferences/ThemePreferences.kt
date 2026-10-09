@@ -99,6 +99,12 @@ class ThemePreferences(
          * [touchPreferences]. */
         val VAULT_FILE_SYNC_ENABLED_KEY = booleanPreferencesKey("vault_file_sync_enabled")
 
+        /** Never part of the synced settings, so changing one must not stamp the timestamp. */
+        private val DEVICE_LOCAL_KEYS: Set<Preferences.Key<*>> by lazy {
+            setOf(IS_PRO_KEY, PROFILE_PICTURE_URI_KEY, RUN_IN_BACKGROUND_KEY,
+                VAULT_FILE_SYNC_ENABLED_KEY, PREFERENCES_UPDATED_AT_KEY)
+        }
+
         /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
         const val CRYSTAL_BG_NEUTRAL = -1
 
@@ -119,12 +125,24 @@ class ThemePreferences(
      * `dataStore.edit` directly, so [PREFERENCES_UPDATED_AT_KEY] can never drift out of sync with
      * an actual exportable change. Device-local-only setters (e.g. [setRunInBackground]) call
      * `dataStore.edit` directly and deliberately skip this. */
-    private suspend fun touchPreferences(block: (MutablePreferences) -> Unit) {
+    //
+    // Stamps only when a synced value actually changes (2026-10-09). It used to stamp on every call,
+    // so a brand-new desktop's untouched defaults carried a fresh timestamp and won its first sync
+    // against a phone that had been set up for weeks (the phone's Crystal theme was replaced with
+    // Material). Re-writing the same value, or touching only a [DEVICE_LOCAL_KEYS] key, now leaves
+    // the timestamp alone, so an install nobody has customised stays at 0 and never wins.
+    private suspend fun touchPreferences(forceStamp: Boolean = false, block: (MutablePreferences) -> Unit) {
         dataStore.edit { prefs ->
+            val before = syncedValues(prefs)
             block(prefs)
-            prefs[PREFERENCES_UPDATED_AT_KEY] = System.currentTimeMillis()
+            if (forceStamp || syncedValues(prefs) != before) {
+                prefs[PREFERENCES_UPDATED_AT_KEY] = System.currentTimeMillis()
+            }
         }
     }
+
+    private fun syncedValues(prefs: Preferences): Map<Preferences.Key<*>, Any> =
+        prefs.asMap().filterKeys { it !in DEVICE_LOCAL_KEYS }
 
     val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
         when (prefs[THEME_MODE_KEY]) {
@@ -503,7 +521,16 @@ class ThemePreferences(
     suspend fun setHasSeenNotesTemplateTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_NOTES_TEMPLATE_TUTORIAL_KEY] = seen } }
     suspend fun setHasSeenChecklistHabitTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_CHECKLIST_HABIT_TUTORIAL_KEY] = seen } }
     suspend fun setHasSeenSwipeGestureTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_SWIPE_GESTURE_TUTORIAL_KEY] = seen } }
+    /** The user picked or removed a picture: counts as a settings change, since the picture syncs. */
     suspend fun setProfilePictureUri(uri: String?) {
+        touchPreferences(forceStamp = true) { prefs ->
+            if (uri != null) prefs[PROFILE_PICTURE_URI_KEY] = uri
+            else prefs.remove(PROFILE_PICTURE_URI_KEY)
+        }
+    }
+
+    /** Same, without counting as a settings change — a picture received from a peer. */
+    suspend fun setProfilePictureUriQuietly(uri: String?) {
         touchPreferences { prefs ->
             if (uri != null) prefs[PROFILE_PICTURE_URI_KEY] = uri
             else prefs.remove(PROFILE_PICTURE_URI_KEY)
@@ -653,7 +680,9 @@ class ThemePreferences(
      * added to [exportPreferences] without also being added here is the one place that would need
      * updating, rather than every call site re-deriving its own exclusion list.
      */
-    suspend fun exportPreferencesForSync(): JSONObject = exportPreferences()
+    suspend fun exportPreferencesForSync(): JSONObject =
+        // The path points into this computer's storage; the picture travels separately.
+        exportPreferences().apply { remove("profilePictureUri") }
 
     /**
      * [importPreferences] applied verbatim — kept as its own name (rather than calling
@@ -661,7 +690,8 @@ class ThemePreferences(
      * [exportPreferencesForSync] at the call site, and so a future exclusion need only be added
      * here without touching the unmodified backup functions above.
      */
-    suspend fun importPreferencesForSync(json: JSONObject) = importPreferences(json)
+    suspend fun importPreferencesForSync(json: JSONObject) =
+        importPreferences(json.apply { remove("profilePictureUri") })
 
     /**
      * Records the sender's own `updatedAt`, not "now" — called by the sync engine right after

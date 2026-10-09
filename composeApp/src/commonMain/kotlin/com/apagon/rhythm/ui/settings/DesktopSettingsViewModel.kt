@@ -122,7 +122,7 @@ class DesktopSettingsViewModel(
      */
     fun forceFullResyncThenSync() {
         viewModelScope.launch {
-            syncPreferences.setLastSyncedAt(0)
+            syncPreferences.clearLastSyncedAt()
             syncNow()
         }
     }

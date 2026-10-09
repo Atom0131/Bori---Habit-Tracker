@@ -16,7 +16,9 @@ class SyncClient(
 
     /** One WebSocket round trip: send our outgoing batch, apply the peer's reply, then advance our own lastSyncedAt. */
     suspend fun syncWith(peerHost: String, port: Int): SyncResult {
-        val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId)
+        val peer = "$peerHost:$port"
+        val startedAt = System.currentTimeMillis()
+        val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
         val client = HttpClient(CIO) { install(WebSockets) }
         val result = try {
             var applied: SyncResult? = null
@@ -30,7 +32,7 @@ class SyncClient(
         } finally {
             client.close()
         }
-        syncEngine.markSynced()
+        syncEngine.markSynced(peer, startedAt)
         return result
     }
 }

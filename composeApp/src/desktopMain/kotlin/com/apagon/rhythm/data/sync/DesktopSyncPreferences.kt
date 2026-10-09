@@ -12,8 +12,10 @@ import java.io.File
 
 @Serializable
 private data class SyncPrefsData(
+    /** Pre-2026-10-09 single watermark. Still read so old files parse; no longer used. */
     val lastSyncedAt: Long = 0L,
-    val peerAddress: String? = null
+    val peerAddress: String? = null,
+    val peerWatermarks: Map<String, Long> = emptyMap()
 )
 
 // Desktop has no DataStore plumbing at all today (nothing constructs a
@@ -36,10 +38,16 @@ class DesktopSyncPreferences : SyncPreferences {
         file.writeText(json.encodeToString(SyncPrefsData.serializer(), data))
     }
 
-    override suspend fun getLastSyncedAt(): Long = read().lastSyncedAt
+    override suspend fun getLastSyncedAt(peer: String): Long =
+        read().peerWatermarks[peer.trim().lowercase()] ?: 0L
 
-    override suspend fun setLastSyncedAt(timestamp: Long) = mutex.withLock {
-        write(read().copy(lastSyncedAt = timestamp))
+    override suspend fun setLastSyncedAt(peer: String, timestamp: Long) = mutex.withLock {
+        val data = read()
+        write(data.copy(peerWatermarks = data.peerWatermarks + (peer.trim().lowercase() to timestamp)))
+    }
+
+    override suspend fun clearLastSyncedAt() = mutex.withLock {
+        write(read().copy(lastSyncedAt = 0L, peerWatermarks = emptyMap()))
     }
 
     override suspend fun getPeerAddress(): String? = read().peerAddress

@@ -36,7 +36,9 @@ import com.apagon.rhythm.platform.DesktopImageBitmapLoader
 import com.apagon.rhythm.platform.DesktopLocaleFormatting
 import com.apagon.rhythm.platform.DesktopPhotoStorage
 import com.apagon.rhythm.platform.DesktopPurchaseLauncher
+import com.apagon.rhythm.platform.DesktopProfileImageStore
 import com.apagon.rhythm.platform.DesktopQrCodeRenderer
+import com.apagon.rhythm.platform.ProfileImageStore
 import com.apagon.rhythm.platform.DesktopReminderScheduling
 import com.apagon.rhythm.platform.DesktopFilePickerService
 import com.apagon.rhythm.platform.DesktopVaultFileSync
@@ -71,11 +73,16 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-// A fresh id per process launch — good enough for Stage 4b/4c's metadata
-// (SyncBatch.deviceId isn't used for identity/dedup logic, only diagnostics),
-// so it's deliberately not persisted.
+// Persisted in AppHome (2026-10-09): stable for the life of this install, new after a wipe or
+// reinstall. The phone uses it to tell "the desktop I synced with before" from a fresh one at the
+// same address, and sends everything to a fresh one. It used to be a new random id every launch,
+// which carried no identity at all.
 @OptIn(ExperimentalUuidApi::class)
-private val desktopDeviceId = "desktop-" + Uuid.random().toString().take(8)
+private val desktopDeviceId: String by lazy {
+    val file = java.io.File(com.apagon.rhythm.platform.AppHome.dir, "device_id")
+    file.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
+        ?: ("desktop-" + Uuid.random().toString().take(8)).also { file.writeText(it) }
+}
 
 // Mirrors androidMain/di/AppModule.kt's shape but scoped to just what's been
 // ported to desktop so far: the Habit + Todo database/DAO/repositories,
@@ -110,7 +117,8 @@ val desktopAppModule = module {
     single { ReminderRepository(get()) }
     single { TimerRepository(get()) }
     single<VaultFileSync> { DesktopVaultFileSync() }
-    single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single<ProfileImageStore> { DesktopProfileImageStore(get()) }
+    single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SyncClient(get(), desktopDeviceId) }
     single { SyncServer(get(), desktopDeviceId) }
     // Stage 13: resolved once at Koin start, same lifetime as the Tailscale
