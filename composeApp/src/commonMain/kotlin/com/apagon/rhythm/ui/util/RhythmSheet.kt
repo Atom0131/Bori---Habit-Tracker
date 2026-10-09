@@ -20,6 +20,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.ui.components.CrystalWindowContent
 import com.apagon.rhythm.ui.components.isCrystal
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.focusable
 
 /**
  * Desktop adaptation of the Android original's `RhythmSheet` (`ui/util/RhythmSheet.kt`) — the one
@@ -63,9 +73,19 @@ fun RhythmSheet(
         contentColor = contentColor,
         dragHandle = null
     ) {
+        // Escape closes the sheet, the desktop's equivalent of the phone's back gesture. Preview
+        // (parent-first) so it also works while a text field inside has focus; the sheet itself
+        // takes focus on open so Escape works before anything is clicked.
+        val focusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
         CrystalWindowContent {
             Column(
                 modifier = (if (fillHeight) Modifier.fillMaxSize() else Modifier.fillMaxWidth())
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onPreviewKeyEvent { e ->
+                        if (e.key == Key.Escape && e.type == KeyEventType.KeyDown) { onDismiss(); true } else false
+                    }
                     .widthIn(max = maxWidth)
                     .align(Alignment.CenterHorizontally)
             ) {
