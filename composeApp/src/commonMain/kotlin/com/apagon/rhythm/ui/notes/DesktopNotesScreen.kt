@@ -83,7 +83,8 @@ fun DesktopNotesTab() {
             DesktopNotebookDetailScreen(
                 notebookId = state.notebookId,
                 onNavigateBack = { navState = NotesNavState.List },
-                onNavigateToNote = { noteId, notebookId, template -> navState = NotesNavState.Editor(noteId, notebookId, template) }
+                onNavigateToNote = { noteId, notebookId, template -> navState = NotesNavState.Editor(noteId, notebookId, template) },
+                onNavigateToNotebook = { navState = NotesNavState.Detail(it) }
             )
         }
         is NotesNavState.Editor -> NotesWithRail(
@@ -150,6 +151,24 @@ private fun NotebookRail(
     }
 }
 
+/** Notebooks in tree order (each followed by its children) with their depth. A notebook whose
+ * parent is missing (deleted, or private on the other device) shows at the top level. */
+private fun List<NotebookWithCount>.inTreeOrder(): List<Pair<NotebookWithCount, Int>> {
+    val ids = map { it.notebook.id }.toSet()
+    val childrenOf = groupBy { it.notebook.parentId?.takeIf { p -> p in ids } }
+    val out = mutableListOf<Pair<NotebookWithCount, Int>>()
+    val seen = mutableSetOf<Long>()
+    fun walk(parent: Long?, depth: Int) {
+        childrenOf[parent].orEmpty().forEach { item ->
+            if (seen.add(item.notebook.id)) { out += item to depth; walk(item.notebook.id, depth + 1) }
+        }
+    }
+    walk(null, 0)
+    // Anything left (a parent cycle) still gets listed rather than vanishing.
+    filter { it.notebook.id !in seen }.forEach { out += it to 0 }
+    return out
+}
+
 @Composable
 private fun LazyColumnRailItems(
     notebooks: List<NotebookWithCount>,
@@ -160,10 +179,11 @@ private fun LazyColumnRailItems(
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        items(notebooks, key = { it.notebook.id }) { item ->
+        items(notebooks.inTreeOrder(), key = { it.first.notebook.id }) { (item, depth) ->
             val isSelected = item.notebook.id == selectedNotebookId
             Row(
                 modifier = Modifier
+                    .padding(start = (depth * 16).dp)
                     .fillMaxWidth()
                     .then(
                         if (isSelected) Modifier.crystalTileSurface(fill = MaterialTheme.colorScheme.secondaryContainer)
@@ -247,7 +267,12 @@ fun DesktopNotesScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(notebooksWithCount, key = { it.notebook.id }) { item ->
+                // As Android: only top-level notebooks are peers in the grid; a nested one is reached
+                // through its parent, like a folder.
+                // Unlike Android, a notebook whose parent is gone (deleted, or private on the other
+                // device) stays reachable here instead of disappearing.
+                val presentIds = notebooksWithCount.map { it.notebook.id }.toSet()
+                items(notebooksWithCount.filter { it.notebook.parentId == null || it.notebook.parentId !in presentIds }, key = { it.notebook.id }) { item ->
                     DesktopNotebookCard(
                         notebook = item.notebook,
                         noteCount = item.count,
@@ -264,16 +289,18 @@ fun DesktopNotesScreen(
     if (showAddNotebook) {
         DesktopAddNotebookSheet(
             onDismiss = { showAddNotebook = false },
-            onSave = { name, colorIdx, argb -> viewModel.addNotebook(name, colorIdx, argb) }
+            allNotebooks = notebooksWithCount.map { it.notebook },
+            onSave = { name, colorIdx, argb, parentId -> viewModel.addNotebook(name, colorIdx, argb, parentId) }
         )
     }
 
     editingNotebook?.let { notebook ->
         DesktopAddNotebookSheet(
             initialNotebook = notebook,
+            allNotebooks = notebooksWithCount.map { it.notebook },
             onDismiss = { editingNotebook = null },
-            onSave = { name, colorIdx, argb ->
-                viewModel.updateNotebook(notebook.copy(name = name, colorIndex = colorIdx, colorArgb = argb))
+            onSave = { name, colorIdx, argb, parentId ->
+                viewModel.updateNotebook(notebook.copy(name = name, colorIndex = colorIdx, colorArgb = argb, parentId = parentId))
             }
         )
     }

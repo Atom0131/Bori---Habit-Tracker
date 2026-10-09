@@ -49,6 +49,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.apagon.rhythm.ui.util.crystalFilterChipColors
+import com.apagon.rhythm.ui.components.crystalAssistChipColors
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.CreateNewFolder
+import com.apagon.rhythm.data.model.Notebook
+import androidx.compose.ui.input.pointer.PointerButton
+import androidx.compose.foundation.onClick
+import androidx.compose.foundation.PointerMatcher
 
 /**
  * Desktop port of NotebookDetailScreen.kt. BackHandler dropped (no desktop
@@ -66,13 +74,19 @@ fun DesktopNotebookDetailScreen(
     notebookId: Long,
     viewModel: NotebookDetailViewModel = koinViewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToNote: (noteId: Long, notebookId: Long, template: String?) -> Unit
+    onNavigateToNote: (noteId: Long, notebookId: Long, template: String?) -> Unit,
+    onNavigateToNotebook: (Long) -> Unit = {},
+    notesViewModel: NotesViewModel = koinViewModel()
 ) {
     LaunchedEffect(notebookId) { viewModel.setNotebookId(notebookId) }
 
     val notebook by viewModel.notebook.collectAsState()
     val notes by viewModel.notes.collectAsState()
     val allTags by viewModel.allTags.collectAsState()
+    val childNotebooks by viewModel.childNotebooks.collectAsState()
+    var showAddChildNotebook by remember { mutableStateOf(false) }
+    var editingChild by remember { mutableStateOf<Notebook?>(null) }
+    var deletingChild by remember { mutableStateOf<Notebook?>(null) }
     val selectedTag by viewModel.selectedTag.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val sortMode by viewModel.sortMode.collectAsState()
@@ -137,7 +151,7 @@ fun DesktopNotebookDetailScreen(
             }
         }
     ) { innerPadding ->
-        if (notes.isEmpty() && allTags.isEmpty() && !searchExpanded) {
+        if (notes.isEmpty() && allTags.isEmpty() && childNotebooks.isEmpty() && !searchExpanded) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Text("No notes yet. Tap + to start writing.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -147,12 +161,47 @@ fun DesktopNotebookDetailScreen(
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Android's subfolder row: "Subfolder" creates a notebook inside this one, then a chip
+                // per child notebook.
+                if (!searchExpanded) {
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                            item {
+                                AssistChip(
+                                    onClick = { showAddChildNotebook = true },
+                                    leadingIcon = { Icon(Icons.Default.CreateNewFolder, contentDescription = "New subfolder", Modifier.size(18.dp)) },
+                                    label = { Text("Subfolder") },
+                                    colors = crystalAssistChipColors()
+                                )
+                            }
+                            items(childNotebooks, key = { it.id }) { nb ->
+                                // Right-click edits or deletes a subfolder. Android has no way to do
+                                // either once a notebook is nested (it has no card of its own).
+                                var showChildMenu by remember { mutableStateOf(false) }
+                                Box {
+                                    AssistChip(
+                                        onClick = { onNavigateToNotebook(nb.id) },
+                                        leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null, Modifier.size(18.dp)) },
+                                        label = { Text(nb.name) },
+                                        colors = crystalAssistChipColors(),
+                                        modifier = Modifier.onClick(matcher = PointerMatcher.mouse(PointerButton.Secondary)) { showChildMenu = true }
+                                    )
+                                    RhythmDropdownMenu(expanded = showChildMenu, onDismissRequest = { showChildMenu = false }) {
+                                        DropdownMenuItem(text = { Text("Edit") }, onClick = { showChildMenu = false; editingChild = nb })
+                                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showChildMenu = false; deletingChild = nb })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (allTags.isNotEmpty()) {
                     item {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
-                            item { FilterChip(selected = selectedTag == null, onClick = { viewModel.setTag(null) }, label = { Text("All") }) }
+                            item { FilterChip(selected = selectedTag == null, onClick = { viewModel.setTag(null) }, label = { Text("All") }, colors = crystalFilterChipColors()) }
                             items(allTags) { tag ->
-                                FilterChip(selected = selectedTag == tag, onClick = { viewModel.setTag(if (selectedTag == tag) null else tag) }, label = { Text(tag) })
+                                FilterChip(selected = selectedTag == tag, onClick = { viewModel.setTag(if (selectedTag == tag) null else tag) }, label = { Text(tag) }, colors = crystalFilterChipColors())
                             }
                         }
                     }
@@ -253,6 +302,38 @@ fun DesktopNotebookDetailScreen(
                 }
             }
         }
+    }
+
+    editingChild?.let { child ->
+        DesktopAddNotebookSheet(
+            initialNotebook = child,
+            allNotebooks = allNotebooks,
+            onDismiss = { editingChild = null },
+            onSave = { name, colorIdx, argb, parentId ->
+                notesViewModel.updateNotebook(child.copy(name = name, colorIndex = colorIdx, colorArgb = argb, parentId = parentId))
+            }
+        )
+    }
+
+    deletingChild?.let { child ->
+        RhythmAlertDialog(
+            onDismissRequest = { deletingChild = null },
+            title = { Text("Delete notebook?") },
+            text = { Text("\"${child.name}\" and the notes in it move to the Trash Bin, where they can be restored for 14 days.") },
+            confirmButton = {
+                TextButton(onClick = { notesViewModel.deleteNotebook(child); deletingChild = null }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { deletingChild = null }) { Text("Cancel") } }
+        )
+    }
+
+    if (showAddChildNotebook) {
+        DesktopAddNotebookSheet(
+            allNotebooks = allNotebooks,
+            defaultParentId = notebookId,
+            onDismiss = { showAddChildNotebook = false },
+            onSave = { name, colorIdx, argb, parentId -> viewModel.addNotebookWithParent(name, colorIdx, argb, parentId) }
+        )
     }
 
     if (showMoveSheet) {

@@ -38,13 +38,14 @@ class NotesViewModel constructor(
         purchaseLauncher.launchPurchase(productId)
     }
 
-    fun addNotebook(name: String, colorIndex: Int, colorArgb: Int? = null) {
+    fun addNotebook(name: String, colorIndex: Int, colorArgb: Int? = null, parentId: Long? = null) {
         viewModelScope.launch {
             repository.insertNotebook(
                 Notebook(
                     name = name,
                     colorIndex = colorIndex,
-                    colorArgb = colorArgb
+                    colorArgb = colorArgb,
+                    parentId = parentId
                 )
             )
         }

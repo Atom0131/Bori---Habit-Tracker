@@ -9,6 +9,8 @@ import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.repository.NotesRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 
 enum class NoteSort { NEWEST, OLDEST, A_TO_Z, Z_TO_A, PINNED_FIRST }
 class NotebookDetailViewModel constructor(
@@ -46,6 +48,17 @@ class NotebookDetailViewModel constructor(
 
     val allNotebooks: StateFlow<List<Notebook>> = repository.getAllNotebooks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Notebooks nested directly under this one, the subfolders reachable from here (Android). */
+    val childNotebooks: StateFlow<List<Notebook>> = combine(_notebookId.filterNotNull(), allNotebooks) { id, all ->
+        all.filter { it.parentId == id }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addNotebookWithParent(name: String, colorIndex: Int, colorArgb: Int?, parentId: Long?) {
+        viewModelScope.launch {
+            repository.insertNotebook(Notebook(name = name, colorIndex = colorIndex, colorArgb = colorArgb, parentId = parentId))
+        }
+    }
 
     val allTags: StateFlow<List<String>> = _rawNotes
         .map { list -> list.flatMap { parseTags(it.tags) }.distinct().sorted() }
