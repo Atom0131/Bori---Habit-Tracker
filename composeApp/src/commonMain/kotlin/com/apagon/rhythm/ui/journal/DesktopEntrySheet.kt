@@ -36,6 +36,9 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Add
 
 /**
  * Stage 15d: inline right-pane entry editor, not a modal overlay — the
@@ -182,11 +185,11 @@ fun DesktopEntryEditorPane(
                                 modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)),
                                 contentScale = ContentScale.Crop
                             )
-                            TextButton(
+                            IconButton(
                                 onClick = { photoUris.removeAt(index) },
                                 modifier = Modifier.align(Alignment.TopEnd).size(20.dp).background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f), CircleShape)
                             ) {
-                                Text("×", color = Color.White)
+                                Icon(Icons.Default.Close, contentDescription = "Remove photo", tint = Color.White, modifier = Modifier.size(12.dp))
                             }
                         }
                     }
@@ -201,8 +204,8 @@ fun DesktopEntryEditorPane(
                         colors = crystalTextFieldColors(),
                         shape = crystalTextFieldShape(),
                         trailingIcon = {
-                            TextButton(onClick = { if (tagInput.isNotBlank()) { tags.add(tagInput.trim()); tagInput = "" } }) {
-                                Text("+")
+                            IconButton(onClick = { if (tagInput.isNotBlank()) { tags.add(tagInput.trim()); tagInput = "" } }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add Tag")
                             }
                         }
                     )

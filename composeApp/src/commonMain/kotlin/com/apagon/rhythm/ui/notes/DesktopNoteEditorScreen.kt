@@ -52,6 +52,12 @@ import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FormatSize
 
 /**
  * Desktop port of NoteEditorScreen.kt. Photo picking goes through Stage 9's
@@ -263,7 +269,7 @@ private fun DesktopFormattingToolbar(
             VerticalDivider(modifier = Modifier.height(22.dp).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
             Box {
-                TextButton(onClick = { if (hasActiveBlock) showBlockTypeMenu = true }, enabled = hasActiveBlock) { Text("¶") }
+                IconButton(onClick = { if (hasActiveBlock) showBlockTypeMenu = true }, enabled = hasActiveBlock) { Icon(Icons.Default.FormatSize, contentDescription = "Block type", modifier = Modifier.size(20.dp)) }
                 RhythmDropdownMenu(expanded = showBlockTypeMenu, onDismissRequest = { showBlockTypeMenu = false }) {
                     listOf(
                         BlockType.TEXT to "Text", BlockType.HEADER to "Header", BlockType.QUOTE to "Quote",
@@ -546,7 +552,7 @@ private fun DesktopTagsRow(tags: List<String>, onAddTag: (String) -> Unit, onRem
         tags.forEach { tag ->
             InputChip(
                 selected = false, onClick = {}, label = { Text(tag, style = MaterialTheme.typography.labelMedium) },
-                trailingIcon = { TextButton(onClick = { onRemoveTag(tag) }) { Text("×") } }
+                trailingIcon = { IconButton(onClick = { onRemoveTag(tag) }, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Close, contentDescription = "Remove tag", modifier = Modifier.size(14.dp)) } }
             )
         }
 
@@ -580,7 +586,7 @@ private fun DesktopTagsRow(tags: List<String>, onAddTag: (String) -> Unit, onRem
 @Composable
 private fun DesktopBlockMenuButton(showMenu: Boolean, onToggle: () -> Unit, dropdownContent: @Composable () -> Unit) {
     Box {
-        TextButton(onClick = onToggle) { Text("+") }
+        IconButton(onClick = onToggle) { Icon(Icons.Default.Add, contentDescription = "Add block", modifier = Modifier.size(20.dp)) }
         dropdownContent()
     }
 }

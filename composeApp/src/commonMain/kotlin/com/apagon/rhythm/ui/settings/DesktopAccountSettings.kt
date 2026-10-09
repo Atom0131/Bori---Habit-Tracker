@@ -43,6 +43,10 @@ import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.koinInject
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 
 // Desktop counterpart to androidMain's AccountSettings.kt (Stage 11). Drops
 // CrashLogDebugCard (Android-only CrashLogger, no desktop equivalent, and
@@ -198,7 +202,7 @@ fun DesktopEditProfileSheet(
                         .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("+", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelSmall)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
                 }
             }
 

@@ -38,6 +38,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.FolderOpen
 
 /**
  * Desktop port of NotebookDetailScreen.kt. BackHandler dropped (no desktop
@@ -109,12 +119,12 @@ fun DesktopNotebookDetailScreen(
                 },
                 actions = {
                     if (isInSelectMode) {
-                        TextButton(onClick = { showMoveSheet = true; noteToMove = null }) { Text("Move") }
-                        TextButton(onClick = { showBulkTagSheet = true }) { Text("Tag") }
-                        TextButton(onClick = { showDeleteConfirm = true }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                        IconButton(onClick = { showMoveSheet = true; noteToMove = null }) { Icon(Icons.Default.FolderOpen, contentDescription = "Move selected") }
+                        IconButton(onClick = { showBulkTagSheet = true }) { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = "Tag selected") }
+                        IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error) }
                     } else if (!searchExpanded) {
                         CrystalIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = { searchExpanded = true })
-                        TextButton(onClick = { showSortSheet = true }) { Text("Sort") }
+                        IconButton(onClick = { showSortSheet = true }) { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort") }
                     }
                 },
                 colors = crystalTopAppBarColors()
@@ -330,10 +340,15 @@ private fun DesktopNoteItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isInSelectMode) {
-                            Text(if (isSelected) "●" else "○", modifier = Modifier.padding(end = 6.dp), color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = if (isSelected) "Selected" else "Not selected",
+                                modifier = Modifier.padding(end = 6.dp).size(20.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         if (note.isPinned) {
-                            Text("📌", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(end = 4.dp))
+                            Icon(Icons.Default.PushPin, contentDescription = "Pinned", modifier = Modifier.padding(end = 4.dp).size(14.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                         Text(
                             text = note.title.ifBlank { "Untitled Note" },

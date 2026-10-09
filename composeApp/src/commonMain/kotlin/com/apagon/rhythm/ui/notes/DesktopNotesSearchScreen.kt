@@ -21,6 +21,11 @@ import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import kotlin.time.Instant
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 
 /**
  * Desktop port of NotesSearchScreen.kt. Drops androidx.compose.animation's
@@ -59,7 +64,7 @@ fun DesktopNotesSearchScreen(
                 navigationIcon = { TextButton(onClick = onNavigateBack) { Text("← Back") } },
                 actions = {
                     if (query.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.setQuery("") }) { Text("×") }
+                        IconButton(onClick = { viewModel.setQuery("") }) { Icon(Icons.Default.Close, contentDescription = "Clear search") }
                     }
                 },
                 colors = crystalTopAppBarColors()

@@ -21,6 +21,12 @@ import com.apagon.rhythm.data.repository.LockType
 import com.apagon.rhythm.ui.components.crystalButtonColors
 import com.apagon.rhythm.ui.components.crystalTextFieldColors
 import com.apagon.rhythm.ui.components.crystalTextFieldShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Lock
 
 /**
  * Desktop port of JournalLockScreen.kt. Biometrics dropped entirely
@@ -40,7 +46,7 @@ fun DesktopJournalLockScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("🔒", style = MaterialTheme.typography.displayMedium)
+        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(24.dp))
         Text("Journal Locked", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
@@ -136,7 +142,7 @@ private fun DesktopKeypadButton(label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         when (label) {
-            "back" -> Text("⌫", fontSize = 24.sp)
+            "back" -> Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Delete digit", tint = MaterialTheme.colorScheme.onSurface)
             else -> Text(label, fontSize = 24.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         }
     }
