@@ -56,6 +56,21 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.IconButton
 import com.apagon.rhythm.data.model.Todo
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Surface
+import com.apagon.rhythm.ui.components.crystalControlElevation
+import com.apagon.rhythm.ui.components.crystalControlColor
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.ui.util.FluidTextField
+import com.apagon.rhythm.ui.util.EditorialTitle
 
 /**
  * Desktop equivalent of androidMain's `AddTodoSheet.kt` — icon, due date/time, and priority, not
@@ -93,11 +108,11 @@ fun DesktopAddTodoSheet(
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var note by remember { mutableStateOf(existing?.note ?: "") }
     var priority by remember {
-        mutableStateOf(existing?.let { e -> TodoPriority.entries.firstOrNull { it.name == e.priority } } ?: TodoPriority.NONE)
+        // Android has H/M/L only and reads anything else as Low.
+        mutableStateOf(existing?.let { e -> TodoPriority.entries.firstOrNull { it.name == e.priority && it != TodoPriority.NONE } } ?: TodoPriority.LOW)
     }
-    var iconIndex by remember { mutableIntStateOf(existing?.iconIndex ?: -1) }
+    var iconIndex by remember { mutableIntStateOf(existing?.iconIndex ?: 0) }
 
-    var hasDueDate by remember { mutableStateOf(existingDate != null) }
     var date by remember { mutableStateOf(existingDate ?: LocalDate.now()) }
     var hasTime by remember { mutableStateOf(existingTime != null) }
     var hour by remember { mutableIntStateOf(existingTime?.first ?: 9) }
@@ -116,129 +131,114 @@ fun DesktopAddTodoSheet(
                 .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(if (existing != null) "Edit To-Do" else "New To-Do", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            // Android's AddTodoSheet layout. As there, a to-do always has a date (today by default)
+            // and an optional alert time.
+            EditorialTitle(if (existing != null) "Edit To-Do" else "New To-Do", modifier = Modifier.padding(bottom = 8.dp))
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                singleLine = true,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = { Text("Note") },
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Icon (optional)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(todoIconList.size) { index ->
-                        val icon = todoIconList[index]
-                        val isSelected = iconIndex == index
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .crystalChipSurface(
-                                    fill = if (isSelected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest
-                                )
-                                .clickable { iconIndex = if (isSelected) -1 else index },
-                            contentAlignment = Alignment.Center
-                        ) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                items(todoIconList.size) { index ->
+                    val isSelected = index == iconIndex
+                    Surface(
+                        onClick = { iconIndex = index },
+                        shape = CircleShape,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                else crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                        shadowElevation = crystalControlElevation(if (isSelected) 4.dp else 2.dp),
+                        tonalElevation = crystalControlElevation(if (isSelected) 2.dp else 1.dp),
+                        border = if (isSelected) null else BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                icon,
+                                todoIconList[index],
                                 contentDescription = null,
-                                tint = if (isSelected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Due date", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = hasDueDate, onCheckedChange = { hasDueDate = it }, colors = crystalSwitchColors())
-                }
-                if (hasDueDate) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = { showDatePicker = true }),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(date.format(dateFmt), modifier = Modifier.padding(16.dp))
-                        }
-                        Row(
-                            modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = {
-                                hasTime = true
-                                showTimePicker = true
-                            }),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(if (hasTime) "%02d:%02d".format(hour, minute) else "Add time", modifier = Modifier.padding(16.dp))
-                        }
-                    }
-                }
-            }
+            FluidTextField(value = title, onValueChange = { title = it }, label = "TITLE")
+            FluidTextField(value = note, onValueChange = { note = it }, label = "NOTE (OPTIONAL)", singleLine = false, maxLines = 3)
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("PRIORITY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TodoPriority.entries.forEach { p ->
-                        val selected = priority == p
-                        Box(
-                            modifier = Modifier
-                                .crystalChipSurface(
-                                    fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest
-                                )
-                                .clickable { priority = p }
-                        ) {
-                            Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                                Text(
-                                    p.name.lowercase().replaceFirstChar { it.uppercase() },
-                                    color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(TodoPriority.HIGH, TodoPriority.MEDIUM, TodoPriority.LOW).forEach { p ->
+                        val priorityColor = PRIORITY_COLORS.getValue(p)
+                        val isSelected = priority == p
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { priority = p },
+                            label = {
+                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Text(p.name.take(1), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = crystalControlColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                selectedContainerColor = priorityColor.copy(alpha = 0.12f),
+                                selectedLabelColor = priorityColor,
+                                selectedLeadingIconColor = priorityColor
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.weight(1f).crystalControlSurface(),
+                    shape = MaterialTheme.shapes.small,
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (date == LocalDate.now()) "Today" else date.format(DateTimeFormatter.ofPattern("MMM d")), style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+                Surface(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.weight(1f).crystalControlSurface(),
+                    shape = MaterialTheme.shapes.small,
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (hasTime) formatClock(hour, minute, is24Hour) else "Set Alert", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (existing != null && onDelete != null) {
                     IconButton(
                         onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.extraLarge)
+                        modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.extraLarge)
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete To-Do", tint = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
-                Button(
-                    onClick = {
-                        val dueDate = when {
-                            !hasDueDate -> ""
-                            hasTime -> "${date.format(ISO_LOCAL_DATE)} " + "%02d:%02d".format(hour, minute)
-                            else -> date.format(ISO_LOCAL_DATE)
-                        }
-                        onSave(title, note, dueDate, priority, iconIndex)
-                    },
+                MomentumButton(
+                    text = if (existing != null) "Update To-Do" else "Create To-Do",
                     enabled = title.isNotBlank(),
-                    colors = crystalButtonColors(),
-                    modifier = Modifier.weight(1f)
-                ) { Text(if (existing != null) "Update To-Do" else "Create To-Do") }
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        val dueDate = date.format(ISO_LOCAL_DATE) + if (hasTime) " %02d:%02d".format(hour, minute) else ""
+                        onSave(title, note, dueDate, priority, iconIndex)
+                    }
+                )
             }
         }
     }
@@ -279,6 +279,7 @@ fun DesktopAddTodoSheet(
             confirmButton = {
                 TextButton(onClick = {
                     hour = state.hour
+                    hasTime = true
                     minute = state.minute
                     showTimePicker = false
                 }) { Text("OK") }
@@ -288,3 +289,14 @@ fun DesktopAddTodoSheet(
         )
     }
 }
+
+/** Android's `todoPriorityColors`. */
+private val PRIORITY_COLORS = mapOf(
+    TodoPriority.HIGH to Color(0xFFE53935),
+    TodoPriority.MEDIUM to Color(0xFFF57C00),
+    TodoPriority.LOW to Color(0xFF43A047)
+)
+
+private fun formatClock(hour: Int, minute: Int, is24Hour: Boolean): String =
+    if (is24Hour) "%02d:%02d".format(hour, minute)
+    else "%d:%02d %s".format(when { hour == 0 -> 12; hour > 12 -> hour - 12; else -> hour }, minute, if (hour < 12) "AM" else "PM")
