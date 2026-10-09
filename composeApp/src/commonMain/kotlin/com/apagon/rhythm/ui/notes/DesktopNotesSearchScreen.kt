@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 /**
  * Desktop port of NotesSearchScreen.kt. Drops androidx.compose.animation's
@@ -61,7 +62,7 @@ fun DesktopNotesSearchScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
-                navigationIcon = { TextButton(onClick = onNavigateBack) { Text("← Back") } },
+                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                 actions = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { viewModel.setQuery("") }) { Icon(Icons.Default.Close, contentDescription = "Clear search") }

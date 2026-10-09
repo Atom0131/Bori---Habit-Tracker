@@ -21,6 +21,10 @@ import com.apagon.rhythm.ui.components.crystalScaffoldContentColor
 import com.apagon.rhythm.ui.components.crystalTopAppBarColors
 import com.apagon.rhythm.ui.stats.DesktopHabitStatsContent
 import org.koin.compose.koinInject
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.Icons
 
 /**
  * Stage 9's new minimal desktop habit-detail surface — built specifically to
@@ -51,7 +55,7 @@ fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(stat?.habit?.name ?: "") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("← Back") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                 colors = crystalTopAppBarColors()
             )
         }

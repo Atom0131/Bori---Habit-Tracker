@@ -41,6 +41,8 @@ import androidx.compose.material3.Icon
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.legibleMarkerOn
 import com.apagon.rhythm.ui.util.NotebookIcon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 /**
  * Stage 10's Notes tab entry point — a small local nav state (list ↔
@@ -136,7 +138,9 @@ private fun NotebookRail(
 
     Column(modifier = modifier.padding(vertical = 8.dp)) {
         TextButton(onClick = onExitToList, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text("← All notebooks")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("All notebooks")
         }
         LazyColumnRailItems(
             notebooks = notebooksWithCount,

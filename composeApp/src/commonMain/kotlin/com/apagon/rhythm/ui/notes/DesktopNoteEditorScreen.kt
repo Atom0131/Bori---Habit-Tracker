@@ -58,6 +58,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 /**
  * Desktop port of NoteEditorScreen.kt. Photo picking goes through Stage 9's
@@ -113,7 +114,7 @@ fun DesktopNoteEditorScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Edit Note", fontWeight = FontWeight.Bold) },
-                navigationIcon = { TextButton(onClick = { viewModel.saveNote(onNavigateBack) }) { Text("← Back") } },
+                navigationIcon = { IconButton(onClick = { viewModel.saveNote(onNavigateBack) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                 actions = {
                     TextButton(onClick = { clipboard.setText(AnnotatedString(viewModel.exportMarkdown())) }) { Text("Copy") }
                     Box {

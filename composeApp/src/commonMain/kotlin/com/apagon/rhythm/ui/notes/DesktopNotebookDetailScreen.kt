@@ -48,6 +48,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 /**
  * Desktop port of NotebookDetailScreen.kt. BackHandler dropped (no desktop
@@ -114,7 +115,7 @@ fun DesktopNotebookDetailScreen(
                     when {
                         searchExpanded -> CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { searchExpanded = false; viewModel.setSearchQuery("") })
                         isInSelectMode -> CrystalIconButton(icon = Icons.Default.Close, contentDescription = "Close", onClick = { viewModel.clearSelection() })
-                        else -> TextButton(onClick = onNavigateBack) { Text("← Back") }
+                        else -> IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                     }
                 },
                 actions = {
