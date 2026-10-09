@@ -12,6 +12,7 @@ import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
 import com.apagon.rhythm.ui.util.SectionHeaderTier
+import com.apagon.rhythm.ui.util.SectionEmptyCard
 
 /**
  * Port of Android's `eventsSection` (`ui/habit/DayDetailView.kt`) for desktop's Today list-mode —
@@ -38,12 +39,7 @@ internal fun LazyListScope.eventsSection(
     if (!expanded) return
 
     if (events.isEmpty()) {
-        item(key = "events_empty") {
-            Text(
-                "No events for this day.",
-                modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-            )
-        }
+        item(key = "events_empty") { SectionEmptyCard("No events for this day.", horizontalPadding = DesktopLayout.screenPadding) }
     } else {
         items(events, key = { "today_event_${it.id}" }) { event ->
             Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)) {

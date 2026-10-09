@@ -22,11 +22,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.ui.components.crystalCardSurface
 import com.apagon.rhythm.ui.components.crystalFabContainerColor
 import com.apagon.rhythm.ui.components.crystalFabContentColor
 import com.apagon.rhythm.ui.components.crystalFabElevation
 import com.apagon.rhythm.ui.components.crystalFabSurface
 import com.apagon.rhythm.ui.components.crystalStickyHeader
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.IconButton
 
 /**
  * Port of the Android app's `PlannerMetrics` (`ui/util/SharedComposables.kt`) — a heading is wider
@@ -76,10 +84,8 @@ fun RhythmAddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * Port of the Android app's `CollapsibleSectionHeader`. Desktop has no `material-icons-extended`
- * dependency (see `DesktopJournalWeekStrip.kt`'s expand/collapse chevron), so the expand/collapse
- * affordance is a plain glyph via `Text`, matching that existing convention, rather than an
- * `Icons.Default.ExpandMore`/`ExpandLess` pair.
+ * Port of the Android app's `CollapsibleSectionHeader`, with the same `ExpandLess`/`ExpandMore`
+ * chevrons (it used ▴/▾ text glyphs until 2026-10-09, from when desktop had no icon dependency).
  */
 @Composable
 fun CollapsibleSectionHeader(
@@ -111,11 +117,50 @@ fun CollapsibleSectionHeader(
                 modifier = Modifier.weight(1f),
                 fontWeight = if (primary) FontWeight.Medium else FontWeight.Bold
             )
-            Text(
-                text = if (expanded) "▴" else "▾",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse" else "Expand",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+/**
+ * The round check the Android app uses for habits and to-dos (`HabitRowComposable`,
+ * `TodoRowComposable`): an empty circle, or a filled check circle in the accent colour. The square
+ * Material `Checkbox` the desktop used read as a different app under Crystal. Note checklists and
+ * settings options keep a square checkbox on both platforms, on purpose.
+ */
+@Composable
+fun RoundCheck(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onToggle, modifier = modifier) {
+        Icon(
+            imageVector = if (checked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            contentDescription = if (checked) "Completed" else "Not completed",
+            tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Port of the Android app's `SectionEmptyCard`: an empty planner section shows a glass card, not
+ * loose text. Under a glass heading, bare text read as nothing, so an empty section looked like
+ * its toggle did nothing.
+ */
+@Composable
+fun SectionEmptyCard(text: String, horizontalPadding: Dp = 16.dp) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding, vertical = 4.dp)
+            .crystalCardSurface()
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
+        )
     }
 }

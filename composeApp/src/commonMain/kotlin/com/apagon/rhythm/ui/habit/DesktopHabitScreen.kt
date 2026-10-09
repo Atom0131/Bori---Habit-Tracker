@@ -84,7 +84,10 @@ internal fun DesktopTodayListContent(
     val calendarSelectedDay by calendarViewModel.selectedDay.collectAsState()
     var selectedDate by remember { mutableStateOf(calendarSelectedDay ?: LocalDate.now()) }
     var weekStripExpanded by remember { mutableStateOf(false) }
-    val monthIndicatorDates by calendarViewModel.monthIndicatorDates.collectAsState()
+    // The week strip dots only days with an event or reminder, exactly like Android's Today
+    // (`HabitListScreen` passes `calendarEventDates`). It used the calendar's month indicators,
+    // which also mark every day a habit is due, so a daily habit put a dot under every day.
+    val weekStripDates by habitListViewModel.calendarEventDates.collectAsState()
 
     // Stage 19g: Reminders/Events, previously only reachable via Calendar mode's day-detail —
     // Android's Today list always shows them inline, after the habit sections and before To-dos.
@@ -141,7 +144,7 @@ internal fun DesktopTodayListContent(
                 },
                 weekStripExpanded = weekStripExpanded,
                 onToggleWeekStripExpanded = { weekStripExpanded = !weekStripExpanded },
-                weekStripIndicatorDates = monthIndicatorDates,
+                weekStripIndicatorDates = weekStripDates,
                 userName = userName,
                 profilePictureUri = profilePictureUri,
                 habitsUiState = habitsUiState,

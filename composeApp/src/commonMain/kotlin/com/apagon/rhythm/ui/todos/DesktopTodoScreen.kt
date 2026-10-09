@@ -23,6 +23,11 @@ import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
 import com.apagon.rhythm.ui.util.SectionHeaderTier
 import com.apagon.rhythm.ui.util.getDueDateAsLocalDate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import com.apagon.rhythm.ui.util.RoundCheck
 
 // Stage 17e: To-dos is no longer a standalone sidebar screen — the real Android app has no
 // separate To-dos destination at all; HabitListScreen.kt (the "Today" tab) composes TodoViewModel
@@ -81,7 +86,7 @@ internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onDelete: () -> Un
             .crystalTileSurface().padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = todo.isCompleted, onCheckedChange = { onToggle() }, colors = crystalCheckboxColors())
+        RoundCheck(checked = todo.isCompleted, onToggle = onToggle)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 todo.title,
@@ -96,6 +101,8 @@ internal fun DesktopTodoRow(todo: Todo, onToggle: () -> Unit, onDelete: () -> Un
                 )
             }
         }
-        TextButton(onClick = onDelete) { Text("Delete") }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

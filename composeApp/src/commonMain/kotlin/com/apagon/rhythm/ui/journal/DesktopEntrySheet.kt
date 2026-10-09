@@ -32,6 +32,9 @@ import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 /**
  * Stage 15d: inline right-pane entry editor, not a modal overlay — the
@@ -233,7 +236,7 @@ fun DesktopEntryEditorPane(
                                     Text("No habit linked")
                                 }
                                 Spacer(Modifier.weight(1f))
-                                Text("▾")
+                                Icon(Icons.Default.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
 

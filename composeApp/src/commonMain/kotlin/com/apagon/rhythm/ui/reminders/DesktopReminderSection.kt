@@ -13,6 +13,7 @@ import com.apagon.rhythm.ui.calendar.DesktopReminderRow
 import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
 import com.apagon.rhythm.ui.util.SectionHeaderTier
+import com.apagon.rhythm.ui.util.SectionEmptyCard
 
 /**
  * Filters a reminder list down to the ones due on [dateStr] (ISO `yyyy-MM-dd`) — the same
@@ -49,12 +50,7 @@ internal fun LazyListScope.remindersSection(
     if (!expanded) return
 
     if (reminders.isEmpty()) {
-        item(key = "reminders_empty") {
-            Text(
-                "No reminders for this day.",
-                modifier = Modifier.padding(horizontal = DesktopLayout.screenPadding, vertical = DesktopLayout.itemSpacing)
-            )
-        }
+        item(key = "reminders_empty") { SectionEmptyCard("No reminders for this day.", horizontalPadding = DesktopLayout.screenPadding) }
     } else {
         items(reminders, key = { "today_reminder_${it.id}" }) { reminder ->
             Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)) {

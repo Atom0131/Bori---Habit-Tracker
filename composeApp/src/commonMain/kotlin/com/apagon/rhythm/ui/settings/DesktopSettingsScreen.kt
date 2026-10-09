@@ -79,6 +79,10 @@ import com.apagon.rhythm.ui.theme.habitColorPalette
 import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 /** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
  * every settings card stacked one after another. "Recently Deleted" moves here from the top-level
@@ -992,10 +996,10 @@ private fun SettingsExpandableCard(
                     Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
                 }
-                Text(
-                    if (expanded) "▴" else "▾",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (expanded) {

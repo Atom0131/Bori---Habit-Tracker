@@ -23,6 +23,13 @@ import com.apagon.rhythm.ui.components.crystalSelectedChipContentColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import com.apagon.rhythm.ui.util.CrystalDayChip
 
 /**
  * Desktop port of JournalWeekStrip.kt. Structurally the same (a pager week
@@ -68,7 +75,7 @@ fun DesktopJournalWeekStrip(
             if (!expanded) {
                 TextButton(onClick = {
                     coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
-                }) { Text("‹") }
+                }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous") }
 
                 HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
                     val weekOffset = page - initialPage
@@ -88,13 +95,13 @@ fun DesktopJournalWeekStrip(
 
                 TextButton(onClick = {
                     coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                }) { Text("›") }
+                }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next") }
             } else {
                 Spacer(Modifier.weight(1f))
             }
 
             TextButton(onClick = onToggleExpanded) {
-                Text(if (expanded) "▴" else "▾")
+                Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = if (expanded) "Collapse" else "Expand")
             }
         }
 
@@ -105,7 +112,7 @@ fun DesktopJournalWeekStrip(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        TextButton(onClick = { displayedMonth = displayedMonth.minusMonths(1) }) { Text("‹") }
+                        TextButton(onClick = { displayedMonth = displayedMonth.minusMonths(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous") }
                         Text(
                             text = displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
                             style = MaterialTheme.typography.titleMedium,
@@ -113,7 +120,7 @@ fun DesktopJournalWeekStrip(
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center
                         )
-                        TextButton(onClick = { displayedMonth = displayedMonth.plusMonths(1) }) { Text("›") }
+                        TextButton(onClick = { displayedMonth = displayedMonth.plusMonths(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next") }
                         TextButton(onClick = {
                             onDateSelected(today)
                             displayedMonth = today.withDayOfMonth(1)
@@ -174,39 +181,5 @@ fun DesktopDayChip(
     showDayLabel: Boolean = true,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary) else Color.Transparent
-    val labelColor = when {
-        isSelected -> crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary)
-        isToday -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val borderModifier = if (isToday && !isSelected) {
-        Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), CircleShape)
-    } else Modifier
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .then(borderModifier)
-            .clip(CircleShape)
-            .background(bgColor)
-            .clickable(onClick = onClick)
-            .padding(vertical = if (showDayLabel) 6.dp else 8.dp)
-            .width(36.dp)
-    ) {
-        if (showDayLabel) {
-            Text(
-                text = date.dayOfWeek.getDisplayName(TextStyle.NARROW),
-                style = MaterialTheme.typography.labelSmall,
-                color = labelColor.copy(alpha = 0.8f)
-            )
-            Spacer(Modifier.height(2.dp))
-        }
-        Text(
-            text = date.dayOfMonth.toString(),
-            style = if (showDayLabel) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
-            color = labelColor,
-            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal
-        )
-    }
+    CrystalDayChip(date, isSelected, isToday, hasIndicator = false, showDayLabel = showDayLabel, onClick = onClick)
 }

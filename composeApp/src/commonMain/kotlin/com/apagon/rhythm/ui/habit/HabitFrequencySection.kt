@@ -21,8 +21,14 @@ import com.apagon.rhythm.ui.components.DesktopLayout
 import com.apagon.rhythm.ui.components.crystalCheckboxColors
 import com.apagon.rhythm.ui.components.crystalTileSurface
 import com.apagon.rhythm.ui.util.CollapsibleSectionHeader
+import com.apagon.rhythm.ui.util.RoundCheck
 import com.apagon.rhythm.ui.util.PlannerMetrics
 import com.apagon.rhythm.ui.util.SectionHeaderTier
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 /**
  * Desktop port of the Android app's `habitFrequencySection`/`SectionFoldToggle`
@@ -99,16 +105,18 @@ private fun HabitFrequency.sectionTitle(): String = when (this) {
 
 @Composable
 private fun DesktopHabitRow(habit: Habit, isDone: Boolean, onToggle: () -> Unit, onClick: () -> Unit) {
+    // The whole pill is the click target, as on Android: only the name used to be clickable, so
+    // hovering lit up a thin strip inside the card instead of the card.
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)
-            .crystalTileSurface().padding(horizontal = 8.dp, vertical = 4.dp),
+            .crystalTileSurface().clickable { onClick() }.padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = isDone, onCheckedChange = { onToggle() }, colors = crystalCheckboxColors())
+        RoundCheck(checked = isDone, onToggle = onToggle)
         Text(
             habit.name,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f).clickable { onClick() }
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -125,10 +133,11 @@ private fun SectionFoldToggle(label: String, expanded: Boolean, onToggle: () -> 
             .clickable(onClick = onToggle)
             .padding(horizontal = PlannerMetrics.RowInset, vertical = 6.dp)
     ) {
-        Text(
-            text = if (expanded) "▴" else "▾",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Icon(
+            if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(4.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

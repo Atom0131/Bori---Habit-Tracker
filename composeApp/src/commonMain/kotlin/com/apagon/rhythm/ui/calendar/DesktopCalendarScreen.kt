@@ -43,6 +43,10 @@ import com.apagon.rhythm.ui.util.RhythmAddFab
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 /**
  * Stage 8's desktop Calendar tab, Stage 17e: no longer its own sidebar screen — this is
@@ -168,7 +172,7 @@ private fun MonthHeader(month: YearMonth, onPrevious: () -> Unit, onNext: () -> 
         modifier = Modifier.fillMaxWidth()
     ) {
         TextButton(onClick = onPrevious) {
-            Text("‹", style = MaterialTheme.typography.titleLarge)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous")
         }
         Text(
             text = month.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
@@ -180,7 +184,7 @@ private fun MonthHeader(month: YearMonth, onPrevious: () -> Unit, onNext: () -> 
             modifier = Modifier.weight(1f)
         )
         TextButton(onClick = onNext) {
-            Text("›", style = MaterialTheme.typography.titleLarge)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next")
         }
     }
 }
