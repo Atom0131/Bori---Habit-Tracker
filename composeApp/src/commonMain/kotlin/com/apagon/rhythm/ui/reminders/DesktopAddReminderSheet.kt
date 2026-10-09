@@ -42,11 +42,23 @@ import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import org.koin.compose.koinInject
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import com.apagon.rhythm.ui.util.formatClockTime
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.ui.util.FluidTextField
+import com.apagon.rhythm.ui.util.EditorialTitle
 
-// Desktop counterpart to androidMain's AddReminderSheet.kt (Stage 12) — new
-// plain-M3 sheet following DesktopAddCalendarEventSheet's Date/TimePicker
-// pattern (Stage 8); the Android original pulls RingtoneManager, LocalContext,
-// and androidMain-only SharedComposables.
+// Desktop counterpart to Android's AddReminderSheet.kt, built from the same editor pieces.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesktopAddReminderSheet(
@@ -67,59 +79,59 @@ fun DesktopAddReminderSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
+    // As Android, a new reminder starts with no time chosen ("Pick Time") and can't be saved until
+    // one is.
+    var timeSet by remember { mutableStateOf(existing != null) }
+
+    // Android's AddReminderSheet layout (its sound picker is phone-only).
     RhythmSheet(onDismiss = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text(
-                if (existing == null) "New Reminder" else "Edit Reminder",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                singleLine = true,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = { Text("Note") },
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = { showDatePicker = true }),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(date.format(dateFmt), modifier = Modifier.padding(16.dp))
-                }
-                Row(
-                    modifier = Modifier.weight(1f).crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = { showTimePicker = true }),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text("%02d:%02d".format(hour, minute), modifier = Modifier.padding(16.dp))
+            EditorialTitle(if (existing != null) "Refine Reminder" else "New Reminder", modifier = Modifier.padding(bottom = 8.dp))
+            FluidTextField(value = title, onValueChange = { title = it }, label = "WHAT'S THE TASK?")
+            FluidTextField(value = note, onValueChange = { note = it }, label = "ADDITIONAL NOTES", singleLine = false, maxLines = 3)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("WHEN SHOULD WE NOTIFY YOU?", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        onClick = { showDatePicker = true },
+                        shape = MaterialTheme.shapes.small,
+                        color = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).crystalControlSurface()
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Icon(Icons.Default.CalendarToday, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (date == LocalDate.now()) "Today" else date.format(DateTimeFormatter.ofPattern("MMM d")), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                    Surface(
+                        onClick = { showTimePicker = true },
+                        shape = MaterialTheme.shapes.small,
+                        color = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).crystalControlSurface()
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Icon(Icons.Default.AccessTime, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (timeSet) formatClockTime(hour, minute, is24Hour) else "Pick Time", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                 }
             }
-
-            Button(
+            MomentumButton(
+                text = if (existing != null) "Update Reminder" else "Create Reminder",
+                enabled = title.isNotBlank() && timeSet,
+                modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val dateTime = "${date.format(ISO_LOCAL_DATE)} " + "%02d:%02d".format(hour, minute)
-                    onSave(title, note, dateTime)
-                },
-                enabled = title.isNotBlank(),
-                colors = crystalButtonColors(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Save") }
+                    onSave(title.trim(), note.trim(), dateTime)
+                }
+            )
         }
     }
 
@@ -148,6 +160,7 @@ fun DesktopAddReminderSheet(
                 TextButton(onClick = {
                     hour = state.hour
                     minute = state.minute
+                    timeSet = true
                     showTimePicker = false
                 }) { Text("OK") }
             },

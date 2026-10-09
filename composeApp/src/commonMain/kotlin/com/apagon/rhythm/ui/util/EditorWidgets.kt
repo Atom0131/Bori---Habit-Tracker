@@ -161,6 +161,30 @@ fun MomentumButton(text: String, onClick: () -> Unit, modifier: Modifier = Modif
     }
 }
 
+/** Android's `PickerSummaryCard`: the chosen time or date shown large, with an icon; opens the
+ * picker when clicked. */
+@Composable
+fun PickerSummaryCard(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.small,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.fillMaxWidth().crystalControlSurface()
+    ) {
+        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Icon(icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(12.dp))
+            Text(value, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+/** Formats a clock time the way Android's `formatTime` does. */
+fun formatClockTime(hour: Int, minute: Int, is24Hour: Boolean): String =
+    if (is24Hour) "%02d:%02d".format(hour, minute)
+    else "%d:%02d %s".format(when { hour == 0 -> 12; hour > 12 -> hour - 12; else -> hour }, minute, if (hour < 12) "AM" else "PM")
+
 /** Android's segmented-button colours (frequency, duration unit). */
 @Composable
 fun crystalSegmentedButtonColors(): SegmentedButtonColors = if (isCrystal()) {

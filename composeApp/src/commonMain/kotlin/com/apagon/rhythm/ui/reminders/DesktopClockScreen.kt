@@ -242,8 +242,8 @@ fun DesktopClockScreen(
                 timerViewModel.updateTimer(timer.id, label, durationSeconds, timer.soundUri, timer.vibrationPatternId)
                 editingTimer = null
             },
-            onSavePomo = { label, workMin, shortBreakMin, longBreakMin, sessions ->
-                timerViewModel.updatePomoTimer(timer.id, label, workMin * 60, shortBreakMin * 60, longBreakMin * 60, sessions, timer.soundUri, timer.vibrationPatternId)
+            onSavePomo = { label, workSecs, shortSecs, longSecs, sessions ->
+                timerViewModel.updatePomoTimer(timer.id, label, workSecs, shortSecs, longSecs, sessions, timer.soundUri, timer.vibrationPatternId)
                 editingTimer = null
             }
         )
@@ -267,8 +267,8 @@ fun DesktopClockScreen(
                 timerViewModel.addTimer(label, durationSeconds)
                 showAddTimer = false
             },
-            onSavePomo = { label, workMin, shortBreakMin, longBreakMin, sessions ->
-                timerViewModel.addPomoTimer(label, workMin * 60, shortBreakMin * 60, longBreakMin * 60, sessions)
+            onSavePomo = { label, workSecs, shortSecs, longSecs, sessions ->
+                timerViewModel.addPomoTimer(label, workSecs, shortSecs, longSecs, sessions)
                 showAddTimer = false
             }
         )

@@ -38,16 +38,23 @@ import com.apagon.rhythm.ui.components.crystalTextFieldShape
 import com.apagon.rhythm.ui.util.RhythmAlertDialog
 import com.apagon.rhythm.ui.util.RhythmSheet
 import org.koin.compose.koinInject
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.Icons
+import com.apagon.rhythm.ui.util.formatClockTime
+import com.apagon.rhythm.ui.util.DayCircle
+import com.apagon.rhythm.ui.util.PickerSummaryCard
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.ui.util.FluidTextField
+import com.apagon.rhythm.ui.util.EditorialTitle
 
 // bit0=Sun, bit1=Mon, ... bit6=Sat — matches Alarm.kt's repeatDaysMask KDoc (Android's convention).
 private val DAY_LABELS = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
-// Desktop counterpart to androidMain's AddAlarmSheet.kt (Stage 12) — not a
-// literal move. The Android original pulls RingtoneManager, LocalContext for
-// a system picker, and FluidTextField/MomentumButton/EditorialTitle
-// (androidMain-only SharedComposables), so this is a new plain-M3 sheet
-// following the DesktopAddCalendarEventSheet TimePicker pattern (Stage 8).
-// Sound picking is out of scope — no desktop ringtone library exists yet.
+// Desktop counterpart to Android's AddAlarmSheet.kt, built from the same editor pieces
+// (ui/util/EditorWidgets.kt). Sound picking is out of scope: no desktop ringtone library yet.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesktopAddAlarmSheet(
@@ -64,78 +71,44 @@ fun DesktopAddAlarmSheet(
     var repeatMask by remember { mutableIntStateOf(existing?.repeatDaysMask ?: 0) }
     var showTimePicker by remember { mutableStateOf(false) }
 
+    // Android's AddAlarmSheet layout. Its sound, vibration and wake-up-check pickers are phone-only
+    // (no desktop ringtone or vibration API); an edit keeps whatever the phone set.
     RhythmSheet(onDismiss = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text(
-                if (existing == null) "New Alarm" else "Edit Alarm",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
+            EditorialTitle(if (existing != null) "Edit Alarm" else "New Alarm", modifier = Modifier.padding(bottom = 8.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .crystalControlSurface(shape = MaterialTheme.shapes.medium)
-                    .clickable(onClick = { showTimePicker = true })
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "%02d:%02d".format(hour, minute),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            PickerSummaryCard(icon = Icons.Default.AccessTime, value = formatClockTime(hour, minute, is24Hour), onClick = { showTimePicker = true })
 
-            OutlinedTextField(
-                value = label,
-                onValueChange = { label = it },
-                label = { Text("Label") },
-                singleLine = true,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
+            FluidTextField(value = label, onValueChange = { label = it }, label = "LABEL (OPTIONAL)")
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Repeat", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DAY_LABELS.forEachIndexed { index, day ->
-                        val bit = 1 shl index
-                        val selected = (repeatMask and bit) != 0
-                        Box(
-                            modifier = Modifier
-                                .crystalChipSurface(
-                                    fill = if (selected) crystalSelectedChipColor(MaterialTheme.colorScheme.primary)
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest
-                                )
-                                .clickable(onClick = { repeatMask = repeatMask xor bit })
-                        ) {
-                            Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp), contentAlignment = Alignment.Center) {
-                                Text(
-                                    day.take(1),
-                                    color = if (selected) crystalSelectedChipContentColor(MaterialTheme.colorScheme.onPrimary) else MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.labelMedium
+                Text("REPEAT DAYS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Android's two rows of 52dp circles, S M T W / T F S (bit 0 = Sunday for alarms).
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf(0..3, 4..6).forEach { range ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+                            range.forEach { index ->
+                                val bit = 1 shl index
+                                DayCircle(
+                                    label = DAY_LABELS[index].take(1),
+                                    selected = (repeatMask and bit) != 0,
+                                    onClick = { repeatMask = repeatMask xor bit },
+                                    modifier = Modifier.size(52.dp)
                                 )
                             }
                         }
                     }
                 }
-                Text(
-                    if (repeatMask == 0) "One-time — auto-disables after it fires" else "Repeats weekly",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
-            Button(
-                onClick = { onSave(label, hour, minute, repeatMask) },
-                colors = crystalButtonColors(),
+            MomentumButton(
+                text = if (existing != null) "Save Changes" else "Create Alarm",
+                onClick = { onSave(label.trim(), hour, minute, repeatMask) },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Save") }
+            )
         }
     }
 

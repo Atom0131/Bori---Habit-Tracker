@@ -57,6 +57,10 @@ import kotlin.uuid.Uuid
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import com.apagon.rhythm.ui.util.EditorSection
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.ui.util.FluidTextField
+import com.apagon.rhythm.ui.util.EditorialTitle
 
 /**
  * Desktop equivalent of androidMain's AddCalendarEventSheet.kt, with the
@@ -118,34 +122,13 @@ fun DesktopAddCalendarEventSheet(
                 .padding(bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = if (existing == null) "New Event" else "Edit Event",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // Android's AddCalendarEventSheet layout: TITLE, NOTE, a WHEN panel, colour, glass button.
+            EditorialTitle(if (existing == null) "New Event" else "Edit Event", modifier = Modifier.padding(bottom = 8.dp))
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                singleLine = true,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
+            FluidTextField(value = title, onValueChange = { title = it }, label = "TITLE")
+            FluidTextField(value = note, onValueChange = { note = it }, label = "NOTE (OPTIONAL)", singleLine = false, maxLines = 3)
 
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = { Text("Note (optional)") },
-                singleLine = false,
-                maxLines = 3,
-                colors = crystalTextFieldColors(),
-                shape = crystalTextFieldShape(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
+            EditorSection(label = "WHEN") {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PickerSurface(
                     label = startDate?.format(dateFmt) ?: "Start Date",
@@ -185,6 +168,8 @@ fun DesktopAddCalendarEventSheet(
                 }
             }
 
+            } // end EditorSection("WHEN")
+
             Text("Color", style = MaterialTheme.typography.labelLarge)
             ColorPickerRow(
                 colorIndex = colorIndex,
@@ -196,7 +181,8 @@ fun DesktopAddCalendarEventSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             val canSave = title.isNotBlank() && startDate != null && endDate != null
-            Button(
+            MomentumButton(
+                text = if (existing == null) "Create Event" else "Update Event",
                 onClick = {
                     val sd = startDate!!
                     val ed = if (endDate!! < sd) sd else endDate!!
@@ -221,11 +207,8 @@ fun DesktopAddCalendarEventSheet(
                     )
                 },
                 enabled = canSave,
-                colors = crystalButtonColors(),
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (existing == null) "Create Event" else "Update Event")
-            }
+            )
         }
     }
 
@@ -307,7 +290,7 @@ fun DesktopAddCalendarEventSheet(
 @Composable
 private fun PickerSurface(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.crystalControlSurface(shape = MaterialTheme.shapes.large).clickable(onClick = onClick).padding(16.dp),
+        modifier = modifier.crystalControlSurface().clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {

@@ -39,6 +39,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import com.apagon.rhythm.ui.util.crystalFilterChipColors
+import androidx.compose.material.icons.filled.AddAPhoto
 
 /**
  * Stage 15d: inline right-pane entry editor, not a modal overlay — the
@@ -174,7 +178,9 @@ fun DesktopEntryEditorPane(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                Text("+ Photo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add Photo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -212,9 +218,11 @@ fun DesktopEntryEditorPane(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                         tags.forEachIndexed { index, tag ->
                             InputChip(
+                                colors = crystalFilterChipColors(),
                                 selected = true,
                                 onClick = { tags.removeAt(index) },
-                                label = { Text("#$tag") }
+                                label = { Text("#$tag") },
+                                trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp)) }
                             )
                         }
                     }
