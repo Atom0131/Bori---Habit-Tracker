@@ -639,9 +639,12 @@ fun CrystalRoot(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
     val field = if (crystal && !isSolidField) glassBlur.rememberField() else null
     Box(modifier.fillMaxSize()) {
         if (crystal) {
-            AmbientBackground(
-                Modifier.fillMaxSize().let { if (field != null) glassBlur.sourceModifier(field, it) else it }
-            )
+            // The Borikén petroglyphs are drawn inside the blur source, with the field, so the
+            // glass blurs them like the field instead of a panel slicing a sharp mark in two.
+            Box(Modifier.fillMaxSize().let { if (field != null) glassBlur.sourceModifier(field, it) else it }) {
+                AmbientBackground(Modifier.fillMaxSize())
+                BorikenPetroglyphs()
+            }
         }
         CompositionLocalProvider(LocalGlassBlurField provides field, content = content)
     }

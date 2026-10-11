@@ -1,5 +1,7 @@
 package com.apagon.rhythm.ui.util
 
+import com.apagon.rhythm.ui.components.TainoGlyphs
+import com.apagon.rhythm.ui.components.BorikenSectionSymbol
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -110,6 +112,10 @@ fun CollapsibleSectionHeader(
                 vertical = if (primary) 16.dp else 12.dp
             )
         ) {
+            // Borikén: each planner section has its own Taíno mark (habits get the coquí).
+            if (primary) {
+                BorikenSectionSymbol(modifier = Modifier.padding(end = 10.dp), glyph = TainoGlyphs.forSection(title))
+            }
             Text(
                 text = title,
                 style = if (primary) MaterialTheme.typography.titleLarge else MaterialTheme.typography.labelMedium,

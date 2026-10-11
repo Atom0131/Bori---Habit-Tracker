@@ -161,6 +161,15 @@ fun ambientBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> = when (mesh) {
 @Composable
 @ReadOnlyComposable
 fun crystalFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
+    if (LocalBorikenField.current) {
+        // The light-blue flag as a gradient — celeste, white and red at the stripes' corner.
+        crystalComboBlobs(BorikenCombo, 1f, dark, BorikenSlots)
+    } else crystalOwnFieldBlobs(mesh, dark)
+
+/** [mesh]'s own colours, ignoring Borikén — what its swatch in the picker shows. */
+@Composable
+@ReadOnlyComposable
+fun crystalOwnFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
     if (mesh == CrystalMesh.CUSTOM) {
         crystalCustomBlobs(LocalCrystalCustomSeed.current, LocalCrystalCustomChroma.current, dark)
     } else {

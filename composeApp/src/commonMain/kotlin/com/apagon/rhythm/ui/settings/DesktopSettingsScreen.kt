@@ -1,5 +1,16 @@
 package com.apagon.rhythm.ui.settings
 
+import com.apagon.rhythm.data.preferences.ThemePreferences
+import com.apagon.rhythm.ui.components.BorikenUnlockDialog
+import com.apagon.rhythm.core.app.AppInfo
+import androidx.compose.material3.FilterChip
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.apagon.rhythm.ui.theme.BorikenSlots
+import com.apagon.rhythm.ui.theme.BorikenCombo
+import com.apagon.rhythm.ui.theme.crystalOwnFieldBlobs
+import com.apagon.rhythm.ui.theme.crystalComboBlobs
+import com.apagon.rhythm.ui.components.TainoGlyphs
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -249,7 +260,10 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 onShowArchivedHabits = { showArchivedHabits = true },
                                 onShowArchivedTodos = { showArchivedTodos = true }
                             )
-                            SettingsSection.ABOUT -> AboutSectionContent(onShowPrivacyPolicy = { showPrivacyPolicy = true })
+                            SettingsSection.ABOUT -> AboutSectionContent(
+                                onShowPrivacyPolicy = { showPrivacyPolicy = true },
+                                themePreferences = viewModel.themePreferences
+                            )
                             SettingsSection.RECENTLY_DELETED -> Unit
                         }
                     }
@@ -395,6 +409,11 @@ private fun AppearanceSectionContent(
     // Android's Appearance order and shape: one expandable glass card per setting — Theme Style,
     // Crystal Background, Glass, Accent Colour, Theme — not a card of rows with text-link choices.
     Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    val borikenUnlocked by viewModel.themePreferences.borikenUnlocked.collectAsState(initial = false)
+    val borikenMode by viewModel.themePreferences.borikenMode.collectAsState(initial = false)
+    val borikenField by viewModel.themePreferences.borikenField.collectAsState(initial = true)
+    val prefsScope = rememberCoroutineScope()
+    val setBoriken = { on: Boolean -> prefsScope.launch { viewModel.themePreferences.setBorikenMode(on) }; Unit }
     var accentExpanded by remember { mutableStateOf(false) }
     var themeExpanded by remember { mutableStateOf(false) }
 
@@ -402,7 +421,7 @@ private fun AppearanceSectionContent(
                     title = "Theme Style",
                     expanded = themeStyleExpanded,
                     onToggle = onToggleThemeStyleExpanded,
-                    summary = when (themeStyle) {
+                    summary = (if (borikenMode) "Borikén · " else "") + when (themeStyle) {
                         ThemeStyle.MATERIAL3 -> "Material 3"
                         ThemeStyle.EXPRESSIVE -> "Expressive"
                         ThemeStyle.CRYSTAL -> "Crystal"
@@ -411,14 +430,14 @@ private fun AppearanceSectionContent(
                     ThemeStyle.entries.forEachIndexed { i, style ->
                         Row(
                             modifier = Modifier.fillMaxWidth()
-                                .clickable { viewModel.setThemeStyle(style) }
+                                .clickable { setBoriken(false); viewModel.setThemeStyle(style) }
                                 .padding(horizontal = 16.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
                                 colors = crystalRadioButtonColors(),
-                                selected = themeStyle == style,
-                                onClick = { viewModel.setThemeStyle(style) }
+                                selected = !borikenMode && themeStyle == style,
+                                onClick = { setBoriken(false); viewModel.setThemeStyle(style) }
                             )
                             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                 Text(
@@ -444,6 +463,53 @@ private fun AppearanceSectionContent(
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         }
                     }
+                    // The hidden edition: listed only once unlocked from the version in About.
+                    if (borikenUnlocked) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { setBoriken(true) }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                colors = crystalRadioButtonColors(),
+                                selected = borikenMode,
+                                onClick = { setBoriken(true) }
+                            )
+                            Column(modifier = Modifier.padding(vertical = 8.dp).weight(1f)) {
+                                Text("Borikén", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "Las Celestes, the flag and Taíno symbols — wepa!",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(TainoGlyphs.Sun, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(24.dp))
+                        }
+                        // Borikén sits on top of a base style; pick which one under it.
+                        if (borikenMode) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 56.dp, end = 16.dp, bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ThemeStyle.entries.forEach { style ->
+                                    FilterChip(
+                                        selected = themeStyle == style,
+                                        onClick = { viewModel.setThemeStyle(style) },
+                                        label = {
+                                            Text(when (style) {
+                                                ThemeStyle.MATERIAL3 -> "Material 3"
+                                                ThemeStyle.EXPRESSIVE -> "Expressive"
+                                                ThemeStyle.CRYSTAL -> "Crystal"
+                                            })
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
     if (themeStyle == ThemeStyle.CRYSTAL) {
@@ -451,9 +517,10 @@ private fun AppearanceSectionContent(
                         title = "Crystal Background",
                         expanded = crystalBackgroundExpanded,
                         onToggle = onToggleCrystalBackgroundExpanded,
-                        summary = when (crystalBackground) {
-                            CrystalBackground.MESH -> crystalMeshLabel(crystalMesh)
-                            CrystalBackground.SOLID -> "Solid"
+                        summary = when {
+                            borikenMode && borikenField -> "Borikén"
+                            crystalBackground == CrystalBackground.MESH -> crystalMeshLabel(crystalMesh)
+                            else -> "Solid"
                         }
                     ) {
                         Row(
@@ -473,17 +540,24 @@ private fun AppearanceSectionContent(
                             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            CrystalMesh.entries.chunked(MESH_SWATCHES_PER_ROW).forEach { rowMeshes ->
+                            // null is the Borikén swatch, which leads the grid while the mode is on.
+                            val swatches: List<CrystalMesh?> =
+                                if (borikenMode) listOf(null) + CrystalMesh.entries else CrystalMesh.entries
+                            swatches.chunked(MESH_SWATCHES_PER_ROW).forEach { rowMeshes ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     rowMeshes.forEach { mesh ->
+                                        val flagOn = borikenMode && borikenField
                                         CrystalMeshSwatch(
                                             mesh = mesh,
-                                            selected = crystalBackground == CrystalBackground.MESH && crystalMesh == mesh,
+                                            selected = if (mesh == null) flagOn
+                                                else !flagOn && crystalBackground == CrystalBackground.MESH && crystalMesh == mesh,
                                             onClick = {
-                                                if (mesh == CrystalMesh.CUSTOM) {
+                                                if (mesh == null) {
+                                                    prefsScope.launch { viewModel.themePreferences.selectBorikenField() }
+                                                } else if (mesh == CrystalMesh.CUSTOM) {
                                                     showMeshCustomDialog = true
                                                 } else {
                                                     viewModel.setCrystalBackground(CrystalBackground.MESH)
@@ -1021,10 +1095,45 @@ private fun ImportPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -
 }
 
 @Composable
-private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit) {
+private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreferences: ThemePreferences) {
+    val scope = rememberCoroutineScope()
+    // The Borikén Easter egg, as on the phone: ten clicks on the version within three seconds.
+    // Nothing hints at it beforehand. (The desktop has no paid tier, so nothing else gates it.)
+    var clicks by remember { mutableStateOf(0) }
+    var firstClickAt by remember { mutableStateOf(0L) }
+    var showUnlocked by remember { mutableStateOf(false) }
+    if (showUnlocked) {
+        BorikenUnlockDialog(
+            onDismiss = { showUnlocked = false },
+            onTryIt = {
+                showUnlocked = false
+                scope.launch { themePreferences.setBorikenMode(true) }
+            }
+        )
+    }
     SettingsSection("About") {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Bori", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Version ${AppInfo.VERSION}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        val now = System.currentTimeMillis()
+                        if (clicks == 0 || now - firstClickAt > 3_000) { clicks = 0; firstClickAt = now }
+                        clicks++
+                        if (clicks >= 10) {
+                            clicks = 0
+                            scope.launch { themePreferences.setBorikenUnlocked() }
+                            showUnlocked = true
+                        }
+                    }
+                    .padding(vertical = 4.dp)
+            )
             TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
                 Text("Privacy Policy")
             }
@@ -1121,10 +1230,18 @@ private fun crystalMeshLabel(mesh: CrystalMesh): String = when (mesh) {
 /** One mesh swatch, drawn with the same [drawCrystalMeshField] the real ambient field uses, so a
  * swatch cannot drift from what tapping it produces. */
 @Composable
-private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun CrystalMeshSwatch(
+    mesh: CrystalMesh?,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
-    val blobs = crystalFieldBlobs(mesh, dark)
+    // null is the Borikén swatch: the flag field. Every other swatch shows its own field, never
+    // the flag that may be on screen behind it.
+    val blobs = if (mesh == null) crystalComboBlobs(BorikenCombo, 1f, dark, BorikenSlots)
+                else crystalOwnFieldBlobs(mesh, dark)
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -1143,7 +1260,7 @@ private fun CrystalMeshSwatch(mesh: CrystalMesh, selected: Boolean, onClick: () 
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            crystalMeshLabel(mesh),
+            if (mesh == null) "Borikén" else crystalMeshLabel(mesh),
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )

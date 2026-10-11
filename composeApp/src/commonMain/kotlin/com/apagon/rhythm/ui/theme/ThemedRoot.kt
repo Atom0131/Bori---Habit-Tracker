@@ -51,6 +51,9 @@ fun RhythmThemedRoot(
     val crystalMeshCustomArgb by themePreferences.crystalMeshCustomArgb.collectAsState(initial = null)
     val crystalMeshCustomChroma by themePreferences.crystalMeshCustomChroma
         .collectAsState(initial = ThemePreferences.DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
+    val borikenMode by themePreferences.borikenMode.collectAsState(initial = false)
+    val borikenField by themePreferences.borikenField.collectAsState(initial = true)
+    val borikenAccent by themePreferences.borikenAccent.collectAsState(initial = true)
 
     val systemDark = isSystemInDarkTheme()
     val isDark = when (themeMode) {
@@ -76,7 +79,10 @@ fun RhythmThemedRoot(
             DarkReadability.STANDARD -> 0.0
             DarkReadability.COMFORTABLE -> 0.3
             DarkReadability.HIGH -> 0.65
-        }
+        },
+        boriken = borikenMode,
+        borikenField = borikenField,
+        borikenAccent = borikenAccent
     ) {
         CrystalRoot {
             Surface(
@@ -85,6 +91,9 @@ fun RhythmThemedRoot(
                 contentColor = crystalScaffoldContentColor(),
                 content = content
             )
+            // Material 3 / Expressive only (it draws nothing under Crystal); drawn last so it sits
+            // over the opaque screen. A Canvas, so it takes no clicks.
+            com.apagon.rhythm.ui.components.BorikenFlagRibbon()
         }
     }
 }

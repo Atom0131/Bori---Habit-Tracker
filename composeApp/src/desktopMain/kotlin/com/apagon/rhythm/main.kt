@@ -1,5 +1,15 @@
 package com.apagon.rhythm
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.apagon.rhythm.ui.theme.LocalBoriken
+import com.apagon.rhythm.ui.components.TainoGlyphs
+import com.apagon.rhythm.ui.components.LocalBorikenPage
+import com.apagon.rhythm.ui.components.BorikenPage
+import com.apagon.rhythm.ui.components.BorikenHeaderSymbol
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -325,35 +335,55 @@ private fun DesktopAppRoot() {
                 .crystalChromeSurface()
                 .padding(vertical = 12.dp, horizontal = 8.dp)
         ) {
-            Text(
-                text = "Bori",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 16.dp)
-            )
+            ) {
+                Text(
+                    text = "Bori",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                BorikenHeaderSymbol(modifier = Modifier.padding(start = 8.dp))
+            }
             SIDEBAR_SECTIONS.forEachIndexed { index, label ->
                 SidebarItem(
                     label = label,
                     selected = selectedSection == index,
-                    onClick = { selectedSection = index }
+                    onClick = { selectedSection = index },
+                    glyph = sectionGlyph(index)
                 )
             }
         }
+        // Borikén: the open section's own mark leads the Crystal watermark, as each phone tab does.
+        val pageGlyph = sectionGlyph(selectedSection)
+        SideEffect { BorikenPage.glyph = pageGlyph }
         Column(modifier = Modifier.fillMaxSize()) {
-            when (selectedSection) {
-                0 -> DesktopTodayScreen()
-                1 -> DesktopJournalScreen()
-                2 -> DesktopNotesTab()
-                3 -> DesktopClockScreen()
-                4 -> DesktopSettingsScreen()
+            CompositionLocalProvider(LocalBorikenPage provides pageGlyph) {
+                when (selectedSection) {
+                    0 -> DesktopTodayScreen()
+                    1 -> DesktopJournalScreen()
+                    2 -> DesktopNotesTab()
+                    3 -> DesktopClockScreen()
+                    4 -> DesktopSettingsScreen()
+                }
             }
         }
     }
 }
 
+/** Same marks as the phone's tabs: Today the sun, Journal the coquí, Notes the cemí, Clock the spiral. */
+private fun sectionGlyph(index: Int) = when (index) {
+    0 -> TainoGlyphs.Sun
+    1 -> TainoGlyphs.Coqui
+    2 -> TainoGlyphs.Cemi
+    3 -> TainoGlyphs.Spiral
+    else -> TainoGlyphs.Turtle
+}
+
 @Composable
-private fun SidebarItem(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun SidebarItem(label: String, selected: Boolean, onClick: () -> Unit, glyph: ImageVector? = null) {
     // Stage 17a: no pre-clip here — crystalTileSurface() draws its own background/rim/shadow
     // using its own internal shape (MaterialTheme.shapes.medium), which doesn't match an outer
     // RoundedCornerShape(10.dp) clip. The mismatch let the tile's own shadow escape the outer
@@ -370,6 +400,13 @@ private fun SidebarItem(label: String, selected: Boolean, onClick: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (glyph != null && LocalBoriken.current) {
+            Icon(
+                glyph, contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 10.dp).size(18.dp)
+            )
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,

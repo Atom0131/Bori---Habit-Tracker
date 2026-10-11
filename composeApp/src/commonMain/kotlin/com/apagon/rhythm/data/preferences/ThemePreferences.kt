@@ -76,6 +76,12 @@ class ThemePreferences(
         val CRYSTAL_INTENSITY_KEY = floatPreferencesKey("crystal_intensity")
         val CRYSTAL_BACKGROUND_KEY = stringPreferencesKey("crystal_background")
         val CRYSTAL_MESH_KEY = stringPreferencesKey("crystal_mesh")
+        /** The hidden Borikén edition (same names as on the phone, so preference sync carries them). */
+        val BORIKEN_UNLOCKED_KEY = booleanPreferencesKey("boriken_unlocked")
+        val BORIKEN_MODE_KEY = booleanPreferencesKey("boriken_mode")
+        /** Borikén is still supplying the background / the accent; cleared by the user's own pick. */
+        val BORIKEN_FIELD_KEY = booleanPreferencesKey("boriken_field")
+        val BORIKEN_ACCENT_KEY = booleanPreferencesKey("boriken_accent")
         val CRYSTAL_BG_COLOR_KEY = intPreferencesKey("crystal_bg_color_index")
         val CRYSTAL_BG_COLOR_ARGB_KEY = intPreferencesKey("crystal_bg_color_argb")
         val CRYSTAL_MESH_CUSTOM_ARGB_KEY = intPreferencesKey("crystal_mesh_custom_argb")
@@ -255,8 +261,40 @@ class ThemePreferences(
         }
     }
 
+    // ── Borikén ──────────────────────────────────────────────────────────────────────────────────
+    val borikenUnlocked: Flow<Boolean> = dataStore.data.map { it[BORIKEN_UNLOCKED_KEY] ?: false }
+    val borikenMode: Flow<Boolean> = dataStore.data.map { it[BORIKEN_MODE_KEY] ?: false }
+    val borikenField: Flow<Boolean> = dataStore.data.map { it[BORIKEN_FIELD_KEY] ?: true }
+    val borikenAccent: Flow<Boolean> = dataStore.data.map { it[BORIKEN_ACCENT_KEY] ?: true }
+
+    suspend fun setBorikenUnlocked() {
+        touchPreferences { it[BORIKEN_UNLOCKED_KEY] = true }
+    }
+
+    /** On also unlocks, and starts from the full look (flag field and celeste accent) — both only
+     *  defaults, which the user's own picks clear. */
+    suspend fun setBorikenMode(enabled: Boolean) {
+        touchPreferences { prefs ->
+            prefs[BORIKEN_MODE_KEY] = enabled
+            if (enabled) {
+                prefs[BORIKEN_UNLOCKED_KEY] = true
+                prefs[BORIKEN_FIELD_KEY] = true
+                prefs[BORIKEN_ACCENT_KEY] = true
+            }
+        }
+    }
+
+    /** Back to Borikén's flag field — the Borikén swatch in Crystal Background. */
+    suspend fun selectBorikenField() {
+        touchPreferences {
+            it[CRYSTAL_BACKGROUND_KEY] = CrystalBackground.MESH.name
+            it[BORIKEN_FIELD_KEY] = true
+        }
+    }
+
     suspend fun setAccentColor(index: Int, argb: Int? = null) {
         touchPreferences { prefs ->
+            prefs[BORIKEN_ACCENT_KEY] = false
             prefs[ACCENT_COLOR_KEY] = index
             if (argb != null) prefs[ACCENT_COLOR_ARGB_KEY] = argb
             else prefs.remove(ACCENT_COLOR_ARGB_KEY)
@@ -368,7 +406,7 @@ class ThemePreferences(
     ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalBackground(background: CrystalBackground) {
-        touchPreferences { it[CRYSTAL_BACKGROUND_KEY] = background.name }
+        touchPreferences { it[CRYSTAL_BACKGROUND_KEY] = background.name; it[BORIKEN_FIELD_KEY] = false }
     }
 
     val crystalMesh: Flow<CrystalMesh> = combine(
@@ -391,7 +429,7 @@ class ThemePreferences(
     ) { stored, preview -> preview ?: stored }
 
     suspend fun setCrystalMesh(mesh: CrystalMesh) {
-        touchPreferences { it[CRYSTAL_MESH_KEY] = mesh.name }
+        touchPreferences { it[CRYSTAL_MESH_KEY] = mesh.name; it[BORIKEN_FIELD_KEY] = false }
     }
 
     // Transient in-memory override for the mesh Custom field's own seed/chroma, same shape as
@@ -429,6 +467,7 @@ class ThemePreferences(
 
     suspend fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
         touchPreferences {
+            it[BORIKEN_FIELD_KEY] = false
             it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = argb
             it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
         }
@@ -463,6 +502,7 @@ class ThemePreferences(
 
     suspend fun setCrystalBackgroundColor(index: Int, argb: Int? = null) {
         touchPreferences { prefs ->
+            prefs[BORIKEN_FIELD_KEY] = false
             prefs[CRYSTAL_BG_COLOR_KEY] = index
             if (argb != null) prefs[CRYSTAL_BG_COLOR_ARGB_KEY] = argb
             else prefs.remove(CRYSTAL_BG_COLOR_ARGB_KEY)
@@ -554,6 +594,10 @@ class ThemePreferences(
             prefs[CRYSTAL_MESH_CUSTOM_ARGB_KEY]?.let { put("crystalMeshCustomArgb", it) }
             put("crystalMeshCustomChroma", (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).toString())
             put("amoledMode", prefs[AMOLED_MODE_KEY] ?: false)
+            put("borikenUnlocked", prefs[BORIKEN_UNLOCKED_KEY] ?: false)
+            put("borikenMode", prefs[BORIKEN_MODE_KEY] ?: false)
+            put("borikenField", prefs[BORIKEN_FIELD_KEY] ?: true)
+            put("borikenAccent", prefs[BORIKEN_ACCENT_KEY] ?: true)
             put("accentColorIndex", prefs[ACCENT_COLOR_KEY] ?: 0)
             prefs[ACCENT_COLOR_ARGB_KEY]?.let { put("accentColorArgb", it) }
             put("swipeSectionsEnabled", prefs[SWIPE_SECTIONS_KEY] ?: false)
@@ -604,6 +648,12 @@ class ThemePreferences(
                 (json.optString("crystalMeshCustomChroma", DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA.toString()).toFloatOrNull()
                     ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
             prefs[AMOLED_MODE_KEY] = json.optBoolean("amoledMode", false)
+            // Only when sent: a peer or an older backup that knows nothing of Borikén must not
+            // lock it again.
+            if (json.has("borikenUnlocked")) prefs[BORIKEN_UNLOCKED_KEY] = json.optBoolean("borikenUnlocked", false)
+            if (json.has("borikenMode")) prefs[BORIKEN_MODE_KEY] = json.optBoolean("borikenMode", false)
+            if (json.has("borikenField")) prefs[BORIKEN_FIELD_KEY] = json.optBoolean("borikenField", true)
+            if (json.has("borikenAccent")) prefs[BORIKEN_ACCENT_KEY] = json.optBoolean("borikenAccent", true)
             prefs[ACCENT_COLOR_KEY] = json.optInt("accentColorIndex", 0)
             if (json.has("accentColorArgb")) {
                 prefs[ACCENT_COLOR_ARGB_KEY] = json.getInt("accentColorArgb")

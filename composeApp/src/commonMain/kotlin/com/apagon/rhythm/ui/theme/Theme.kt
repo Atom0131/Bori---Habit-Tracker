@@ -342,15 +342,28 @@ fun RhythmTheme(
     crystalMeshCustomChroma: Float = DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA,
     crystalRoom: Color? = null,
     darkContrastLevel: Double = 0.0,
+    /** The hidden Borikén edition (unlocked from the version number in About). */
+    boriken: Boolean = false,
+    /** Borikén is still supplying the background (the user has not picked their own since). */
+    borikenField: Boolean = true,
+    /** Borikén is still supplying the accent (the user has not picked their own since). */
+    borikenAccent: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    // Borikén's colours are only defaults: each has its own flag, cleared by the matching picker,
+    // so the symbols and the flag-red accents stay whatever the user chooses.
+    val flagField = boriken && borikenField
+    val seed = if (boriken && borikenAccent) BorikenCeleste else seedColor
+    val background = if (flagField) CrystalBackground.MESH else crystalBackground
+    val room = if (flagField) null else crystalRoom
     // See resolveTheme's own KDoc: this indirection exists so MaterialTheme (and therefore
     // `content`) is composed from exactly one call site regardless of style — invariant #1. Do not
     // reintroduce a branch that wraps `content`.
-    val resolved = resolveTheme(
-        darkTheme, isAmoled, seedColor, themeStyle, crystalStyle,
-        crystalIntensity, crystalBackground, crystalRoom, darkContrastLevel
+    val base = resolveTheme(
+        darkTheme, isAmoled, seed, themeStyle, crystalStyle,
+        crystalIntensity, background, room, darkContrastLevel
     )
+    val resolved = if (boriken) base.copy(colorScheme = base.colorScheme.withBorikenRed(darkTheme)) else base
     val crystal = themeStyle == ThemeStyle.CRYSTAL
     val inheritedContentColor = LocalContentColor.current
     MaterialTheme(
@@ -363,11 +376,13 @@ fun RhythmTheme(
             LocalCrystalStyle provides crystalStyle,
             // Provided in every style but only valued under Crystal — arity must be constant.
             LocalCrystalIntensity provides if (crystal) crystalIntensity else LocalCrystalIntensity.current,
-            LocalCrystalBackground provides if (crystal) crystalBackground else LocalCrystalBackground.current,
+            LocalCrystalBackground provides if (crystal) background else LocalCrystalBackground.current,
             LocalCrystalMesh provides if (crystal) crystalMesh else LocalCrystalMesh.current,
             LocalCrystalCustomSeed provides if (crystal) crystalMeshCustomSeed else LocalCrystalCustomSeed.current,
             LocalCrystalCustomChroma provides if (crystal) crystalMeshCustomChroma else LocalCrystalCustomChroma.current,
-            LocalCrystalRoom provides if (crystal) crystalRoom else LocalCrystalRoom.current,
+            LocalCrystalRoom provides if (crystal) room else LocalCrystalRoom.current,
+            LocalBoriken provides boriken,
+            LocalBorikenField provides flagField,
             // Crystal's panels are a Box + modifier, not a Material Surface, so nothing inside one
             // provides LocalContentColor and the fallback is Color.Black — invisible in dark Crystal.
             LocalContentColor provides if (crystal) resolved.colorScheme.onBackground else inheritedContentColor,
@@ -450,3 +465,28 @@ private fun resolveTheme(
     )
     return ResolvedTheme(material3State.colorScheme, Typography, Material3Shapes)
 }
+
+// ── Borikén ──────────────────────────────────────────────────────────────────────────────────────
+
+/** Las Celestes: the light-blue of Puerto Rico's flag. Borikén's default accent. */
+val BorikenCeleste = Color(0xFF3EA6F2)
+val BorikenRed = Color(0xFFE4002B)
+
+/** True while the Borikén edition is on — the Taíno symbols and the flag-red accents. */
+val LocalBoriken = staticCompositionLocalOf { false }
+
+/** True while the field is Borikén's flag gradient rather than the user's own choice. */
+val LocalBorikenField = staticCompositionLocalOf { false }
+
+/** The flag's red as the tertiary role, so the symbols and second accents carry it. */
+private fun ColorScheme.withBorikenRed(dark: Boolean): ColorScheme = if (dark) copy(
+    tertiary = Color(0xFFFFB4AB),
+    onTertiary = Color(0xFF690005),
+    tertiaryContainer = Color(0xFF93000A),
+    onTertiaryContainer = Color(0xFFFFDAD6)
+) else copy(
+    tertiary = BorikenRed,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFDAD6),
+    onTertiaryContainer = Color(0xFF410002)
+)

@@ -132,3 +132,81 @@ fun crystalCustomBlobs(seed: Color?, chromaScale: Float, dark: Boolean): List<Co
     val key = Triple(hue.roundToInt(), (chromaScale * 100).roundToInt(), dark)
     return cache.getOrPut(key) { solve(hue, chromaScale, dark) }
 }
+
+// ── multi-colour combos ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Which picked colour each of the five slots takes, for 2–4 colours. Slots are top-left, top-right,
+ * centre, bottom-left, bottom-right, so these read top-to-bottom like a wallpaper gradient — with
+ * three colours, the first runs across the top, the second through the middle, the third along the
+ * bottom (which is how the Borikén combo lays the flag's celeste, white and red).
+ */
+private val COMBO_SLOTS = mapOf(
+    2 to intArrayOf(0, 0, 1, 1, 1),
+    3 to intArrayOf(0, 0, 1, 2, 2),
+    4 to intArrayOf(0, 1, 2, 2, 3)
+)
+
+/**
+ * One slot solved for one colour: the slot keeps Aurora's tone and chroma cap exactly as the
+ * single-colour solve does — that is what keeps card separation and text contrast safe — and takes
+ * the colour's **hue**, with chroma also capped at the colour's own chroma, so a white or grey pick
+ * becomes a quiet near-neutral band rather than a hue forced onto it.
+ */
+private fun solveSlot(i: Int, colour: Color, chromaScale: Float, dark: Boolean): Color {
+    val aurora = if (dark) AmbientBlobsDark else AmbientBlobsLight
+    val base = (if (dark) AmbientBaseDark else AmbientBaseLight).rgbTriple()
+    val ref = aurora[i].rgbTriple()
+    val (targetL, capC, _) = lab(ref[0], ref[1], ref[2])
+    val refComposite = compositedTone(ref, i, base, dark)
+    val c = colour.rgbTriple()
+    val (_, ownChroma, ownHue) = lab(c[0], c[1], c[2])
+    var lo = 0.0
+    var hi = minOf(capC * chromaScale, ownChroma)
+    repeat(40) {
+        val mid = (lo + hi) / 2
+        val (vals, inGamut) = lchToRgb(targetL, mid, ownHue)
+        val ok = inGamut &&
+            vals.min() >= CHANNEL_FLOOR - 0.5 &&
+            abs(compositedTone(vals, i, base, dark) - refComposite) <= COMPOSITE_MARGIN
+        if (ok) lo = mid else hi = mid
+    }
+    val (vals, _) = lchToRgb(targetL, lo, ownHue)
+    return Color(
+        red = (vals[0].roundToInt().coerceIn(0, 255)) / 255f,
+        green = (vals[1].roundToInt().coerceIn(0, 255)) / 255f,
+        blue = (vals[2].roundToInt().coerceIn(0, 255)) / 255f
+    )
+}
+
+private val comboCache = HashMap<Triple<List<Int>, Int, Boolean>, List<Color>>()
+
+/**
+ * The five blob colours for a **combo** of 2–4 picked colours — the wallpaper-app style gradient.
+ * One colour (or none) is exactly [crystalCustomBlobs], so existing custom fields are unchanged.
+ */
+fun crystalComboBlobs(
+    colours: List<Color>,
+    chromaScale: Float,
+    dark: Boolean,
+    /** Which colour each slot takes; null = the top-to-bottom layout in [COMBO_SLOTS]. */
+    slots: IntArray? = null
+): List<Color> {
+    if (colours.size <= 1) return crystalCustomBlobs(colours.firstOrNull(), chromaScale, dark)
+    val picked = colours.take(4)
+    val slotMap = slots ?: COMBO_SLOTS.getValue(picked.size)
+    val key = Triple(picked.map { it.toArgb() } + slotMap.toList().map { -it - 1 }, (chromaScale * 100).roundToInt(), dark)
+    return comboCache.getOrPut(key) {
+        (0 until 5).map { i -> solveSlot(i, picked[slotMap[i]], chromaScale, dark) }
+    }
+}
+
+/** The Borikén combo: the light-blue flag's celeste, white and red. */
+val BorikenCombo = listOf(Color(0xFF3EA6F2), Color(0xFFFFFFFF), Color(0xFFE4002B))
+
+/**
+ * Where the flag's colours go: celeste down the left and through the centre (the triangle, and the
+ * centre slot is the strongest one, so the field reads celeste first), white at the top right and
+ * red at the bottom right (the stripes). Slots: top-left, top-right, centre, bottom-left, bottom-right.
+ */
+val BorikenSlots = intArrayOf(0, 1, 0, 0, 2)
