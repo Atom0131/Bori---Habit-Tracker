@@ -148,7 +148,9 @@ data class ChecklistItemDto(
     val label: String,
     val sortOrder: Int,
     val updatedAt: Long,
-    val completions: List<ChecklistItemCompletionDto> = emptyList()
+    val completions: List<ChecklistItemCompletionDto> = emptyList(),
+    /** A routine step's time in seconds. Null from a peer that predates timed steps. */
+    val durationSeconds: Int? = null
 )
 
 fun ChecklistItem.toDto(completions: List<ChecklistItemCompletionDto> = emptyList()) = ChecklistItemDto(
@@ -156,7 +158,8 @@ fun ChecklistItem.toDto(completions: List<ChecklistItemCompletionDto> = emptyLis
     label = label,
     sortOrder = sortOrder,
     updatedAt = updatedAt,
-    completions = completions
+    completions = completions,
+    durationSeconds = durationSeconds
 )
 
 // ── Todo / TodoSubtask — subtasks nested under TodoDto, full-replace-per-parent ─────────────────

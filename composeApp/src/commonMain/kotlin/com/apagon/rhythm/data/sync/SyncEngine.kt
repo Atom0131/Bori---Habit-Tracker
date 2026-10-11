@@ -220,15 +220,20 @@ class SyncEngine(
                 }
             }
             if (applied) {
+                // A peer that predates timed steps sends no duration; keep this device's for a step
+                // of the same name rather than reset it to untimed.
+                val previous = habitRepository.getItemsForHabitSync(localHabitId).toMutableList()
                 habitRepository.deleteAllItemsForHabitSync(localHabitId)
                 for (itemDto in dto.checklistItems) {
+                    val kept = previous.firstOrNull { it.label == itemDto.label }?.also { previous.remove(it) }
                     val itemId = habitRepository.insertChecklistItemFromSync(
                         ChecklistItem(
                             habitId = localHabitId,
                             label = itemDto.label,
                             sortOrder = itemDto.sortOrder,
                             syncId = itemDto.syncId,
-                            updatedAt = itemDto.updatedAt
+                            updatedAt = itemDto.updatedAt,
+                            durationSeconds = itemDto.durationSeconds ?: kept?.durationSeconds ?: 0
                         )
                     )
                     for (compDto in itemDto.completions) {

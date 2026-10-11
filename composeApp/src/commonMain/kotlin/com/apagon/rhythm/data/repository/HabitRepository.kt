@@ -159,15 +159,23 @@ class HabitRepository constructor(
     suspend fun updateHabitWithItems(habit: Habit, newLabels: List<String>) {
         habitDao.updateHabit(habit.copy(updatedAt = System.currentTimeMillis()))
         val existing = habitDao.getItemsForHabit(habit.id).first()
-        val existingLabels = existing.map { it.label }
-        
-        val toDelete = existing.filter { it.label !in newLabels }
-        val toUpdate = existing.filter { it.label in newLabels }.map { item ->
-            item.copy(sortOrder = newLabels.indexOf(item.label))
+
+        // Rows keep their item (its ticks and the phone's step time) by matching an existing item
+        // of the same label **one to one, in order** — matching by label alone gave two steps called
+        // "Rest" the same item and dropped the second.
+        val unmatched = existing.sortedBy { it.sortOrder }.toMutableList()
+        val toUpdate = mutableListOf<ChecklistItem>()
+        val toInsert = mutableListOf<ChecklistItem>()
+        newLabels.forEachIndexed { index, label ->
+            val match = unmatched.firstOrNull { it.label == label }
+            if (match != null) {
+                unmatched.remove(match)
+                toUpdate += match.copy(sortOrder = index)
+            } else {
+                toInsert += ChecklistItem(habitId = habit.id, label = label, sortOrder = index)
+            }
         }
-        val toInsert = newLabels.filter { it !in existingLabels }.map { label ->
-            ChecklistItem(habitId = habit.id, label = label, sortOrder = newLabels.indexOf(label))
-        }
+        val toDelete = unmatched.toList()
         
         if (toDelete.isNotEmpty()) {
             habitDao.deleteChecklistItems(toDelete)

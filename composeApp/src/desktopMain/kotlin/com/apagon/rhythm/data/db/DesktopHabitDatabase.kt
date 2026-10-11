@@ -40,7 +40,7 @@ import java.io.File
 // they don't need to match Android's schema version.
 @Database(
     entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -501,6 +501,13 @@ val DESKTOP_HABIT_MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+// Timed routine steps from the phone (Android 1.88): a step's duration, 0 = untimed.
+val DESKTOP_HABIT_MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE checklist_items ADD COLUMN durationSeconds INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Dbori.home=<dir> overrides ~/.bori (see AppHome) — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -510,6 +517,6 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12, DESKTOP_HABIT_MIGRATION_12_13)
         .build()
 }

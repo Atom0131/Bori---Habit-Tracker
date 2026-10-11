@@ -28,5 +28,10 @@ data class ChecklistItem(
     /** Stable cross-device id for the Tailscale sync engine. Minted once, never overwritten. */
     val syncId: String = Uuid.random().toString(),
     /** Bumped on every local mutation; sync's last-write-wins conflict signal. */
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    /**
+     * A routine step's time in seconds, 0 = untimed. Set on the phone, which runs routines; carried
+     * here so a desktop edit or a sync round trip never drops it.
+     */
+    val durationSeconds: Int = 0
 )

@@ -296,6 +296,7 @@ class DesktopBackupManager(
                 put("habitId", i.habitId)
                 put("label", i.label)
                 put("sortOrder", i.sortOrder)
+                put("durationSeconds", i.durationSeconds)
             })
         }
     }
@@ -567,7 +568,8 @@ class DesktopBackupManager(
             id = o.getLong("id"),
             habitId = o.getLong("habitId"),
             label = o.getString("label"),
-            sortOrder = o.optInt("sortOrder", 0)
+            sortOrder = o.optInt("sortOrder", 0),
+            durationSeconds = o.optInt("durationSeconds", 0)
         )
     }
 
