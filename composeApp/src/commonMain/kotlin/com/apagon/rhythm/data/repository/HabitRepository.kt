@@ -2,7 +2,9 @@ package com.apagon.rhythm.data.repository
 
 import com.apagon.rhythm.core.time.System
 
+import com.apagon.rhythm.data.db.ActiveDayDao
 import com.apagon.rhythm.data.db.HabitDao
+import com.apagon.rhythm.data.model.ActiveDay
 import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.ChecklistItem
@@ -12,7 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 class HabitRepository constructor(
     private val habitDao: HabitDao,
-    private val widgetRefresher: WidgetRefresher
+    private val widgetRefresher: WidgetRefresher,
+    private val activeDayDao: ActiveDayDao
 ) {
     // ── Habits ────────────────────────────────────────────────────────────────
 
@@ -127,6 +130,15 @@ class HabitRepository constructor(
 
     fun getCompletionsBetweenDates(startDate: String, endDate: String): Flow<List<HabitCompletion>> =
         habitDao.getCompletionsBetweenDates(startDate, endDate)
+
+    // ── Active days (the never-resetting Today counter; filled by triggers) ───
+
+    fun countActiveDaysThrough(today: String): Flow<Int> = activeDayDao.countThrough(today)
+
+    suspend fun getAllActiveDays(): List<String> = activeDayDao.getAll()
+
+    /** Union-merge days from a sync peer; a day already here is ignored. */
+    suspend fun mergeActiveDays(days: List<String>) = activeDayDao.insertAll(days.map { ActiveDay(it) })
 
     // ── Sync (Stage 4) ───────────────────────────────────────────────────────
 

@@ -94,6 +94,7 @@ private val desktopDeviceId: String by lazy {
 val desktopAppModule = module {
     single<DesktopHabitDatabase> { buildDesktopHabitDatabase() }
     single { get<DesktopHabitDatabase>().habitDao() }
+    single { get<DesktopHabitDatabase>().activeDayDao() }
     single { get<DesktopHabitDatabase>().todoDao() }
     single { get<DesktopHabitDatabase>().calendarEventDao() }
     single { get<DesktopHabitDatabase>().journalDao() }
@@ -108,7 +109,7 @@ val desktopAppModule = module {
     single<SyncPreferences> { DesktopSyncPreferences() }
     single { ThemePreferences(buildDesktopThemeDataStore()) }
     single { SecurityRepository(buildDesktopSecurityDataStore()) }
-    single { HabitRepository(get(), get()) }
+    single { HabitRepository(get(), get(), get()) }
     single { TodoRepository(get(), get()) }
     single { CalendarEventRepository(get(), get()) }
     single { JournalRepository(get()) }

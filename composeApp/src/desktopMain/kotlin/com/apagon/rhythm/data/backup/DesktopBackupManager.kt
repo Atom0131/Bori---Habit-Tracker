@@ -7,6 +7,7 @@ import com.apagon.rhythm.core.json.JSONObject
 import com.apagon.rhythm.core.time.now
 import kotlinx.datetime.LocalDate
 import com.apagon.rhythm.data.db.DesktopHabitDatabase
+import com.apagon.rhythm.data.model.ActiveDay
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.ChecklistItem
@@ -92,6 +93,7 @@ class DesktopBackupManager(
 
         val habits = habitDao.getAllHabitsForBackup()
         val completions = habitDao.getAllCompletionsForBackup()
+        val activeDays = db.activeDayDao().getAll()
         val checklistItems = habitDao.getAllChecklistItemsForBackup()
         val checklistItemCompletions = habitDao.getAllChecklistItemCompletionsForBackup()
         val reminders = reminderDao.getAllRemindersForBackup()
@@ -123,6 +125,10 @@ class DesktopBackupManager(
             put("exportedAt", LocalDate.now().toString())
             put("habits", habitsToJson(habits))
             put("habitCompletions", completionsToJson(completions))
+            // The never-resetting day counter's permanent record (ActiveDay). It can hold days whose
+            // completions are gone (a purged habit), so it cannot be rebuilt from them on restore.
+            // Same key as the Android backup, so either app restores the other's file.
+            put("activeDays", JSONArray(activeDays))
             put("checklistItems", checklistItemsToJson(checklistItems))
             put("checklistItemCompletions", checklistItemCompletionsToJson(checklistItemCompletions))
             put("reminders", remindersToJson(reminders))
@@ -177,6 +183,7 @@ class DesktopBackupManager(
             habitDao.deleteAllChecklistItems()
             habitDao.deleteAllCompletions()
             habitDao.deleteAllHabits()
+            db.activeDayDao().deleteAll()
             reminderDao.deleteAll()
             // Before the events themselves — event_reminders cascades off calendar_events, same
             // ordering reasoning as Android's BackupManager.
@@ -192,6 +199,12 @@ class DesktopBackupManager(
             habitDao.insertAllHabits(jsonToHabits(root.optJSONArray("habits") ?: JSONArray()))
             habitDao.insertChecklistItems(jsonToChecklistItems(root.optJSONArray("checklistItems") ?: JSONArray()))
             habitDao.insertAllChecklistItemCompletions(jsonToChecklistItemCompletions(root.optJSONArray("checklistItemCompletions") ?: JSONArray()))
+            // Active days before completions; the completions' insert trigger then adds their dates
+            // too (IGNORE). A backup from before activeDays existed has no key, and the record is
+            // simply rebuilt from its completions by that same trigger.
+            root.optJSONArray("activeDays")?.let { arr ->
+                db.activeDayDao().insertAll((0 until arr.length()).map { ActiveDay(arr.getString(it)) })
+            }
             habitDao.insertAllCompletions(jsonToCompletions(root.optJSONArray("habitCompletions") ?: JSONArray()))
             reminderDao.insertAll(jsonToReminders(root.optJSONArray("reminders") ?: JSONArray()))
             calendarDao.insertAll(jsonToCalendarEvents(root.optJSONArray("calendarEvents") ?: JSONArray()))

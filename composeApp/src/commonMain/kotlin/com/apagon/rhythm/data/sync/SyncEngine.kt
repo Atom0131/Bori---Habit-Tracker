@@ -185,7 +185,8 @@ class SyncEngine(
             notes = noteDtos,
             journalEntries = journalDtos,
             preferences = preferencesDto,
-            vaultFiles = vaultFilesDto
+            vaultFiles = vaultFilesDto,
+            activeDays = if (since == -1L) habitRepository.getAllActiveDays() else null
         )
     }
 
@@ -249,6 +250,9 @@ class SyncEngine(
                 }
             }
         }
+
+        // The peer's active days (full sync only): a union, so order against completions is moot.
+        batch.activeDays?.let { habitRepository.mergeActiveDays(it) }
 
         // ── Habit completions ─────────────────────────────────────────────────────────────────
         for (dto in batch.completions) {

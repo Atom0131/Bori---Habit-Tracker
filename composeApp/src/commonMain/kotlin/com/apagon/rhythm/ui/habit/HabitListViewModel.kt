@@ -474,15 +474,12 @@ class HabitListViewModel constructor(
     /**
      * Days, all time, on which at least one habit was completed. **Never resets**: a missed day
      * just doesn't add one. It used to count consecutive days, so one missed day dropped it to 0,
-     * which read as failing rather than as progress. The window is all history on purpose — a
-     * rolling 365 days would make the number fall as old days age out, which is a reset too.
-     * Mirrors the Android app's `dailyStreak`.
+     * which read as failing rather than as progress. Read from the permanent `active_days` record
+     * rather than from completions, so purging a deleted habit (which cascades its completions
+     * away) cannot lower it either — see ActiveDay. Mirrors the Android app's `dailyStreak`.
      */
     val dailyStreak: StateFlow<Int> = today.flatMapLatest { currentTodayStr ->
-        repository.getCompletionsBetweenDates(
-            startDate = "0000-01-01",
-            endDate   = currentTodayStr
-        ).map { completions -> completions.map { it.dateCompleted }.distinct().size }
+        repository.countActiveDaysThrough(currentTodayStr)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val tomorrowGroupedHabits: StateFlow<Map<HabitFrequency, List<Habit>>> = tomorrowDate.flatMapLatest { nextDay ->
@@ -532,18 +529,13 @@ class HabitListViewModel constructor(
     fun getItemsForHabit(habitId: Long): Flow<List<ChecklistItem>> =
         repository.getItemsForHabit(habitId)
 
+    /**
+     * A habit's "streak": the days it has been done, all time. **Never resets** — a missed day just
+     * doesn't add one. Mirrors the Android app's `streakFor`. `getCompletionsForHabit` is all
+     * history, which this needs; days after today are not counted.
+     */
     fun getStreakForHabit(habitId: Long): Flow<Int> = combine(todayDate, repository.getCompletionsForHabit(habitId)) { currentToday, completions ->
-        val dates = completions
-            .map { LocalDate.parse(it.dateCompleted) }
-            .toSet()
-        var streak = 0
-        var checkDate = currentToday
-        if (!dates.contains(checkDate)) checkDate = checkDate.minusDays(1)
-        while (dates.contains(checkDate)) {
-            streak++
-            checkDate = checkDate.minusDays(1)
-        }
-        streak
+        completions.map { LocalDate.parse(it.dateCompleted) }.toSet().count { !it.isAfter(currentToday) }
     }
 
     fun addHabit(

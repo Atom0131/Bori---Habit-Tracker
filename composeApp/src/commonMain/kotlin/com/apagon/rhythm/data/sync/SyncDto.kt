@@ -707,5 +707,12 @@ data class SyncBatch(
     val preferences: PreferencesDto? = null,
     /** Null when vault file sync is off on the sending device (see this file's own KDoc above
      * [VaultFileDto]) — distinct from an empty list, which means "sync is on, nothing changed." */
-    val vaultFiles: List<VaultFileDto>? = null
+    val vaultFiles: List<VaultFileDto>? = null,
+    /**
+     * Every day with a habit done (`active_days`, the never-resetting Today counter's record). Sent
+     * on a **full** sync only and merged as a union, so a newly paired device also learns days whose
+     * completions are long gone (a purged habit). Null = an older peer, or an incremental sync —
+     * there each side's triggers already derive new days from the completions it receives.
+     */
+    val activeDays: List<String>? = null
 )
