@@ -49,6 +49,7 @@ class NotesRepository constructor(
     // isPrivate is excluded at the query itself (see NotesDao) — not an after-the-fact filter.
 
     suspend fun getNotebookBySyncId(syncId: String): Notebook? = notesDao.getNotebookBySyncId(syncId)
+    suspend fun getNotebookTwins(createdAt: Long, name: String): List<Notebook> = notesDao.getNotebookTwins(createdAt, name)
 
     suspend fun getNonPrivateNotebooksUpdatedSince(since: Long): List<Notebook> =
         notesDao.getNonPrivateNotebooksUpdatedSince(since)
@@ -60,6 +61,7 @@ class NotesRepository constructor(
     suspend fun updateNotebookFromSync(notebook: Notebook) = notesDao.updateNotebook(notebook)
 
     suspend fun getNoteBySyncId(syncId: String): Note? = notesDao.getNoteBySyncId(syncId)
+    suspend fun getNoteTwins(createdAt: Long, title: String): List<Note> = notesDao.getNoteTwins(createdAt, title)
 
     suspend fun getNonPrivateNotesUpdatedSince(since: Long): List<Note> =
         notesDao.getNonPrivateNotesUpdatedSince(since)

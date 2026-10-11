@@ -37,6 +37,10 @@ interface TimerDao {
     @Query("SELECT * FROM timers WHERE syncId = :syncId")
     suspend fun getTimerBySyncId(syncId: String): Timer?
 
+    /** Sync twin lookup: the same timer on another device carries the same createdAt and label (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM timers WHERE createdAt = :createdAt AND label = :label")
+    suspend fun getTimerTwins(createdAt: Long, label: String): List<Timer>
+
     @Query("SELECT * FROM timers WHERE updatedAt > :since")
     suspend fun getTimersUpdatedSince(since: Long): List<Timer>
 

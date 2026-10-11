@@ -24,6 +24,7 @@ class AlarmRepository constructor(private val dao: AlarmDao) {
     // ── Sync (Stage 2) ───────────────────────────────────────────────────────
 
     suspend fun getAlarmBySyncId(syncId: String): Alarm? = dao.getAlarmBySyncId(syncId)
+    suspend fun getAlarmTwins(createdAt: Long, hour: Int, minute: Int): List<Alarm> = dao.getAlarmTwins(createdAt, hour, minute)
 
     suspend fun getAlarmsUpdatedSince(since: Long): List<Alarm> = dao.getAlarmsUpdatedSince(since)
 

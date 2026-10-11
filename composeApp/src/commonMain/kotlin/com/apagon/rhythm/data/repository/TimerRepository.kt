@@ -24,6 +24,7 @@ class TimerRepository constructor(private val dao: TimerDao) {
     // ── Sync (Stage 2) ───────────────────────────────────────────────────────
 
     suspend fun getTimerBySyncId(syncId: String): Timer? = dao.getTimerBySyncId(syncId)
+    suspend fun getTimerTwins(createdAt: Long, label: String): List<Timer> = dao.getTimerTwins(createdAt, label)
 
     suspend fun getTimersUpdatedSince(since: Long): List<Timer> = dao.getTimersUpdatedSince(since)
 

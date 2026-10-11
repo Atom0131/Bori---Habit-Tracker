@@ -37,6 +37,10 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE syncId = :syncId")
     suspend fun getAlarmBySyncId(syncId: String): Alarm?
 
+    /** Sync twin lookup: the same alarm on another device carries the same createdAt and time (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM alarms WHERE createdAt = :createdAt AND hour = :hour AND minute = :minute")
+    suspend fun getAlarmTwins(createdAt: Long, hour: Int, minute: Int): List<Alarm>
+
     @Query("SELECT * FROM alarms WHERE updatedAt > :since")
     suspend fun getAlarmsUpdatedSince(since: Long): List<Alarm>
 

@@ -36,6 +36,7 @@ class JournalRepository constructor(private val dao: JournalDao) {
     // ── Sync (Stage 2) ───────────────────────────────────────────────────────
 
     suspend fun getEntryBySyncId(syncId: String): JournalEntry? = dao.getEntryBySyncId(syncId)
+    suspend fun getEntryTwins(createdAt: Long, date: String): List<JournalEntry> = dao.getEntryTwins(createdAt, date)
 
     suspend fun getEntriesUpdatedSince(since: Long): List<JournalEntry> = dao.getEntriesUpdatedSince(since)
 

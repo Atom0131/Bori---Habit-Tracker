@@ -70,6 +70,10 @@ interface NotesDao {
     @Query("SELECT * FROM notebooks WHERE syncId = :syncId")
     suspend fun getNotebookBySyncId(syncId: String): Notebook?
 
+    /** Sync twin lookup: the same notebook on another device carries the same createdAt and name (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM notebooks WHERE createdAt = :createdAt AND name = :name")
+    suspend fun getNotebookTwins(createdAt: Long, name: String): List<Notebook>
+
     @Query("SELECT * FROM notebooks WHERE updatedAt > :since AND isPrivate = 0")
     suspend fun getNonPrivateNotebooksUpdatedSince(since: Long): List<Notebook>
 
@@ -85,6 +89,10 @@ interface NotesDao {
 
     @Query("SELECT * FROM notes WHERE syncId = :syncId")
     suspend fun getNoteBySyncId(syncId: String): Note?
+
+    /** Sync twin lookup: the same note on another device carries the same createdAt and title (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM notes WHERE createdAt = :createdAt AND title = :title")
+    suspend fun getNoteTwins(createdAt: Long, title: String): List<Note>
 
     @Query("""
         SELECT notes.* FROM notes

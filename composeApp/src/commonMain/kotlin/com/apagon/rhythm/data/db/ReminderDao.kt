@@ -38,6 +38,10 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE syncId = :syncId")
     suspend fun getReminderBySyncId(syncId: String): Reminder?
 
+    /** Sync twin lookup: the same reminder on another device carries the same createdAt and title (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM reminders WHERE createdAt = :createdAt AND title = :title")
+    suspend fun getReminderTwins(createdAt: Long, title: String): List<Reminder>
+
     @Query("SELECT * FROM reminders WHERE updatedAt > :since")
     suspend fun getRemindersUpdatedSince(since: Long): List<Reminder>
 

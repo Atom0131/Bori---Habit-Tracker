@@ -32,6 +32,7 @@ class ReminderRepository constructor(private val dao: ReminderDao) {
     // ── Sync (Stage 2) ───────────────────────────────────────────────────────
 
     suspend fun getReminderBySyncId(syncId: String): Reminder? = dao.getReminderBySyncId(syncId)
+    suspend fun getReminderTwins(createdAt: Long, title: String): List<Reminder> = dao.getReminderTwins(createdAt, title)
 
     suspend fun getRemindersUpdatedSince(since: Long): List<Reminder> = dao.getRemindersUpdatedSince(since)
 

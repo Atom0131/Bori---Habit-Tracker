@@ -285,8 +285,11 @@ class SyncEngine(
             }
         }
 
+        val twins = TwinClaims()
+
         // ── Notebooks (privacy boundary enforced here, defensively, in addition to the outgoing
         //    side already excluding them) ────────────────────────────────────────────────────────
+        val notebookSyncIds = batch.notebooks.mapTo(HashSet()) { it.syncId }
         for (dto in batch.notebooks) {
             if (dto.isPrivate) continue
             val existing = notesRepository.getNotebookBySyncId(dto.syncId)
@@ -294,6 +297,18 @@ class SyncEngine(
             val localParentId = dto.parentSyncId?.let { notesRepository.getNotebookBySyncId(it)?.id }
             when {
                 existing == null -> {
+                    // Its twin first (same createdAt and name — see TwinClaims), whatever syncId it
+                    // carries now; then the older first-merge rule below.
+                    val twin = twins.claim("notebook", notesRepository.getNotebookTwins(dto.createdAt, dto.name), notebookSyncIds) { it.id to it.syncId }
+                    if (twin != null) {
+                        val stamp = twin.firstSyncedAt ?: System.currentTimeMillis()
+                        notesRepository.updateNotebookFromSync(
+                            if (dto.updatedAt > twin.updatedAt) dto.toEntity(localParentId).copy(id = twin.id, firstSyncedAt = stamp)
+                            else twin.copy(syncId = dto.syncId, firstSyncedAt = stamp)
+                        )
+                        otherUpdated++
+                        continue
+                    }
                     // First-merge dedup: before inserting a new notebook, check for a local one
                     // with the same name that's never synced before (firstSyncedAt still null) —
                     // plain syncId matching can't tell "these are the same notebook" apart from
@@ -347,10 +362,12 @@ class SyncEngine(
         // exist on this device until ITS OWN upsert runs — resolving links inline in a single pass
         // would silently drop any link whose target note happens to sort later in batch.notes.
         val notesNeedingLinkReplace = mutableListOf<Pair<NoteDto, Long>>()
+        val noteSyncIds = batch.notes.mapTo(HashSet()) { it.syncId }
         for (dto in batch.notes) {
             val notebook = notesRepository.getNotebookBySyncId(dto.notebookSyncId) ?: continue
             if (notebook.isPrivate) continue
             val existing = notesRepository.getNoteBySyncId(dto.syncId)
+                ?: twins.claim("note", notesRepository.getNoteTwins(dto.createdAt, dto.title), noteSyncIds) { it.id to it.syncId }
             when {
                 existing == null -> {
                     val localNoteId = notesRepository.insertNoteFromSync(dto.toEntity(notebook.id))
@@ -361,6 +378,10 @@ class SyncEngine(
                     notesRepository.updateNoteFromSync(dto.toEntity(notebook.id).copy(id = existing.id))
                     otherUpdated++
                     notesNeedingLinkReplace.add(dto to existing.id)
+                }
+                existing.syncId != dto.syncId -> {
+                    notesRepository.updateNoteFromSync(existing.copy(syncId = dto.syncId))
+                    otherUpdated++
                 }
                 // else: local copy is newer or tied — keep local note AND local links untouched.
             }
@@ -469,8 +490,10 @@ class SyncEngine(
         }
 
         // ── Alarms ────────────────────────────────────────────────────────────────────────────
+        val alarmSyncIds = batch.alarms.mapTo(HashSet()) { it.syncId }
         for (dto in batch.alarms) {
             val existing = alarmRepository.getAlarmBySyncId(dto.syncId)
+                ?: twins.claim("alarm", alarmRepository.getAlarmTwins(dto.createdAt, dto.hour, dto.minute), alarmSyncIds) { it.id to it.syncId }
             when {
                 existing == null -> {
                     alarmRepository.insertAlarmFromSync(dto.toEntity())
@@ -480,12 +503,18 @@ class SyncEngine(
                     alarmRepository.updateAlarmFromSync(dto.toEntity().copy(id = existing.id))
                     otherUpdated++
                 }
+                existing.syncId != dto.syncId -> {
+                    alarmRepository.updateAlarmFromSync(existing.copy(syncId = dto.syncId))
+                    otherUpdated++
+                }
             }
         }
 
         // ── Timers ────────────────────────────────────────────────────────────────────────────
+        val timerSyncIds = batch.timers.mapTo(HashSet()) { it.syncId }
         for (dto in batch.timers) {
             val existing = timerRepository.getTimerBySyncId(dto.syncId)
+                ?: twins.claim("timer", timerRepository.getTimerTwins(dto.createdAt, dto.label), timerSyncIds) { it.id to it.syncId }
             when {
                 existing == null -> {
                     timerRepository.insertTimerFromSync(dto.toEntity())
@@ -495,13 +524,19 @@ class SyncEngine(
                     timerRepository.updateTimerFromSync(dto.toEntity().copy(id = existing.id))
                     otherUpdated++
                 }
+                existing.syncId != dto.syncId -> {
+                    timerRepository.updateTimerFromSync(existing.copy(syncId = dto.syncId))
+                    otherUpdated++
+                }
             }
         }
 
         // ── Reminders (may reference a note, already applied above) ─────────────────────────────
+        val reminderSyncIds = batch.reminders.mapTo(HashSet()) { it.syncId }
         for (dto in batch.reminders) {
             val localNoteId = dto.noteSyncId?.let { notesRepository.getNoteBySyncId(it)?.id }
             val existing = reminderRepository.getReminderBySyncId(dto.syncId)
+                ?: twins.claim("reminder", reminderRepository.getReminderTwins(dto.createdAt, dto.title), reminderSyncIds) { it.id to it.syncId }
             when {
                 existing == null -> {
                     reminderRepository.insertReminderFromSync(dto.toEntity(localNoteId))
@@ -511,13 +546,19 @@ class SyncEngine(
                     reminderRepository.updateReminderFromSync(dto.toEntity(localNoteId).copy(id = existing.id))
                     otherUpdated++
                 }
+                existing.syncId != dto.syncId -> {
+                    reminderRepository.updateReminderFromSync(existing.copy(syncId = dto.syncId))
+                    otherUpdated++
+                }
             }
         }
 
         // ── Journal entries (may reference a habit, already applied above) ──────────────────────
+        val journalSyncIds = batch.journalEntries.mapTo(HashSet()) { it.syncId }
         for (dto in batch.journalEntries) {
             val localHabitId = dto.habitSyncId?.let { habitRepository.getHabitBySyncId(it)?.id }
             val existing = journalRepository.getEntryBySyncId(dto.syncId)
+                ?: twins.claim("journal", journalRepository.getEntryTwins(dto.createdAt, dto.date), journalSyncIds) { it.id to it.syncId }
             when {
                 existing == null -> {
                     journalRepository.insertEntryFromSync(dto.toEntity(localHabitId))
@@ -525,6 +566,10 @@ class SyncEngine(
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     journalRepository.updateEntryFromSync(dto.toEntity(localHabitId).copy(id = existing.id))
+                    otherUpdated++
+                }
+                existing.syncId != dto.syncId -> {
+                    journalRepository.updateEntryFromSync(existing.copy(syncId = dto.syncId))
                     otherUpdated++
                 }
             }
@@ -564,5 +609,32 @@ class SyncEngine(
      */
     suspend fun markSynced(peer: String, startedAt: Long) {
         preferences.setLastSyncedAt(peer, startedAt)
+    }
+}
+
+/**
+ * **Sync twins: the same item on both devices under different syncIds.** A notebook, note, alarm,
+ * timer, reminder or journal entry that reached the other device some way other than sync — a backup
+ * restored here, or rows from before sync existed — has its own syncId on each side. Plain syncId
+ * matching then sees every such item as new, and one full sync with the phone duplicated all of them
+ * on both devices (2026-10-11). Mirrors the Android app's `TwinClaims`.
+ *
+ * So when an incoming syncId is unknown, the item's twin is looked for: a local row with the same
+ * `createdAt` (to the millisecond, preserved by backup/restore) and the same title, name, time or
+ * date. The twin adopts the incoming syncId instead of a copy being inserted.
+ *
+ * Within one batch a local row adopts at most one incoming syncId, and a row this batch already
+ * addresses by its own syncId is never taken — so two genuine copies on one side stay two.
+ */
+private class TwinClaims {
+    private val claimed = mutableSetOf<String>()
+
+    fun <T> claim(kind: String, twins: List<T>, incomingSyncIds: Set<String>, key: (T) -> Pair<Long, String?>): T? {
+        val twin = twins.firstOrNull { row ->
+            val (id, syncId) = key(row)
+            "$kind:$id" !in claimed && syncId !in incomingSyncIds
+        } ?: return null
+        claimed += "$kind:${key(twin).first}"
+        return twin
     }
 }

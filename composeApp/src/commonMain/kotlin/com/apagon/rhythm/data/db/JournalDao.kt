@@ -44,6 +44,10 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE syncId = :syncId")
     suspend fun getEntryBySyncId(syncId: String): JournalEntry?
 
+    /** Sync twin lookup: the same journal entry on another device carries the same createdAt and date (see SyncEngine's TwinClaims). */
+    @Query("SELECT * FROM journal_entries WHERE createdAt = :createdAt AND date = :date")
+    suspend fun getEntryTwins(createdAt: Long, date: String): List<JournalEntry>
+
     @Query("SELECT * FROM journal_entries WHERE updatedAt > :since")
     suspend fun getEntriesUpdatedSince(since: Long): List<JournalEntry>
 
