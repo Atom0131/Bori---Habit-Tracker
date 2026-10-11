@@ -472,29 +472,17 @@ class HabitListViewModel constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /**
-     * Consecutive days ending today (or yesterday if today has no completions yet)
-     * on which the user completed at least one habit.
+     * Days, all time, on which at least one habit was completed. **Never resets**: a missed day
+     * just doesn't add one. It used to count consecutive days, so one missed day dropped it to 0,
+     * which read as failing rather than as progress. The window is all history on purpose — a
+     * rolling 365 days would make the number fall as old days age out, which is a reset too.
+     * Mirrors the Android app's `dailyStreak`.
      */
-    val dailyStreak: StateFlow<Int> = combine(todayDate, today) { currentToday, currentTodayStr ->
-        currentToday to currentTodayStr
-    }.flatMapLatest { (currentToday, currentTodayStr) ->
+    val dailyStreak: StateFlow<Int> = today.flatMapLatest { currentTodayStr ->
         repository.getCompletionsBetweenDates(
-            startDate = currentToday.minusDays(365).format(DateTimeFormatter.ISO_LOCAL_DATE),
+            startDate = "0000-01-01",
             endDate   = currentTodayStr
-        ).map { completions ->
-            val datesWithCompletion = completions
-                .map { LocalDate.parse(it.dateCompleted) }
-                .toSet()
-            var streak = 0
-            var checkDate = currentToday
-            // If nothing done today, start checking from yesterday
-            if (checkDate !in datesWithCompletion) checkDate = checkDate.minusDays(1)
-            while (checkDate in datesWithCompletion) {
-                streak++
-                checkDate = checkDate.minusDays(1)
-            }
-            streak
-        }
+        ).map { completions -> completions.map { it.dateCompleted }.distinct().size }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val tomorrowGroupedHabits: StateFlow<Map<HabitFrequency, List<Habit>>> = tomorrowDate.flatMapLatest { nextDay ->
