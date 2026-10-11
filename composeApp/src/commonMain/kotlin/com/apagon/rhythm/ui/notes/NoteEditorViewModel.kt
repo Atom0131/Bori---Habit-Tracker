@@ -12,13 +12,18 @@ import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.repository.NotesRepository
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.apagon.rhythm.core.json.JSONArray
 import com.apagon.rhythm.core.json.JSONObject
 import kotlin.uuid.Uuid
@@ -42,6 +47,11 @@ class NoteEditorViewModel constructor(
     private val repository: NotesRepository,
     private val themePreferences: ThemePreferences
 ) : ViewModel() {
+
+    private companion object {
+        /** Idle time before an edit is written — short, so little is ever in flight. */
+        const val AUTOSAVE_DEBOUNCE_MS = 500L
+    }
 
     private val _note = MutableStateFlow<Note?>(null)
     val note: StateFlow<Note?> = _note.asStateFlow()
@@ -83,19 +93,30 @@ class NoteEditorViewModel constructor(
 
     fun loadNote(noteId: Long, notebookId: Long, template: NoteTemplate? = null) {
         viewModelScope.launch {
-            if (noteId == -1L) {
-                _note.value = Note(notebookId = notebookId, title = "", content = "")
-                _title.value = ""
-                _blocks.value = template?.buildBlocks() ?: listOf(NoteBlock())
-                _tags.value = emptyList()
-            } else {
-                val n = repository.getNoteById(noteId)
-                _note.value = n
-                _title.value = n?.title ?: ""
-                _blocks.value = deserializeBlocks(n?.content ?: "")
-                _tags.value = parseTags(n?.tags ?: "")
-                _fontFamily.value = n?.fontFamily ?: "default"
-                _fontSize.value = n?.fontSize ?: "normal"
+            saveMutex.withLock {
+                // One editor serves every note in the window, and the notebook rail leaves it without
+                // calling saveNote — so settle the previous note first. Never the blank-note cleanup when
+                // the note being opened IS that note: reopening an empty new note would delete it, and
+                // whatever was typed next would go into a row that no longer exists.
+                if (noteId != -1L && noteId == _note.value?.id) persistIfChanged() else finishCurrent()
+                if (noteId == -1L) {
+                    _note.value = Note(notebookId = notebookId, title = "", content = "")
+                    _title.value = ""
+                    _blocks.value = template?.buildBlocks() ?: listOf(NoteBlock())
+                    _tags.value = emptyList()
+                    createdHere = true
+                    persist() // saved the moment it opens, so nothing typed into it can be lost
+                } else {
+                    val n = repository.getNoteById(noteId)
+                    _note.value = n
+                    _title.value = n?.title ?: ""
+                    _blocks.value = deserializeBlocks(n?.content ?: "")
+                    _tags.value = parseTags(n?.tags ?: "")
+                    _fontFamily.value = n?.fontFamily ?: "default"
+                    _fontSize.value = n?.fontSize ?: "normal"
+                    createdHere = false
+                    savedDraft = currentDraft()
+                }
             }
         }
     }
@@ -144,15 +165,11 @@ class NoteEditorViewModel constructor(
     fun setFontSize(key: String) { _fontSize.value = key }
 
     fun moveNote(targetNotebookId: Long) {
-        val current = _note.value ?: return
         viewModelScope.launch {
-            val updated = current.copy(notebookId = targetNotebookId, updatedAt = System.currentTimeMillis())
-            if (updated.id == 0L) {
-                val id = repository.insertNote(updated)
-                _note.value = updated.copy(id = id)
-            } else {
-                repository.updateNote(updated)
-                _note.value = updated
+            saveMutex.withLock {
+                val current = _note.value ?: return@withLock
+                _note.value = current.copy(notebookId = targetNotebookId)
+                persist()
             }
         }
     }
@@ -222,22 +239,88 @@ class NoteEditorViewModel constructor(
         return sb.toString().trimEnd()
     }
 
-    fun saveNote(onComplete: () -> Unit) {
-        val currentNote = _note.value ?: return
+    /**
+     * **Autosave — the same promise as the Android editor: what you type is kept.** A note used to
+     * reach the database only through the back arrow or the overflow Save item; leaving any other
+     * way (the sidebar, closing the window, the app being restarted) lost it, and that is how a note
+     * written in the "Rhy" notebook vanished on 2026-10-11.
+     *
+     * Now a new note is inserted the moment it opens ([loadNote]), and every change — title, blocks,
+     * tags, fonts, whichever function made it — is written [AUTOSAVE_DEBOUNCE_MS] after typing stops,
+     * by watching the editor state itself rather than each mutator. [savedDraft] keeps a no-op (a
+     * load, a re-emit) from touching `updatedAt`. [saveMutex] keeps the debounce, [loadNote] and
+     * [saveNote] from racing a second insert.
+     */
+    private data class Draft(
+        val title: String,
+        val blocks: List<NoteBlock>,
+        val tags: List<String>,
+        val fontFamily: String,
+        val fontSize: String
+    )
+
+    private val saveMutex = Mutex()
+    private var savedDraft: Draft? = null
+    /** True for a note this editor created, so leaving it still blank can remove it again. */
+    private var createdHere = false
+
+    private fun currentDraft() =
+        Draft(_title.value, _blocks.value, _tags.value, _fontFamily.value, _fontSize.value)
+
+    init {
+        @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            val updatedNote = currentNote.copy(
-                title = _title.value,
-                content = serializeBlocks(_blocks.value),
-                tags = _tags.value.joinToString(","),
-                fontFamily = _fontFamily.value,
-                fontSize = _fontSize.value,
-                updatedAt = System.currentTimeMillis()
-            )
-            if (updatedNote.id == 0L) {
-                repository.insertNote(updatedNote)
-            } else {
-                repository.updateNote(updatedNote)
-            }
+            combine(_title, _blocks, _tags, _fontFamily, _fontSize) { _, _, _, _, _ -> Unit }
+                .debounce(AUTOSAVE_DEBOUNCE_MS)
+                .collect { saveMutex.withLock { persistIfChanged() } }
+        }
+    }
+
+    private suspend fun persistIfChanged() {
+        if (_note.value != null && currentDraft() != savedDraft) persist()
+    }
+
+    /** Insert or update the current note. Caller holds [saveMutex]. */
+    private suspend fun persist() {
+        val currentNote = _note.value ?: return
+        val draft = currentDraft()
+        val updatedNote = currentNote.copy(
+            title = draft.title,
+            content = serializeBlocks(draft.blocks),
+            tags = draft.tags.joinToString(","),
+            fontFamily = draft.fontFamily,
+            fontSize = draft.fontSize,
+            updatedAt = System.currentTimeMillis()
+        )
+        if (updatedNote.id == 0L) {
+            val id = repository.insertNote(updatedNote)
+            _note.value = updatedNote.copy(id = id) // later saves update, never re-insert
+        } else {
+            repository.updateNote(updatedNote)
+            _note.value = updatedNote
+        }
+        savedDraft = draft
+    }
+
+    private fun Draft.isBlank() = title.isBlank() && tags.isEmpty() &&
+        blocks.all { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER && it.content.isBlank() }
+
+    /** Write any pending change; a note created here and still completely empty is removed. Caller holds [saveMutex]. */
+    private suspend fun finishCurrent() {
+        val n = _note.value ?: return
+        if (createdHere && n.id != 0L && currentDraft().isBlank()) {
+            repository.hardDeleteNote(n)
+            _note.value = null
+            savedDraft = null
+        } else {
+            persistIfChanged()
+        }
+    }
+
+    /** Save now (every exit path). A note opened here and left completely empty is removed instead. */
+    fun saveNote(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            saveMutex.withLock { finishCurrent() }
             onComplete()
         }
     }
