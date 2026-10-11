@@ -382,7 +382,7 @@ object BorikenPage {
 }
 
 /**
- * The faint petroglyphs **in the field itself** while Borikén is on under Crystal. `CrystalRoot`
+ * The faint petroglyphs behind every screen while Borikén is on. Under Crystal they are `CrystalRoot`
  * draws this inside the same blur source as the colour field, so glass panels blur the marks along
  * with the colours. They used to be a layer over the field, where every card hid most of a mark and
  * left a sharp fragment poking out between cards.
@@ -392,10 +392,16 @@ object BorikenPage {
  */
 @Composable
 fun BorikenPetroglyphs(modifier: Modifier = Modifier) {
-    if (!LocalBoriken.current || !isCrystal()) return
+    if (!LocalBoriken.current) return
     val painters = TainoGlyphs.all.associateWith { rememberVectorPainter(it) }
-    val ink = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.07f)
-    val red = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.10f)
+    // Crystal: see-through, so the glass blurs them with the field. Material 3 / Expressive: the
+    // same marks drawn solid, a shade off the page background — tone-on-tone, nothing see-through.
+    val crystal = isCrystal()
+    val bg = MaterialTheme.colorScheme.background
+    val ink = if (crystal) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.07f)
+              else androidx.compose.ui.graphics.lerp(bg, MaterialTheme.colorScheme.onBackground, 0.14f)
+    val red = if (crystal) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.10f)
+              else androidx.compose.ui.graphics.lerp(bg, MaterialTheme.colorScheme.tertiary, 0.22f)
     val spots = remember {
         listOf(
             // Kept in the outer few percent of the width, where no row puts text, and out of the top

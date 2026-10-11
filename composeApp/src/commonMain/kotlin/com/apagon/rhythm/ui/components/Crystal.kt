@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.components
 
+import com.apagon.rhythm.ui.theme.LocalBoriken
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -135,6 +136,10 @@ private fun solidFieldColor(): Color =
 @ReadOnlyComposable
 fun crystalScaffoldColor(fallback: Color = Color.Unspecified): Color = when {
     isCrystal() -> Color.Transparent
+    // Borikén in a flat style paints the page and its petroglyphs once, behind every screen
+    // (CrystalRoot), so a screen's own background steps aside. Screens only: sheets and dialogs
+    // pass a fallback and keep their opaque surface.
+    LocalBoriken.current && !fallback.isSpecified -> Color.Transparent
     fallback.isSpecified -> fallback
     else -> MaterialTheme.colorScheme.background
 }
@@ -643,6 +648,12 @@ fun CrystalRoot(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
             // glass blurs them like the field instead of a panel slicing a sharp mark in two.
             Box(Modifier.fillMaxSize().let { if (field != null) glassBlur.sourceModifier(field, it) else it }) {
                 AmbientBackground(Modifier.fillMaxSize())
+                BorikenPetroglyphs()
+            }
+        } else if (LocalBoriken.current) {
+            // Material 3 / Expressive under Borikén: the page and its solid petroglyphs, painted
+            // once here; the screens above are transparent (see crystalScaffoldColor).
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 BorikenPetroglyphs()
             }
         }
