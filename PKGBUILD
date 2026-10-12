@@ -1,5 +1,4 @@
-# Maintainer: Your Name <you@example.com>
-# Fill in the line above with a real contact before submitting this to the AUR.
+# Maintainer: Atom0131 <https://github.com/Atom0131>
 pkgname=bori
 # Renamed from "rhythm" on 2026-10-09; installing bori replaces an installed rhythm package.
 conflicts=('rhythm')
@@ -8,7 +7,7 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="Habit tracker, journal, and planner, local-first, with optional sync to the Android app"
 arch=('x86_64')
-url="https://github.com/Atom0131/rhythm-desktop"
+url="https://github.com/Atom0131/Bori---Habit-Tracker"
 license=('Apache-2.0')
 makedepends=('jdk17-openjdk')
 options=('!strip')

@@ -42,21 +42,23 @@ automatically on first launch, with a `~/.rhythm` link left behind so older phot
 
 #### Arch / Artix (pacman)
 
-Not on the AUR yet, so there's no `yay -S bori`. A `PKGBUILD` is included in this repo so you can
-build and install a real pacman package yourself:
+Not on the AUR yet, so there's no `yay -S bori`. The easiest route is the prebuilt
+`bori-<version>-1-x86_64.pkg.tar.zst` from the [Releases](../../releases) page:
 
 ```bash
-sudo pacman -S jdk17-openjdk dpkg rpm-tools   # build-time deps (jpackage + packaging tools)
-git clone https://github.com/Atom0131/rhythm-desktop.git
-cd rhythm-desktop
-makepkg -si                                   # builds bori-<version>-1-x86_64.pkg.tar.zst and installs it (replacing an installed rhythm package)
+sudo pacman -U ./bori-<version>-1-x86_64.pkg.tar.zst   # replaces an installed rhythm package
 ```
 
-(`dpkg` and `rpm-tools` aren't actually needed to *run* the app. They're only there to build the
-`.deb`/`.rpm` targets elsewhere in this same Gradle config, which `makepkg` shells out to, so it's
-harmless to have them installed either way.) Once this `PKGBUILD` gets published to the AUR,
-`yay -S bori` will work directly. Until then, building it yourself with `makepkg -si` is the
-pacman-native path.
+Or build the pacman package yourself with the `PKGBUILD` included in this repo:
+
+```bash
+sudo pacman -S --needed jdk17-openjdk         # build-time dep (provides jpackage)
+git clone https://github.com/Atom0131/Bori---Habit-Tracker.git
+cd Bori---Habit-Tracker
+makepkg -si                                   # builds bori-<version>-1-x86_64.pkg.tar.zst and installs it
+```
+
+Once this `PKGBUILD` gets published to the AUR, `yay -S bori` will work directly.
 
 ### Build from source
 
@@ -65,8 +67,8 @@ for packaging, though it's fine for `:composeApp:run`. Building the `.deb`/`.rpm
 `dpkg-deb`/`rpmbuild` on your `PATH` (on Arch/Artix: `sudo pacman -S jdk17-openjdk dpkg rpm-tools`).
 
 ```bash
-git clone https://github.com/Atom0131/rhythm-desktop.git
-cd rhythm-desktop
+git clone https://github.com/Atom0131/Bori---Habit-Tracker.git
+cd Bori---Habit-Tracker
 ./gradlew :composeApp:run                 # run directly, no packaging
 ./gradlew :composeApp:packageDeb          # build an installable .deb yourself
 ./gradlew :composeApp:packageRpm          # build an installable .rpm yourself

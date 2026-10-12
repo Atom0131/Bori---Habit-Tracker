@@ -27,3 +27,6 @@ scripts/capture_screenshots.sh
 test_settings_on_emulator.sh
 docs/ARCHITECTURE.md
 docs/AUDIT.md
+
+# Release installers (uploaded to GitHub Releases, not committed)
+release/
