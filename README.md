@@ -44,10 +44,12 @@ An existing `~/.rhythm` from before the rename is moved there automatically on f
 
 #### Arch / CachyOS / Artix (pacman)
 
-Download the package from the [Releases](../../releases) page, then install it with `pacman -U`,
-pacman's standard command for installing a package file:
+Open a terminal and run these three commands, one at a time. They download the package into
+`~/Downloads` and install it with `pacman -U`, pacman's standard command for installing a package
+file (pacman will ask you to confirm; press Enter):
 
 ```bash
+cd ~/Downloads
 curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.0/bori-1.0.0-1-x86_64.pkg.tar.zst
 sudo pacman -U ./bori-1.0.0-1-x86_64.pkg.tar.zst
 ```
