@@ -44,12 +44,16 @@ An existing `~/.rhythm` from before the rename is moved there automatically on f
 
 #### Arch / CachyOS / Artix (pacman)
 
-`pacman -U` is pacman's standard way to install a package file, and it can take the download link
-directly, so this one command downloads and installs Bori:
+Download the package from the [Releases](../../releases) page, then install it with `pacman -U`,
+pacman's standard command for installing a package file:
 
 ```bash
-sudo pacman -U https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.0/bori-1.0.0-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.0/bori-1.0.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bori-1.0.0-1-x86_64.pkg.tar.zst
 ```
+
+(Install from the downloaded file rather than passing the URL straight to `pacman -U`: for a URL,
+pacman's default config requires a `.sig` signature file, and these packages aren't signed.)
 
 pacman tracks it like any other package: `pacman -Q bori` shows it, installing a newer release the
 same way upgrades it, and `sudo pacman -R bori` removes it cleanly. It also replaces an installed
