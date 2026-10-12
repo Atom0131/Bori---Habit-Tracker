@@ -2,13 +2,9 @@ package com.apagon.rhythm
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.apagon.rhythm.ui.theme.LocalBoriken
 import com.apagon.rhythm.ui.components.TainoGlyphs
-import com.apagon.rhythm.ui.components.LocalBorikenPage
-import com.apagon.rhythm.ui.components.BorikenPage
 import com.apagon.rhythm.ui.components.BorikenHeaderSymbol
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -356,18 +352,13 @@ private fun DesktopAppRoot() {
                 )
             }
         }
-        // Borikén: the open section's own mark leads the Crystal watermark, as each phone tab does.
-        val pageGlyph = sectionGlyph(selectedSection)
-        SideEffect { BorikenPage.glyph = pageGlyph }
         Column(modifier = Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalBorikenPage provides pageGlyph) {
-                when (selectedSection) {
-                    0 -> DesktopTodayScreen()
-                    1 -> DesktopJournalScreen()
-                    2 -> DesktopNotesTab()
-                    3 -> DesktopClockScreen()
-                    4 -> DesktopSettingsScreen()
-                }
+            when (selectedSection) {
+                0 -> DesktopTodayScreen()
+                1 -> DesktopJournalScreen()
+                2 -> DesktopNotesTab()
+                3 -> DesktopClockScreen()
+                4 -> DesktopSettingsScreen()
             }
         }
     }

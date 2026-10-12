@@ -17,9 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -354,16 +352,6 @@ object TainoGlyphs {
         "To-do List" -> Spiral
         else -> null
     }
-
-    /** Each page has its own mark, so moving around the app turns up different carvings. */
-    fun forPage(route: String?): ImageVector = when {
-        route == null -> Sun
-        route == "list" || route.startsWith("routine") -> Sun
-        route == "stats" -> Coqui  // the Journal tab's route is "stats" — the coquí sings each night
-        route == "clock" -> Spiral
-        route == "notes" || route.startsWith("note") -> Cemi
-        else -> Turtle
-    }
 }
 
 /**
@@ -372,13 +360,11 @@ object TainoGlyphs {
  * It is a single `Canvas` with no state, so it draws once and only redraws on a theme change.
  */
 /**
- * The current page's mark, for the field's watermark. The field is drawn by `CrystalRoot`, above the
- * navigation host that knows the route, so the route's glyph is published here (by
- * `StandardNavigationContent`) and read **only while drawing** — a tab change repaints the marks
- * without recomposing anything.
+ * The mark the field's watermark repeats. Fixed to the Sun: it used to follow the open page, and the
+ * Android app's swap on every navigation recomposed the whole host mid-transition.
  */
 object BorikenPage {
-    var glyph by mutableStateOf(TainoGlyphs.Sun)
+    val glyph: ImageVector get() = TainoGlyphs.Sun
 }
 
 /**
@@ -388,7 +374,7 @@ object BorikenPage {
  * left a sharp fragment poking out between cards.
  *
  * Five marks, kept to the screen's edges and corners so they frame the content rather than sit under
- * it. Every other one is the current page's own symbol.
+ * it. Every other one is the Sun, the header mark.
  */
 @Composable
 fun BorikenPetroglyphs(modifier: Modifier = Modifier) {
@@ -490,7 +476,7 @@ fun BorikenUnlockDialog(onDismiss: () -> Unit, onTryIt: () -> Unit) {
     )
 }
 
-/** The current page's Taíno mark, provided by `MainActivity` from the route. */
+/** The Taíno mark shown in page headers. Always the Sun — see [BorikenPage]. */
 val LocalBorikenPage = staticCompositionLocalOf { TainoGlyphs.Sun }
 
 /** A small solid mark beside a page title, in the flag's red. Borikén only. */
