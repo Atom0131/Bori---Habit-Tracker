@@ -28,26 +28,32 @@ See [`DESIGN.md`](DESIGN.md) for the design system.
 
 ### Download (recommended for most users)
 
-Grab the latest `.deb` (Debian, Ubuntu, Mint, and friends) or `.rpm` (Fedora, openSUSE, RHEL, and
-friends) from the [Releases](../../releases) page and install it the normal way:
+Grab the installer for your distro from the [Releases](../../releases) page and install it with your
+package manager's standard command (or just double-click it in your distro's software installer):
+
+| Distro | Download | Install |
+|---|---|---|
+| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.0-1_amd64.deb` | `sudo apt install ./bori_1.0.0-1_amd64.deb` |
+| Fedora, openSUSE, RHEL | `bori-1.0.0-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.0-1.x86_64.rpm` |
+| Arch, CachyOS, Manjaro, Artix | `bori-1.0.0-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.0-1-x86_64.pkg.tar.zst` |
+
+Each package bundles its own Java runtime, so you don't need Java installed separately. Once
+installed, Bori is in your app menu, or run `bori` from a terminal. Data is stored under `~/.bori`.
+An existing `~/.rhythm` from before the rename is moved there automatically on first launch, with a
+`~/.rhythm` link left behind so older photo paths still work.
+
+#### Arch / CachyOS / Artix (pacman)
+
+`pacman -U` is pacman's standard way to install a package file, and it can take the download link
+directly, so this one command downloads and installs Bori:
 
 ```bash
-sudo apt install ./bori_<version>_amd64.deb      # Debian/Ubuntu-family
-sudo dnf install ./bori-<version>.x86_64.rpm      # Fedora/RHEL-family
+sudo pacman -U https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.0/bori-1.0.0-1-x86_64.pkg.tar.zst
 ```
 
-(Or just double-click it in your distro's GUI package installer.) Each package bundles its own
-Java runtime, so you don't need Java installed separately. Data is stored under `~/.bori`. An existing `~/.rhythm` from before the rename is moved there
-automatically on first launch, with a `~/.rhythm` link left behind so older photo paths still work.
-
-#### Arch / Artix (pacman)
-
-Not on the AUR yet, so there's no `yay -S bori`. The easiest route is the prebuilt
-`bori-<version>-1-x86_64.pkg.tar.zst` from the [Releases](../../releases) page:
-
-```bash
-sudo pacman -U ./bori-<version>-1-x86_64.pkg.tar.zst   # replaces an installed rhythm package
-```
+pacman tracks it like any other package: `pacman -Q bori` shows it, installing a newer release the
+same way upgrades it, and `sudo pacman -R bori` removes it cleanly. It also replaces an installed
+`rhythm` package. Bori isn't on the AUR yet, so there's no `yay -S bori` for now.
 
 Or build the pacman package yourself with the `PKGBUILD` included in this repo:
 
