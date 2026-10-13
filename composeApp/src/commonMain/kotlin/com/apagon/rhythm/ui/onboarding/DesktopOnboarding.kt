@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
  * The desktop's first-launch intro, mirroring Android's OnboardingScreen pages. Android's last page
  * asks for notification permission, which a desktop doesn't need; here it's syncing with the
  * phone, the one thing a new desktop user has to set up. Shown once (hasSeenOnboarding), and again
- * from Settings → Help → Replay the intro.
+ * from Settings → Tutorials → Welcome intro.
  */
 private data class IntroPage(val title: String, val description: String, val icon: ImageVector, val features: List<String> = emptyList())
 
@@ -73,7 +73,7 @@ private val pages = listOf(
         "Sync with your phone",
         "Bori on your phone and your computers sync directly with each other over Tailscale, a free private network — nothing goes through a Bori server.",
         Icons.Default.Sync,
-        listOf("Set it up now, or any time from Settings → Data → Sync", "Works at home or away")
+        listOf("Set it up now, or any time from Settings → Data Management", "Works at home or away")
     )
 )
 

@@ -17,7 +17,7 @@ import java.net.ServerSocket
  * 127.0.0.1 when there is none.
  *
  * Binding is checked up front with a plain ServerSocket, so a port another program holds becomes
- * [SyncListenState.Failed] (shown in Settings → Sync and retried) instead of an exception at launch.
+ * [SyncListenState.Failed] (shown in Settings → Data Management → Sync with Phone & Computers, and retried) instead of an exception at launch.
  */
 class SyncAddressMonitor(
     private val server: SyncServer,

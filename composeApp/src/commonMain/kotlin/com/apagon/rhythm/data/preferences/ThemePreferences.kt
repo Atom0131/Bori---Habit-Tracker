@@ -114,10 +114,28 @@ class ThemePreferences(
          * [touchPreferences]. */
         val VAULT_FILE_SYNC_ENABLED_KEY = booleanPreferencesKey("vault_file_sync_enabled")
 
+        /**
+         * "What to sync" (2026-10-13, ported from Android): each switch gates both directions of
+         * that category on **this device only** — off means this computer neither sends its own
+         * changes in that category nor applies a peer's. Same key names as Android, so a backup
+         * carries them; never part of the sync blob (see SYNC_DEVICE_LOCAL_JSON_KEYS).
+         */
+        val SYNC_HABITS_ENABLED_KEY = booleanPreferencesKey("sync_habits_enabled")
+        val SYNC_REMINDERS_ENABLED_KEY = booleanPreferencesKey("sync_reminders_enabled")
+        val SYNC_EVENTS_ENABLED_KEY = booleanPreferencesKey("sync_events_enabled")
+        val SYNC_TODOS_ENABLED_KEY = booleanPreferencesKey("sync_todos_enabled")
+        val SYNC_CLOCK_ENABLED_KEY = booleanPreferencesKey("sync_clock_enabled")
+        val SYNC_NOTES_ENABLED_KEY = booleanPreferencesKey("sync_notes_enabled")
+        val SYNC_JOURNAL_ENABLED_KEY = booleanPreferencesKey("sync_journal_enabled")
+        val SYNC_PREFERENCES_ENABLED_KEY = booleanPreferencesKey("sync_preferences_enabled")
+
         /** Never part of the synced settings, so changing one must not stamp the timestamp. */
         private val DEVICE_LOCAL_KEYS: Set<Preferences.Key<*>> by lazy {
             setOf(IS_PRO_KEY, PROFILE_PICTURE_URI_KEY, RUN_IN_BACKGROUND_KEY,
-                VAULT_FILE_SYNC_ENABLED_KEY, PREFERENCES_UPDATED_AT_KEY)
+                VAULT_FILE_SYNC_ENABLED_KEY, PREFERENCES_UPDATED_AT_KEY,
+                SYNC_HABITS_ENABLED_KEY, SYNC_REMINDERS_ENABLED_KEY, SYNC_EVENTS_ENABLED_KEY,
+                SYNC_TODOS_ENABLED_KEY, SYNC_CLOCK_ENABLED_KEY, SYNC_NOTES_ENABLED_KEY,
+                SYNC_JOURNAL_ENABLED_KEY, SYNC_PREFERENCES_ENABLED_KEY)
         }
 
         /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
@@ -238,6 +256,25 @@ class ThemePreferences(
      * orphaned assets) is a materially higher-risk mechanism than the row-level entity sync, so it
      * stays opt-in until proven. See [VAULT_FILE_SYNC_ENABLED_KEY]'s own KDoc for why it's excluded
      * from backup and from the preferences sync blob. */
+    val syncHabitsEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_HABITS_ENABLED_KEY] ?: true }
+    val syncRemindersEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_REMINDERS_ENABLED_KEY] ?: true }
+    val syncEventsEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_EVENTS_ENABLED_KEY] ?: true }
+    val syncTodosEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_TODOS_ENABLED_KEY] ?: true }
+    val syncClockEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_CLOCK_ENABLED_KEY] ?: true }
+    val syncNotesEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_NOTES_ENABLED_KEY] ?: true }
+    val syncJournalEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_JOURNAL_ENABLED_KEY] ?: true }
+    val syncPreferencesEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_PREFERENCES_ENABLED_KEY] ?: true }
+
+    // Device-local, so a plain edit: a switch here must not stamp the synced-settings timestamp.
+    suspend fun setSyncHabitsEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_HABITS_ENABLED_KEY] = enabled } }
+    suspend fun setSyncRemindersEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_REMINDERS_ENABLED_KEY] = enabled } }
+    suspend fun setSyncEventsEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_EVENTS_ENABLED_KEY] = enabled } }
+    suspend fun setSyncTodosEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_TODOS_ENABLED_KEY] = enabled } }
+    suspend fun setSyncClockEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_CLOCK_ENABLED_KEY] = enabled } }
+    suspend fun setSyncNotesEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_NOTES_ENABLED_KEY] = enabled } }
+    suspend fun setSyncJournalEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_JOURNAL_ENABLED_KEY] = enabled } }
+    suspend fun setSyncPreferencesEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_PREFERENCES_ENABLED_KEY] = enabled } }
+
     val vaultFileSyncEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[VAULT_FILE_SYNC_ENABLED_KEY] ?: false
     }
@@ -647,6 +684,15 @@ class ThemePreferences(
             put("calendarListMode", prefs[CALENDAR_LIST_MODE_KEY] ?: false)
             put("notesToolbarPinned", prefs[NOTES_TOOLBAR_PINNED] ?: false)
             put("notePaper", prefs[NOTE_PAPER_KEY] ?: NOTE_PAPER_DEFAULT)
+            // Backups carry the "What to sync" choices, as Android's do; the sync blob strips them.
+            put("syncHabitsEnabled", prefs[SYNC_HABITS_ENABLED_KEY] ?: true)
+            put("syncRemindersEnabled", prefs[SYNC_REMINDERS_ENABLED_KEY] ?: true)
+            put("syncEventsEnabled", prefs[SYNC_EVENTS_ENABLED_KEY] ?: true)
+            put("syncTodosEnabled", prefs[SYNC_TODOS_ENABLED_KEY] ?: true)
+            put("syncClockEnabled", prefs[SYNC_CLOCK_ENABLED_KEY] ?: true)
+            put("syncNotesEnabled", prefs[SYNC_NOTES_ENABLED_KEY] ?: true)
+            put("syncJournalEnabled", prefs[SYNC_JOURNAL_ENABLED_KEY] ?: true)
+            put("syncPreferencesEnabled", prefs[SYNC_PREFERENCES_ENABLED_KEY] ?: true)
             put("customColors", prefs[CUSTOM_COLORS_KEY] ?: "")
             put("userName", prefs[USER_NAME_KEY] ?: "")
             put("userNickname", prefs[USER_NICKNAME_KEY] ?: "")
@@ -713,6 +759,14 @@ class ThemePreferences(
             prefs[CALENDAR_LIST_MODE_KEY] = json.optBoolean("calendarListMode", false)
             prefs[NOTES_TOOLBAR_PINNED] = json.optBoolean("notesToolbarPinned", false)
             prefs[NOTE_PAPER_KEY] = json.optString("notePaper", NOTE_PAPER_DEFAULT)
+            if (json.has("syncHabitsEnabled")) prefs[SYNC_HABITS_ENABLED_KEY] = json.optBoolean("syncHabitsEnabled", true)
+            if (json.has("syncRemindersEnabled")) prefs[SYNC_REMINDERS_ENABLED_KEY] = json.optBoolean("syncRemindersEnabled", true)
+            if (json.has("syncEventsEnabled")) prefs[SYNC_EVENTS_ENABLED_KEY] = json.optBoolean("syncEventsEnabled", true)
+            if (json.has("syncTodosEnabled")) prefs[SYNC_TODOS_ENABLED_KEY] = json.optBoolean("syncTodosEnabled", true)
+            if (json.has("syncClockEnabled")) prefs[SYNC_CLOCK_ENABLED_KEY] = json.optBoolean("syncClockEnabled", true)
+            if (json.has("syncNotesEnabled")) prefs[SYNC_NOTES_ENABLED_KEY] = json.optBoolean("syncNotesEnabled", true)
+            if (json.has("syncJournalEnabled")) prefs[SYNC_JOURNAL_ENABLED_KEY] = json.optBoolean("syncJournalEnabled", true)
+            if (json.has("syncPreferencesEnabled")) prefs[SYNC_PREFERENCES_ENABLED_KEY] = json.optBoolean("syncPreferencesEnabled", true)
 
             val customColors = json.optString("customColors", "")
             if (customColors.isNotEmpty()) prefs[CUSTOM_COLORS_KEY] = customColors

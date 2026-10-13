@@ -103,19 +103,24 @@ import com.apagon.rhythm.ui.components.crystalChipSurface
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.apagon.rhythm.platform.ImageBitmapLoader
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.layout.ContentScale
 
 /** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
  * every settings card stacked one after another. "Recently Deleted" moves here from the top-level
  * app sidebar (Stage 15a) per the confirmed decision that trash is secondary nav, not primary. */
-private enum class SettingsSection(val label: String) {
+// 2026-10-13: names and grouping mirror the phone's Settings (Profile, Appearance, Calendar
+// Integration, Data Management, Tutorials, About). Sync and Recently Deleted live inside Data
+// Management as sub-pages, as on the phone, so they're off the rail ([inRail] false).
+private enum class SettingsSection(val label: String, val inRail: Boolean = true) {
     PROFILE("Profile"),
     APPEARANCE("Appearance"),
-    LAYOUT("Layout & Calendar"),
-    DATA("Data"),
-    RECENTLY_DELETED("Recently Deleted"),
-    HELP("Help"),
+    CALENDAR("Calendar Integration"),
+    DATA("Data Management"),
+    SYNC("Sync with Phone & Computers", inRail = false),
+    RECENTLY_DELETED("Recently Deleted", inRail = false),
+    TUTORIALS("Tutorials"),
     ABOUT("About")
 }
 
@@ -181,8 +186,10 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
             Column(
                 modifier = Modifier.width(200.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 8.dp)
             ) {
-                SettingsSection.entries.forEach { section ->
-                    val isSelected = section == selectedSection
+                SettingsSection.entries.filter { it.inRail }.forEach { section ->
+                    // A Data Management sub-page keeps Data Management highlighted.
+                    val isSelected = section == selectedSection ||
+                        (!selectedSection.inRail && section == SettingsSection.DATA)
                     // Stage 17a: no pre-clip — see main.kt's SidebarItem for why (crystalTileSurface
                     // draws its own shadow with its own shape; a mismatched outer clip lets it escape
                     // on one edge).
@@ -211,12 +218,16 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
             // Stage 16a: same centered content-width cap every other primary screen got.
             Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                 when (selectedSection) {
-                    SettingsSection.RECENTLY_DELETED -> DesktopRecentlyDeletedScreen()
+                    SettingsSection.RECENTLY_DELETED -> Column(Modifier.fillMaxSize()) {
+                        SubPageBackRow { selectedSection = SettingsSection.DATA }
+                        DesktopRecentlyDeletedScreen()
+                    }
                     else -> Column(
                         modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
                             .verticalScroll(rememberScrollState()).padding(DesktopLayout.screenPadding),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
+                        if (!selectedSection.inRail) SubPageBackRow { selectedSection = SettingsSection.DATA }
                         when (selectedSection) {
                             SettingsSection.PROFILE -> ProfileSectionContent(
                                 userNickname = userNickname,
@@ -250,23 +261,28 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 crystalGlassExpanded = crystalGlassExpanded,
                                 onToggleCrystalGlassExpanded = { crystalGlassExpanded = !crystalGlassExpanded },
                                 colorPickerViewModel = colorPickerViewModel
-                            )
-                            SettingsSection.LAYOUT -> LayoutSectionContent(
-                                viewModel = viewModel,
-                                homeViewCalendar = homeViewCalendar,
-                                swipeSectionsEnabled = swipeSectionsEnabled,
-                                calendarIntegrationEnabled = calendarIntegrationEnabled,
-                                runInBackground = runInBackground
-                            )
+                            ).also {
+                                // As the phone: Layout is a card in Appearance.
+                                LayoutSectionContent(
+                                    viewModel = viewModel,
+                                    homeViewCalendar = homeViewCalendar,
+                                    swipeSectionsEnabled = swipeSectionsEnabled,
+                                    runInBackground = runInBackground
+                                )
+                            }
+                            SettingsSection.CALENDAR -> CalendarSectionContent(viewModel, calendarIntegrationEnabled)
                             SettingsSection.DATA -> DataSectionContent(
                                 viewModel = viewModel,
                                 backupState = backupState,
                                 archivedHabits = archivedHabits,
                                 archivedTodos = archivedTodos,
                                 onShowArchivedHabits = { showArchivedHabits = true },
-                                onShowArchivedTodos = { showArchivedTodos = true }
+                                onShowArchivedTodos = { showArchivedTodos = true },
+                                onOpenSync = { selectedSection = SettingsSection.SYNC },
+                                onOpenRecentlyDeleted = { selectedSection = SettingsSection.RECENTLY_DELETED }
                             )
-                            SettingsSection.HELP -> HelpSectionContent()
+                            SettingsSection.SYNC -> SyncPageContent(viewModel)
+                            SettingsSection.TUTORIALS -> HelpSectionContent()
                             SettingsSection.ABOUT -> AboutSectionContent(
                                 onShowPrivacyPolicy = { showPrivacyPolicy = true },
                                 themePreferences = viewModel.themePreferences
@@ -813,7 +829,6 @@ private fun LayoutSectionContent(
     viewModel: DesktopSettingsViewModel,
     homeViewCalendar: Boolean,
     swipeSectionsEnabled: Boolean,
-    calendarIntegrationEnabled: Boolean,
     runInBackground: Boolean
 ) {
     SettingsSection("Layout") {
@@ -841,6 +856,10 @@ private fun LayoutSectionContent(
         }
     }
 
+}
+
+@Composable
+private fun CalendarSectionContent(viewModel: DesktopSettingsViewModel, calendarIntegrationEnabled: Boolean) {
     SettingsSection("Calendar Integration") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingsRow("Enable device calendars") {
@@ -864,7 +883,9 @@ private fun DataSectionContent(
     archivedHabits: List<*>,
     archivedTodos: List<*>,
     onShowArchivedHabits: () -> Unit,
-    onShowArchivedTodos: () -> Unit
+    onShowArchivedTodos: () -> Unit,
+    onOpenSync: () -> Unit,
+    onOpenRecentlyDeleted: () -> Unit
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
     // True once an import attempt reports back that the chosen file is encrypted (or that the
@@ -872,11 +893,12 @@ private fun DataSectionContent(
     // rather than guessing whether a file needs a password before picking it.
     var showImportPasswordDialog by remember { mutableStateOf(false) }
 
-    SettingsSection("Data Management") {
+    // Same groups and order as the phone's Data Management page.
+    SettingsSection("Backup & Restore") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { showExportDialog = true }) { Text("Export Backup") }
-                TextButton(onClick = { viewModel.importBackup() }) { Text("Import Backup") }
+                TextButton(onClick = { showExportDialog = true }) { Text("Export") }
+                TextButton(onClick = { viewModel.importBackup() }) { Text("Import") }
             }
             when (backupState) {
                 is DesktopBackupState.Success -> Text(backupState.message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
@@ -893,14 +915,31 @@ private fun DataSectionContent(
                     showImportPasswordDialog = true
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onShowArchivedHabits) { Text("Archived Habits (${archivedHabits.size})") }
-                TextButton(onClick = onShowArchivedTodos) { Text("Archived To-dos (${archivedTodos.size})") }
-            }
         }
     }
 
-    SyncWithPhoneSection(viewModel)
+    val listen by viewModel.syncListenState.collectAsState()
+    SettingsSection("Sync with Phone & Computers") {
+        HelpRow(
+            title = when (val l = listen) {
+                is SyncListenState.Listening -> if (l.viaTailscale) "Ready for your phone" else "Tailscale isn't running"
+                is SyncListenState.Failed -> "Sync can't start"
+                SyncListenState.Starting -> "Starting…"
+            },
+            description = "Sync with Bori on your phone and your other computers over Tailscale: devices, pairing QR code, and what to sync.",
+            action = "Open",
+            onClick = onOpenSync
+        )
+    }
+    SettingsSection("Habit Archive") {
+        HelpRow("View Archived Habits", "${archivedHabits.size} archived", "Open", onShowArchivedHabits)
+    }
+    SettingsSection("To-do Archive") {
+        HelpRow("View Archived To-dos", "${archivedTodos.size} archived", "Open", onShowArchivedTodos)
+    }
+    SettingsSection("Recently Deleted") {
+        HelpRow("Trash Bin", "Restore or permanently delete items", "Open", onOpenRecentlyDeleted)
+    }
 
     if (showExportDialog) {
         ExportBackupDialog(
@@ -926,11 +965,12 @@ private fun DataSectionContent(
     }
 }
 
-/** Settings → Sync: whether this computer is reachable (with the pairing QR), every device it
- *  syncs with, the setup guide, and the less common options. Desktop is always the sync server for
- *  phones; Tailscale is the only way in (see SyncAddressMonitor). */
+/** Settings → Data Management → Sync with Phone & Computers, laid out like the phone's Sync with
+ *  Computers screen: what it is, whether this computer is reachable (with the pairing QR), every
+ *  device with its switch, adding a computer, What to sync, and the rarer options. Desktop is
+ *  always the sync server for phones; Tailscale is the only way in (see SyncAddressMonitor). */
 @Composable
-private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
+private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
     var showSync by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(false) }
     val quickSync = koinViewModel<com.apagon.rhythm.ui.sync.QuickSyncViewModel>()
@@ -939,25 +979,30 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
 
     if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
 
-    SettingsSection("Sync") {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SyncStatusCard(listen, onHowTo = { showGuide = true })
-            // As Android's Sync screen: every device, each with its own on/off switch.
-            com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
-            Row {
-                TextButton(onClick = { showGuide = true }) { Text("How to set up sync") }
-                TextButton(onClick = { showSync = !showSync }) {
-                    Text(if (showSync) "Fewer options" else "More options")
-                }
-            }
+    Text(
+        "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing. Choose below what this computer sends and receives.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    SyncStatusCard(listen, onHowTo = { showGuide = true })
+    TextButton(onClick = { showGuide = true }) { Text("How to set up sync") }
 
-            if (showSync) {
-                // A computer this one syncs to (Linux ↔ Windows): its address, or scan-less pairing
-                // by reading the other computer's "Your address" line.
+    SettingsSection("Your devices") {
+        // As the phone's "Your computers": every device, each with its own on/off switch.
+        com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
+    }
+
+    SettingsSection("Add another computer") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Phones pair by scanning the QR code above. To sync with another computer, enter the address it shows under Ready for your phone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            run {
                 var newComputer by remember { mutableStateOf("") }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
-                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -976,12 +1021,24 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
                         Text("Add and Sync")
                     }
                 }
-                // Forgets every watermark before syncing, so rows made before sync ever ran (or
-                // before an entity type joined sync) go across too. Once per device after a
-                // meaningful sync-scope change, not routinely.
-                TextButton(onClick = { quickSync.forceFullResyncThenSync() }) {
-                    Text("Force full resync (first-time or after an update)")
-                }
+            }
+        }
+    }
+
+    WhatToSyncSection(viewModel.themePreferences)
+
+    SettingsSection("Options") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Forgets every watermark before syncing, so rows made before sync ever ran (or
+            // before an entity type joined sync) go across too. Once per device after a
+            // meaningful sync-scope change, not routinely.
+            TextButton(onClick = { quickSync.forceFullResyncThenSync() }) {
+                Text("Force full resync (first-time or after an update)")
+            }
+            TextButton(onClick = { showSync = !showSync }) {
+                Text(if (showSync) "Hide experimental options" else "Experimental options")
+            }
+            if (showSync) {
 
                 // Stage 3.5 — optional, default-off vault *file* sync. Off unless explicitly
                 // turned on here, independently on each device (not something a sync round can
@@ -1013,7 +1070,7 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
 }
 
 /**
- * The top of Settings → Sync. Ready: the address and the QR code a phone scans. Not ready: why,
+ * The top of the Sync with Phone & Computers page. Ready: the address and the QR code a phone scans. Not ready: why,
  * and the way to the setup guide. Follows SyncAddressMonitor, so it turns ready by itself once
  * Tailscale comes up.
  */
@@ -1051,7 +1108,7 @@ private fun SyncStatusCard(listen: SyncListenState, onHowTo: () -> Unit) {
             when (listen) {
                 is SyncListenState.Listening -> if (listen.viaTailscale) {
                     Text(
-                        "On your phone: Bori → Settings → Sync with Computers → Scan QR Code.",
+                        "On your phone: Bori → Settings → Data Management → Sync with Computers → Scan QR Code.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     androidx.compose.foundation.text.selection.SelectionContainer {
@@ -1162,22 +1219,66 @@ private fun ImportPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -
     )
 }
 
-/** Settings → Help: the sync setup guide and the intro, both reachable again any time. */
+/** "← Data Management" above a Data Management sub-page (Sync, Recently Deleted), as the phone's
+ *  back arrow on those pages. */
+@Composable
+private fun SubPageBackRow(onBack: () -> Unit) {
+    TextButton(onClick = onBack, modifier = Modifier.padding(start = 8.dp, top = 8.dp)) {
+        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("Data Management")
+    }
+}
+
+/**
+ * "What to sync", the phone's eight switches with the phone's wording. Each one gates both
+ * directions for that category on this computer only (SyncEngine.gateByWhatToSync).
+ */
+@Composable
+private fun WhatToSyncSection(prefs: ThemePreferences) {
+    val scope = rememberCoroutineScope()
+    @Composable
+    fun row(label: String, flow: kotlinx.coroutines.flow.Flow<Boolean>, set: suspend (Boolean) -> Unit) {
+        val on by flow.collectAsState(initial = true)
+        SettingsRow(label) {
+            Switch(checked = on, onCheckedChange = { v -> scope.launch { set(v) } }, colors = crystalSwitchColors())
+        }
+    }
+    SettingsSection("What to sync") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Each switch stops this computer sending and receiving that kind of item. It doesn't change what your other devices send.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            row("Habits", prefs.syncHabitsEnabled, prefs::setSyncHabitsEnabled)
+            row("Reminders", prefs.syncRemindersEnabled, prefs::setSyncRemindersEnabled)
+            row("Events", prefs.syncEventsEnabled, prefs::setSyncEventsEnabled)
+            row("To-dos", prefs.syncTodosEnabled, prefs::setSyncTodosEnabled)
+            row("Clock (alarms & timers)", prefs.syncClockEnabled, prefs::setSyncClockEnabled)
+            row("Notes", prefs.syncNotesEnabled, prefs::setSyncNotesEnabled)
+            row("Journal", prefs.syncJournalEnabled, prefs::setSyncJournalEnabled)
+            row("Appearance", prefs.syncPreferencesEnabled, prefs::setSyncPreferencesEnabled)
+        }
+    }
+}
+
+/** Settings → Tutorials, as the phone's: the sync setup guide and the welcome intro, any time. */
 @Composable
 private fun HelpSectionContent() {
     var showGuide by remember { mutableStateOf(false) }
     if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SettingsSection("Help") {
+        SettingsSection("Tutorials") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HelpRow(
-                    "Set up sync",
+                    "Set up computer sync",
                     "Connect your phone and computers over Tailscale: install, sign in, scan the QR code.",
-                    "Open guide"
+                    "Open"
                 ) { showGuide = true }
                 HelpRow(
-                    "Replay the intro",
+                    "Welcome intro",
                     "The welcome pages Bori showed the first time you opened it.",
                     "Replay"
                 ) { com.apagon.rhythm.ui.onboarding.OnboardingReplay.requested = true }

@@ -110,7 +110,7 @@ Fork it, branch, open a PR.
 Sync is opt-in, peer-to-peer, and manually triggered: the phone, or another computer, connects
 straight to this computer over Tailscale. Syncing with the phone needs Bori Pro on the Android app;
 the desktop side is free. There's no background or cloud sync. The same steps are in the app under
-**Settings → Help → Set up sync**.
+**Settings → Tutorials → Set up computer sync**.
 
 1. **Install Tailscale on every device** and sign in with the same account on all of them.
    - Android: [Tailscale on Google Play](https://play.google.com/store/apps/details?id=com.tailscale.ipn), then switch it on (a key icon appears in the status bar). On Samsung phones, set Tailscale's battery use to *Unrestricted* so it stays on.
@@ -125,13 +125,14 @@ the desktop side is free. There's no background or cloud sync. The same steps ar
      curl -fsSL https://tailscale.com/install.sh | sh
      sudo tailscale up
      ```
-2. **Open Bori on the computer → Settings → Data → Sync.** Once Tailscale is up it shows
+2. **Open Bori on the computer → Settings → Data Management → Sync with Phone & Computers.** Once Tailscale is up it shows
    *Ready for your phone* with a QR code (Bori notices Tailscale within about 15 seconds; no
    restart needed). On Windows, allow Bori when Windows Firewall asks.
-3. **On the phone:** Bori → Settings → Sync with Computers → **Scan QR Code**.
+3. **On the phone:** Bori → Settings → Data Management → Sync with Computers → **Scan QR Code**.
 
-Settings → Sync lists every phone and computer this one syncs with, each with an on/off switch.
-To sync two computers, open **More options** on one and add the other's address. The sync server
+That page lists every phone and computer this one syncs with, each with an on/off switch, and
+has the same **What to sync** switches as the phone. To sync two computers, use **Add another computer** on one
+and enter the other's address. The sync server
 only ever listens on the computer's Tailscale address (or `127.0.0.1` when Tailscale isn't
 running), never on your local network.
 

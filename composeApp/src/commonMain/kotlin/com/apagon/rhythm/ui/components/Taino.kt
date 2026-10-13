@@ -483,7 +483,7 @@ fun BorikenUnlockDialog(onDismiss: () -> Unit, onTryIt: () -> Unit) {
             ) {
                 Text(
                     "A celeste, red and white edition of Bori, with Taíno marks hidden throughout. " +
-                        "Find it any time under Settings → Theme Style.",
+                        "Find it any time under Settings → Appearance → Theme Style.",
                     textAlign = TextAlign.Center
                 )
             }

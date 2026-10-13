@@ -62,7 +62,7 @@ private data class GuideStep(
 
 private val scanStep = GuideStep(
     "Scan the code with your phone",
-    "On the phone, open Bori → Settings → Sync with Computers → Scan QR Code, and point it at the code " +
+    "On the phone, open Bori → Settings → Data Management → Sync with Computers → Scan QR Code, and point it at the code " +
         "on the computer. Syncing with a computer needs Bori Pro on the phone; the computer app is free."
 )
 
@@ -79,7 +79,7 @@ private val windowsSteps = listOf(
         link = "Open the Releases page" to SyncGuideLinks.RELEASES),
     GuideStep("Install Tailscale for Windows", "Install it, then sign in from the Tailscale icon in the taskbar tray with the same account as your phone.",
         link = "Open tailscale.com" to SyncGuideLinks.TAILSCALE_WINDOWS),
-    GuideStep("Open Bori → Settings → Data → Sync", "When it says Ready for your phone, the QR code is shown. The first time, Windows Firewall asks about Bori: allow it."),
+    GuideStep("Open Bori → Settings → Data Management → Sync with Phone & Computers", "When it says Ready for your phone, the QR code is shown. The first time, Windows Firewall asks about Bori: allow it."),
     scanStep
 )
 
@@ -94,16 +94,16 @@ private val linuxSteps = listOf(
         link = "More install options" to SyncGuideLinks.TAILSCALE_LINUX),
     GuideStep("Sign in", "Run this, open the link it prints, and sign in with the same account as your phone:",
         commands = listOf("" to "sudo tailscale up")),
-    GuideStep("Open Bori → Settings → Data → Sync", "When it says Ready for your phone, the QR code is shown. If Bori was already open, it notices Tailscale by itself within about 15 seconds."),
+    GuideStep("Open Bori → Settings → Data Management → Sync with Phone & Computers", "When it says Ready for your phone, the QR code is shown. If Bori was already open, it notices Tailscale by itself within about 15 seconds."),
     scanStep
 )
 
 private val troubleshooting = listOf(
     "Offline, or \"didn't answer\": Bori has to be open on the computer (closing the window to the tray is fine), and Tailscale has to be on on both devices.",
     "The computer says Tailscale isn't running: start Tailscale and sign in; Bori picks it up within about 15 seconds, no restart needed.",
-    "\"Has sync with this device turned off\": that computer has the phone switched off in its Settings → Data → Sync list. Switch it back on there.",
+    "\"Has sync with this device turned off\": that computer has the phone switched off in its Settings → Data Management → Sync with Phone & Computers list. Switch it back on there.",
     "Samsung: if sync works only right after opening Tailscale, set Tailscale's battery use to Unrestricted.",
-    "Two computers: on one of them, open Settings → Data → Sync → More options, and add the other computer's address (shown under Ready for your phone on that computer).",
+    "Two computers: on one of them, open Settings → Data Management → Sync with Phone & Computers → Add another computer, and enter the other computer's address (shown under Ready for your phone on that computer).",
     "Nothing changed after a sync: each device's \"What to sync\" switches decide what it sends and receives; check they're on for what you expect."
 )
 

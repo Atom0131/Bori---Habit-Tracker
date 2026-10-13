@@ -172,7 +172,7 @@ class SyncEngine(
             null
         }
 
-        return SyncBatch(
+        return gateByWhatToSync(SyncBatch(
             deviceId = deviceId,
             habits = habitDtos,
             completions = completionDtos,
@@ -187,10 +187,36 @@ class SyncEngine(
             preferences = preferencesDto,
             vaultFiles = vaultFilesDto,
             activeDays = if (since == -1L) habitRepository.getAllActiveDays() else null
+        ))
+    }
+
+    /**
+     * The "What to sync" switches (Settings → Data Management → Sync with Phone & Computers), as on Android: a category
+     * switched off on this computer is neither sent nor applied — the same 8 categories, gated
+     * both on the way out and on the way in, whatever the peer chose itself.
+     */
+    private suspend fun gateByWhatToSync(batch: SyncBatch): SyncBatch {
+        val habits = themePreferences.syncHabitsEnabled.first()
+        val clock = themePreferences.syncClockEnabled.first()
+        val notes = themePreferences.syncNotesEnabled.first()
+        return batch.copy(
+            habits = if (habits) batch.habits else emptyList(),
+            completions = if (habits) batch.completions else emptyList(),
+            activeDays = if (habits) batch.activeDays else null,
+            todos = if (themePreferences.syncTodosEnabled.first()) batch.todos else emptyList(),
+            calendarEvents = if (themePreferences.syncEventsEnabled.first()) batch.calendarEvents else emptyList(),
+            alarms = if (clock) batch.alarms else emptyList(),
+            timers = if (clock) batch.timers else emptyList(),
+            reminders = if (themePreferences.syncRemindersEnabled.first()) batch.reminders else emptyList(),
+            notebooks = if (notes) batch.notebooks else emptyList(),
+            notes = if (notes) batch.notes else emptyList(),
+            journalEntries = if (themePreferences.syncJournalEnabled.first()) batch.journalEntries else emptyList(),
+            preferences = if (themePreferences.syncPreferencesEnabled.first()) batch.preferences else null
         )
     }
 
-    suspend fun applyIncomingBatch(batch: SyncBatch): SyncResult {
+    suspend fun applyIncomingBatch(incoming: SyncBatch): SyncResult {
+        val batch = gateByWhatToSync(incoming)
         var habitsInserted = 0
         var habitsUpdated = 0
         var completionsInserted = 0
