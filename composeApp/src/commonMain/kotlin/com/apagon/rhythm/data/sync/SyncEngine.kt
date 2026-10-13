@@ -149,16 +149,17 @@ class SyncEngine(
         // Theme/appearance preferences (Stage 3) — whole-blob, only included when something
         // exportable changed locally since the last sync, same "newer than `since`" gate as every
         // entity list above.
+        // Sent on every sync, not only when changed since `since` (2026-10-13): it's ~2 KB, and a
+        // peer that once dropped settings it didn't know yet (desktop 1.0.1 and the 3-colour field)
+        // otherwise never gets them — both sides hold the same timestamp, so nothing is "newer".
+        // The receiver fills in only what it lacks on a tie. The picture is large, so it still
+        // travels only when the settings changed.
         val preferencesUpdatedAt = themePreferences.preferencesUpdatedAt.first()
-        val preferencesDto = if (preferencesUpdatedAt > since) {
-            PreferencesDto(
-                updatedAt = preferencesUpdatedAt,
-                values = themePreferences.exportPreferencesForSync().toString(),
-                profileImage = profileImageStore.export()
-            )
-        } else {
-            null
-        }
+        val preferencesDto = if (preferencesUpdatedAt <= 0L) null else PreferencesDto(
+            updatedAt = preferencesUpdatedAt,
+            values = themePreferences.exportPreferencesForSync().toString(),
+            profileImage = if (preferencesUpdatedAt > since) profileImageStore.export() else null
+        )
 
         // Vault file sync (Stage 3.5) — optional, default-OFF, independently opted into per device:
         // only populated when THIS device has the toggle on. The receiving side makes its own
@@ -603,14 +604,17 @@ class SyncEngine(
 
         // ── Theme/appearance preferences (whole-blob last-write-wins, not per-key merging) ───────
         val incomingPreferences = batch.preferences
-        if (incomingPreferences != null &&
-            incomingPreferences.updatedAt > themePreferences.preferencesUpdatedAt.first()
-        ) {
+        val localPreferencesAt = themePreferences.preferencesUpdatedAt.first()
+        if (incomingPreferences != null && incomingPreferences.updatedAt > localPreferencesAt) {
             // Picture first; the settings import below then takes the peer's timestamp.
             incomingPreferences.profileImage?.let { profileImageStore.import(it) }
             themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values))
             themePreferences.setPreferencesUpdatedAtFromSync(incomingPreferences.updatedAt)
             otherUpdated++
+        } else if (incomingPreferences != null && incomingPreferences.updatedAt == localPreferencesAt) {
+            // Same settings generation: take only settings this device doesn't have at all (ones an
+            // older version dropped), never overwrite one it has — so both sides converge.
+            themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values), onlyMissing = true)
         }
 
         // ── Vault file sync (Stage 3.5) — BOTH ends must opt in, not just the sender ─────────────

@@ -711,8 +711,9 @@ class ThemePreferences(
         }
     }
 
-    suspend fun importPreferences(json: JSONObject) {
+    suspend fun importPreferences(json: JSONObject, onlyMissing: Boolean = false) {
         dataStore.edit { prefs ->
+            val before = if (onlyMissing) prefs.asMap().toMap() else null
             prefs[THEME_MODE_KEY] = json.optString("themeMode", ThemeMode.SYSTEM.name)
             prefs[DARK_READABILITY_KEY] = json.optString("darkReadability", DarkReadability.STANDARD.name)
             prefs[THEME_STYLE_KEY] = json.optString("themeStyle", ThemeStyle.MATERIAL3.name)
@@ -821,6 +822,12 @@ class ThemePreferences(
                 prefs[ENABLED_CALENDARS_KEY] = calendars.split(",").toSet()
             }
 
+            // onlyMissing: put back every value this device already had, keeping only settings it
+            // lacked — see importPreferencesForSync's equal-timestamp case.
+            before?.forEach { (key, value) ->
+                @Suppress("UNCHECKED_CAST")
+                prefs[key as Preferences.Key<Any>] = value
+            }
         }
     }
 
@@ -844,8 +851,8 @@ class ThemePreferences(
      * [exportPreferencesForSync] at the call site, and so a future exclusion need only be added
      * here without touching the unmodified backup functions above.
      */
-    suspend fun importPreferencesForSync(json: JSONObject) =
-        importPreferences(json.apply { SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { remove(it) } })
+    suspend fun importPreferencesForSync(json: JSONObject, onlyMissing: Boolean = false) =
+        importPreferences(json.apply { SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { remove(it) } }, onlyMissing)
 
     /** Device-local preference names: never sent, and ignored if a peer sends them anyway. */
     private val SYNC_DEVICE_LOCAL_JSON_KEYS = listOf(
