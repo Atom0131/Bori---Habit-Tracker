@@ -10,7 +10,8 @@ import kotlinx.serialization.json.Json
 
 class SyncClient(
     private val syncEngine: SyncEngine,
-    private val deviceId: String
+    private val deviceId: String,
+    private val syncPreferences: SyncPreferences
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -19,15 +20,20 @@ class SyncClient(
         val peer = "$peerHost:$port"
         val startedAt = System.currentTimeMillis()
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
+            .copy(deviceName = localDeviceName())
         val client = HttpClient(CIO) { install(WebSockets) }
         val result = try {
             var applied: SyncResult? = null
-            client.webSocket(host = peerHost, port = port, path = "/sync") {
+            // Bounded, as on Android: a computer that accepts and never answers would hang "Syncing…".
+            kotlinx.coroutines.withTimeout(30_000L) { client.webSocket(host = peerHost, port = port, path = "/sync") {
                 send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
-                val responseFrame = incoming.receive() as Frame.Text
+                val responseFrame = incoming.receive() as? Frame.Text
+                    ?: throw IllegalStateException("The other computer closed the connection")
                 val responseBatch = json.decodeFromString(SyncBatch.serializer(), responseFrame.readText())
+                responseBatch.refused?.let { throw SyncRefusedException(it) }
+                syncPreferences.setDeviceName(peer, outgoing = true, name = responseBatch.deviceName)
                 applied = syncEngine.applyIncomingBatch(responseBatch)
-            }
+            } }
             applied ?: SyncResult(0, 0, 0, 0)
         } finally {
             client.close()
@@ -36,3 +42,16 @@ class SyncClient(
         return result
     }
 }
+
+/** The other computer has sync with this one turned off; nothing was exchanged. */
+class SyncRefusedException(message: String) : Exception(message)
+
+/**
+ * What this computer calls itself to other devices: Windows' computer name, else the Linux host
+ * name, else whatever the JVM resolves.
+ */
+fun localDeviceName(): String =
+    System.getenv("COMPUTERNAME")?.takeIf { it.isNotBlank() }
+        ?: runCatching { java.io.File("/etc/hostname").readText().trim() }.getOrNull()?.takeIf { it.isNotBlank() }
+        ?: runCatching { java.net.InetAddress.getLocalHost().hostName }.getOrNull()?.takeIf { it.isNotBlank() }
+        ?: "Computer"

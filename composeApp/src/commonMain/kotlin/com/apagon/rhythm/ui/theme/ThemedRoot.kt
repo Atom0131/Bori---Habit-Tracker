@@ -49,6 +49,7 @@ fun RhythmThemedRoot(
     val crystalBgIndex by themePreferences.crystalBackgroundColorIndex.collectAsState(initial = ThemePreferences.CRYSTAL_BG_NEUTRAL)
     val crystalBgArgb by themePreferences.crystalBackgroundColorArgb.collectAsState(initial = null)
     val crystalMeshCustomArgb by themePreferences.crystalMeshCustomArgb.collectAsState(initial = null)
+    val crystalMeshCustomColors by themePreferences.crystalMeshCustomColors.collectAsState(initial = emptyList())
     val crystalMeshCustomChroma by themePreferences.crystalMeshCustomChroma
         .collectAsState(initial = ThemePreferences.DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
     val borikenMode by themePreferences.borikenMode.collectAsState(initial = false)
@@ -74,6 +75,7 @@ fun RhythmThemedRoot(
         crystalMesh = crystalMesh,
         crystalMeshCustomSeed = crystalMeshCustomArgb?.let { Color(it) },
         crystalMeshCustomChroma = crystalMeshCustomChroma,
+        crystalMeshCustomColours = crystalMeshCustomColors.map { Color(it) },
         crystalRoom = crystalRoomColor(crystalBgIndex, crystalBgArgb, isDark, amoledMode),
         darkContrastLevel = when (darkReadability) {
             DarkReadability.STANDARD -> 0.0

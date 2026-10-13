@@ -1,5 +1,24 @@
 package com.apagon.rhythm.data.sync
 
+import kotlinx.serialization.Serializable
+
+/**
+ * A device in this computer's sync list (2026-10-13, mirroring Android's per-computer list).
+ *  - [outgoing] true: a computer this one syncs *to* (Sync now), keyed by its address.
+ *  - [outgoing] false: a phone or computer that syncs *in* to this one, keyed by its deviceId.
+ * [enabled] false keeps it listed but stops the sync: an outgoing one is skipped by Sync now, an
+ * incoming one is refused by the sync server. [name] is what the device calls itself.
+ */
+@Serializable
+data class SyncDevice(
+    val key: String,
+    val outgoing: Boolean,
+    val name: String? = null,
+    val enabled: Boolean = true
+) {
+    val isPhone: Boolean get() = !outgoing && key.startsWith("android-")
+}
+
 /**
  * Small per-device sync bookkeeping: the last successful sync's timestamp
  * (the "last known agreement point" a batch's since-filter is built from)
@@ -21,8 +40,20 @@ interface SyncPreferences {
      */
     suspend fun getLastSyncedAt(peer: String): Long
     suspend fun setLastSyncedAt(peer: String, timestamp: Long)
+    /** Every peer's watermark (the time of the last successful sync with it), for "last synced"
+     *  displays. Keys are as in [getLastSyncedAt]. */
+    suspend fun allLastSyncedAt(): Map<String, Long> = emptyMap()
     /** Forgets every peer's watermark, so the next sync with each one is a full exchange. */
     suspend fun clearLastSyncedAt()
+    /** Every listed device, incoming and outgoing. Keys match [getLastSyncedAt]'s. */
+    suspend fun devices(): List<SyncDevice> = emptyList()
+    /** A device just synced in: list it (on) if new, and keep its name current. */
+    suspend fun recordIncoming(deviceId: String, name: String?) {}
+    /** Adds a computer to sync to (on), or turns an already-listed one back on. */
+    suspend fun addComputer(address: String) {}
+    suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?) {}
+    suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) {}
+    suspend fun removeDevice(key: String, outgoing: Boolean) {}
     suspend fun getPeerAddress(): String?
     suspend fun setPeerAddress(address: String?)
 }

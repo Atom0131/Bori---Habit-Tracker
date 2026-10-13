@@ -61,22 +61,6 @@ class DesktopSettingsViewModel(
     val ownSyncAddress: String = localSyncAddress.display
     val ownSyncAddressForPairing: String = localSyncAddress.addressForPairing
 
-    private val _peerAddress = MutableStateFlow("")
-    val peerAddress: StateFlow<String> = _peerAddress.asStateFlow()
-
-    private val _syncStatus = MutableStateFlow<String?>(null)
-    val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            _peerAddress.value = syncPreferences.getPeerAddress() ?: ""
-        }
-    }
-
-    fun updatePeerAddress(address: String) {
-        _peerAddress.value = address
-    }
-
     // Stage 3.5 — optional, default-off vault *file* sync (separate from row-level Note/Notebook
     // sync, which is always on). Off unless the user explicitly turns it on, on each device
     // independently — not something one device can silently enable on the other via sync (the key
@@ -88,44 +72,6 @@ class DesktopSettingsViewModel(
         viewModelScope.launch { themePreferences.setVaultFileSyncEnabled(enabled) }
     }
 
-    fun syncNow() {
-        val address = _peerAddress.value.trim()
-        if (address.isEmpty()) {
-            _syncStatus.value = "Enter a peer address first"
-            return
-        }
-        viewModelScope.launch {
-            _syncStatus.value = "Syncing…"
-            runCatching {
-                syncPreferences.setPeerAddress(address)
-                syncCoordinator.syncWith(address)
-            }.onSuccess { result ->
-                _syncStatus.value =
-                    "Synced — habits +${result.habitsInserted}/${result.habitsUpdated}, " +
-                        "completions +${result.completionsInserted}/${result.completionsUpdated}, " +
-                        "other +${result.otherInserted}/${result.otherUpdated}"
-            }.onFailure { e ->
-                _syncStatus.value = "Sync failed: ${e.message}"
-            }
-        }
-    }
-
-    /**
-     * Resets the local "last synced at" watermark to 0 before syncing, so every row on this
-     * device — including ones created/last-edited long before sync ever existed or before an
-     * entity type was added to its scope — is included in the next outgoing batch, not just rows
-     * touched since the last successful sync. Without this, data that predates the watermark can
-     * never be picked up by the normal incremental `getXUpdatedSince(since)` path: the watermark
-     * only ever moves forward, so expanding sync to cover more entities doesn't retroactively
-     * sweep in a user's pre-existing, never-since-edited rows for those entities. A one-time full
-     * resync (run once per device, not routinely) is the fix, not a backdoor data edit.
-     */
-    fun forceFullResyncThenSync() {
-        viewModelScope.launch {
-            syncPreferences.clearLastSyncedAt()
-            syncNow()
-        }
-    }
 
     val userName = themePreferences.userName
     val userNickname = themePreferences.userNickname
@@ -159,6 +105,8 @@ class DesktopSettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val crystalMeshCustomArgb: StateFlow<Int?> = themePreferences.crystalMeshCustomArgb
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val crystalMeshCustomColors: StateFlow<List<Int>> = themePreferences.crystalMeshCustomColors
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val crystalMeshCustomChroma: StateFlow<Float> = themePreferences.crystalMeshCustomChroma
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreferences.DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA)
 
@@ -209,6 +157,14 @@ class DesktopSettingsViewModel(
     // Mirrors androidMain's SettingsViewModel.setCrystalMeshCustom: saving a custom field also
     // selects it (CUSTOM) and switches to Mesh mode, so "Save" in the dialog is the one action that
     // both configures and applies the field.
+    fun setCrystalMeshCustomCombo(argbs: List<Int>, chromaScale: Float) {
+        viewModelScope.launch {
+            themePreferences.setCrystalMeshCustomCombo(argbs, chromaScale)
+            themePreferences.setCrystalMesh(CrystalMesh.CUSTOM)
+            themePreferences.setCrystalBackground(CrystalBackground.MESH)
+        }
+    }
+
     fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
         viewModelScope.launch {
             themePreferences.setCrystalMeshCustom(argb, chromaScale)
@@ -217,8 +173,8 @@ class DesktopSettingsViewModel(
         }
     }
 
-    fun previewCrystalMeshCustom(argb: Int, chromaScale: Float) {
-        themePreferences.previewCrystalMeshCustom(argb, chromaScale)
+    fun previewCrystalMeshCustom(argbs: List<Int>, chromaScale: Float) {
+        themePreferences.previewCrystalMeshCustom(argbs, chromaScale)
     }
 
     fun cancelCrystalMeshCustomPreview() {

@@ -9,6 +9,14 @@ class JvmSyncCoordinator(
         return syncClient.syncWith(host, port)
     }
 
+    override suspend fun isReachable(peerAddress: String): Boolean =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val (host, port) = parsePeerAddress(peerAddress)
+            runCatching {
+                java.net.Socket().use { it.connect(java.net.InetSocketAddress(host, port), 1_500) }
+            }.isSuccess
+        }
+
     private fun parsePeerAddress(address: String): Pair<String, Int> {
         val trimmed = address.trim()
         val idx = trimmed.lastIndexOf(':')

@@ -144,6 +144,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     val crystalBgColorIndex by viewModel.crystalBackgroundColorIndex.collectAsState()
     val crystalBgColorArgb by viewModel.crystalBackgroundColorArgb.collectAsState()
     val crystalMeshCustomArgb by viewModel.crystalMeshCustomArgb.collectAsState()
+    val crystalMeshCustomColors by viewModel.crystalMeshCustomColors.collectAsState()
     val crystalMeshCustomChroma by viewModel.crystalMeshCustomChroma.collectAsState()
     val colorPickerViewModel: com.apagon.rhythm.ui.util.ColorPickerViewModel = koinViewModel()
 
@@ -236,6 +237,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 crystalBgColorIndex = crystalBgColorIndex,
                                 crystalBgColorArgb = crystalBgColorArgb,
                                 crystalMeshCustomArgb = crystalMeshCustomArgb,
+                                crystalMeshCustomColors = crystalMeshCustomColors,
                                 crystalMeshCustomChroma = crystalMeshCustomChroma,
                                 themeStyleExpanded = themeStyleExpanded,
                                 onToggleThemeStyleExpanded = { themeStyleExpanded = !themeStyleExpanded },
@@ -363,6 +365,8 @@ private fun ProfileSectionContent(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
+        // As Android: one-tap sync sits right under the profile.
+        com.apagon.rhythm.ui.sync.QuickSyncCard()
     }
 }
 
@@ -382,6 +386,7 @@ private fun AppearanceSectionContent(
     crystalBgColorIndex: Int,
     crystalBgColorArgb: Int?,
     crystalMeshCustomArgb: Int?,
+    crystalMeshCustomColors: List<Int>,
     crystalMeshCustomChroma: Float,
     themeStyleExpanded: Boolean,
     onToggleThemeStyleExpanded: () -> Unit,
@@ -394,13 +399,14 @@ private fun AppearanceSectionContent(
     var showMeshCustomDialog by remember { mutableStateOf(false) }
     if (showMeshCustomDialog) {
         com.apagon.rhythm.ui.util.CrystalCustomFieldDialog(
-            initialColor = crystalMeshCustomArgb?.let { Color(it) },
+            initialColors = crystalMeshCustomColors.map { Color(it) }
+                .ifEmpty { listOfNotNull(crystalMeshCustomArgb?.let { Color(it) }) },
             initialChroma = crystalMeshCustomChroma,
-            onSave = { color, chromaScale ->
-                viewModel.setCrystalMeshCustom(color.toArgb(), chromaScale)
+            onSave = { colors, chromaScale ->
+                viewModel.setCrystalMeshCustomCombo(colors.map { it.toArgb() }, chromaScale)
             },
-            onPreview = { color, chromaScale ->
-                viewModel.previewCrystalMeshCustom(color.toArgb(), chromaScale)
+            onPreview = { colors, chromaScale ->
+                viewModel.previewCrystalMeshCustom(colors.map { it.toArgb() }, chromaScale)
             },
             onCancelPreview = { viewModel.cancelCrystalMeshCustomPreview() },
             onDismiss = { showMeshCustomDialog = false }
@@ -923,14 +929,15 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
     var showSync by remember { mutableStateOf(false) }
     var showQrCode by remember { mutableStateOf(false) }
     val qrCodeRenderer = koinInject<QrCodeRenderer>()
-    val peerAddress by viewModel.peerAddress.collectAsState()
-    val syncStatus by viewModel.syncStatus.collectAsState()
+    val quickSync = koinViewModel<com.apagon.rhythm.ui.sync.QuickSyncViewModel>()
     val vaultFileSyncEnabled by viewModel.vaultFileSyncEnabled.collectAsState()
 
-    SettingsSection("Sync with Phone") {
+    SettingsSection("Sync") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // As Android's Sync screen: every device, each with its own on/off switch.
+            com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
             TextButton(onClick = { showSync = !showSync }) {
-                Text(if (showSync) "Hide sync with phone" else "Pair with phone")
+                Text(if (showSync) "Hide pairing and options" else "Pair a phone or computer, and options")
             }
 
             if (showSync) {
@@ -960,8 +967,9 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
                     )
                 }
 
-                // Local sync test UI, still used for the reverse direction (desktop-initiates-
-                // sync) and local dev testing.
+                // A computer this one syncs to (Linux ↔ Windows): its address, or scan-less pairing
+                // by reading the other computer's "Your address" line.
+                var newComputer by remember { mutableStateOf("") }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
                         .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
@@ -969,26 +977,24 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = peerAddress,
-                        onValueChange = { viewModel.updatePeerAddress(it) },
-                        label = { Text("Peer address (host:port)") },
+                        value = newComputer,
+                        onValueChange = { newComputer = it },
+                        label = { Text("Another computer's address (host:port)") },
                         colors = crystalBareTextFieldColors(),
                         modifier = Modifier.weight(1f)
                     )
-                    Button(colors = crystalButtonColors(), onClick = { viewModel.syncNow() }) {
-                        Text("Sync")
+                    Button(
+                        colors = crystalButtonColors(),
+                        enabled = newComputer.isNotBlank(),
+                        onClick = { quickSync.addComputerAndSync(newComputer); newComputer = "" }
+                    ) {
+                        Text("Add and Sync")
                     }
                 }
-                if (syncStatus != null) {
-                    Text(syncStatus!!, modifier = Modifier.padding(top = 4.dp))
-                }
-                // Resets this device's "last synced at" watermark to 0 before syncing, so rows
-                // created/last-edited before sync ever ran (or before an entity type was added to
-                // sync's scope) are swept in too — the normal incremental sync only ever looks
-                // forward from the watermark, so it can't retroactively pick these up on its own.
-                // Meant to be tapped once per device after a meaningful sync-scope change, not
-                // routinely.
-                TextButton(onClick = { viewModel.forceFullResyncThenSync() }) {
+                // Forgets every watermark before syncing, so rows made before sync ever ran (or
+                // before an entity type joined sync) go across too. Once per device after a
+                // meaningful sync-scope change, not routinely.
+                TextButton(onClick = { quickSync.forceFullResyncThenSync() }) {
                     Text("Force full resync (first-time or after an update)")
                 }
 

@@ -53,6 +53,9 @@ val LocalCrystalMesh = staticCompositionLocalOf { CrystalMesh.AURORA }
 /** The seed a [CrystalMesh.CUSTOM] field is solved from; `null` means never configured. */
 val LocalCrystalCustomSeed = staticCompositionLocalOf<Color?> { null }
 
+/** A multi-colour custom field (2–4 colours); empty means the single-colour [LocalCrystalCustomSeed]. */
+val LocalCrystalCustomColours = staticCompositionLocalOf<List<Color>> { emptyList() }
+
 /** How much of Aurora's chroma a [CrystalMesh.CUSTOM] field takes. */
 val LocalCrystalCustomChroma = staticCompositionLocalOf { DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA }
 
@@ -340,6 +343,8 @@ fun RhythmTheme(
     crystalMesh: CrystalMesh = CrystalMesh.AURORA,
     crystalMeshCustomSeed: Color? = null,
     crystalMeshCustomChroma: Float = DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA,
+    /** A 2–4 colour custom combo; empty uses [crystalMeshCustomSeed] alone. */
+    crystalMeshCustomColours: List<Color> = emptyList(),
     crystalRoom: Color? = null,
     darkContrastLevel: Double = 0.0,
     /** The hidden Borikén edition (unlocked from the version number in About). */
@@ -380,6 +385,7 @@ fun RhythmTheme(
             LocalCrystalMesh provides if (crystal) crystalMesh else LocalCrystalMesh.current,
             LocalCrystalCustomSeed provides if (crystal) crystalMeshCustomSeed else LocalCrystalCustomSeed.current,
             LocalCrystalCustomChroma provides if (crystal) crystalMeshCustomChroma else LocalCrystalCustomChroma.current,
+            LocalCrystalCustomColours provides if (crystal) crystalMeshCustomColours else LocalCrystalCustomColours.current,
             LocalCrystalRoom provides if (crystal) room else LocalCrystalRoom.current,
             LocalBoriken provides boriken,
             LocalBorikenField provides flagField,

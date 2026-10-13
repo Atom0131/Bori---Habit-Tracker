@@ -714,5 +714,12 @@ data class SyncBatch(
      * completions are long gone (a purged habit). Null = an older peer, or an incremental sync —
      * there each side's triggers already derive new days from the completions it receives.
      */
-    val activeDays: List<String>? = null
+    val activeDays: List<String>? = null,
+    /** What the sender calls itself (a computer's host name, "Atom's Z Fold8"), for device lists. */
+    val deviceName: String? = null,
+    /**
+     * Set only on a reply that refuses the sync — this device has sync with the sender turned off.
+     * A refused reply carries no data and nothing was applied. Same field as Android's.
+     */
+    val refused: String? = null
 )

@@ -86,6 +86,15 @@ class ThemePreferences(
         val CRYSTAL_BG_COLOR_ARGB_KEY = intPreferencesKey("crystal_bg_color_argb")
         val CRYSTAL_MESH_CUSTOM_ARGB_KEY = intPreferencesKey("crystal_mesh_custom_argb")
         val CRYSTAL_MESH_CUSTOM_CHROMA_KEY = floatPreferencesKey("crystal_mesh_custom_chroma")
+        /** A 2–4 colour custom field, comma-separated ARGB ints; absent = single-colour field.
+         *  Same key and format as Android, so it syncs both ways. */
+        val CRYSTAL_MESH_CUSTOM_COLORS_KEY = stringPreferencesKey("crystal_mesh_custom_colors")
+
+        /** The paper a note is ruled with on Android (`NotePaper`: none/wide/college/grid/dots).
+         *  Desktop doesn't draw it yet, but stores, backs up and syncs it, so a sync from here never
+         *  resets the phone's choice. */
+        val NOTE_PAPER_KEY = stringPreferencesKey("note_paper")
+        const val NOTE_PAPER_DEFAULT = "wide"
 
         /** Bumped by every setter whose key `exportPreferences()` includes (i.e. everything that
          * would cross devices in a sync blob) — see [touchPreferences]. Device-local-only setters
@@ -432,14 +441,22 @@ class ThemePreferences(
         touchPreferences { it[CRYSTAL_MESH_KEY] = mesh.name; it[BORIKEN_FIELD_KEY] = false }
     }
 
-    // Transient in-memory override for the mesh Custom field's own seed/chroma, same shape as
-    // crystalIntensityPreview above.
-    private val crystalMeshCustomPreview = MutableStateFlow<Pair<Int, Float>?>(null)
+    // Transient in-memory override for the mesh Custom field's own colours/chroma, same shape as
+    // crystalIntensityPreview above. One colour is a single-colour field; 2–4 is a combo.
+    private val crystalMeshCustomPreview = MutableStateFlow<Pair<List<Int>, Float>?>(null)
 
     val crystalMeshCustomArgb: Flow<Int?> = combine(
         dataStore.data.map { it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] },
         crystalMeshCustomPreview
-    ) { stored, preview -> if (preview != null) preview.first else stored }
+    ) { stored, preview -> if (preview != null) preview.first.firstOrNull() else stored }
+
+    /** The custom combo's colours (2–4), or empty for a single-colour custom field. */
+    val crystalMeshCustomColors: Flow<List<Int>> = combine(
+        dataStore.data.map { prefs ->
+            prefs[CRYSTAL_MESH_CUSTOM_COLORS_KEY].orEmpty().split(",").mapNotNull { it.trim().toIntOrNull() }
+        },
+        crystalMeshCustomPreview
+    ) { stored, preview -> (preview?.first ?: stored).take(4).let { if (it.size >= 2) it else emptyList() } }
 
     val crystalMeshCustomChroma: Flow<Float> = combine(
         dataStore.data.map { prefs ->
@@ -451,8 +468,8 @@ class ThemePreferences(
 
     /** Called every drag frame from the mesh Custom field dialog — previews the seed/chroma and,
      * by also previewing the mesh/background enums above, the field actually showing as selected. */
-    fun previewCrystalMeshCustom(argb: Int, chromaScale: Float) {
-        crystalMeshCustomPreview.value = argb to chromaScale
+    fun previewCrystalMeshCustom(argbs: List<Int>, chromaScale: Float) {
+        crystalMeshCustomPreview.value = argbs to chromaScale
         crystalMeshPreview.value = CrystalMesh.CUSTOM
         crystalBackgroundPreview.value = CrystalBackground.MESH
     }
@@ -465,9 +482,28 @@ class ThemePreferences(
         crystalBackgroundPreview.value = null
     }
 
+    /**
+     * Saves a custom field of one to four colours, as Android does. The first colour is always also
+     * written as the single-colour seed, so a reader without combo support still shows a sensible
+     * one-colour field from the same choice.
+     */
+    suspend fun setCrystalMeshCustomCombo(argbs: List<Int>, chromaScale: Float) {
+        touchPreferences {
+            it[BORIKEN_FIELD_KEY] = false
+            argbs.firstOrNull()?.let { first -> it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = first }
+            if (argbs.size >= 2) it[CRYSTAL_MESH_CUSTOM_COLORS_KEY] = argbs.take(4).joinToString(",")
+            else it.remove(CRYSTAL_MESH_CUSTOM_COLORS_KEY)
+            it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
+        }
+        crystalMeshCustomPreview.value = null
+        crystalMeshPreview.value = null
+        crystalBackgroundPreview.value = null
+    }
+
     suspend fun setCrystalMeshCustom(argb: Int, chromaScale: Float) {
         touchPreferences {
             it[BORIKEN_FIELD_KEY] = false
+            it.remove(CRYSTAL_MESH_CUSTOM_COLORS_KEY)
             it[CRYSTAL_MESH_CUSTOM_ARGB_KEY] = argb
             it[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] = chromaScale.coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
         }
@@ -592,6 +628,7 @@ class ThemePreferences(
             put("crystalBgColorIndex", prefs[CRYSTAL_BG_COLOR_KEY] ?: CRYSTAL_BG_NEUTRAL)
             prefs[CRYSTAL_BG_COLOR_ARGB_KEY]?.let { put("crystalBgColorArgb", it) }
             prefs[CRYSTAL_MESH_CUSTOM_ARGB_KEY]?.let { put("crystalMeshCustomArgb", it) }
+            prefs[CRYSTAL_MESH_CUSTOM_COLORS_KEY]?.let { put("crystalMeshCustomColors", it) }
             put("crystalMeshCustomChroma", (prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).toString())
             put("amoledMode", prefs[AMOLED_MODE_KEY] ?: false)
             put("borikenUnlocked", prefs[BORIKEN_UNLOCKED_KEY] ?: false)
@@ -604,6 +641,7 @@ class ThemePreferences(
             put("homeViewCalendar", prefs[HOME_VIEW_CALENDAR_KEY] ?: false)
             put("calendarListMode", prefs[CALENDAR_LIST_MODE_KEY] ?: false)
             put("notesToolbarPinned", prefs[NOTES_TOOLBAR_PINNED] ?: false)
+            put("notePaper", prefs[NOTE_PAPER_KEY] ?: NOTE_PAPER_DEFAULT)
             put("customColors", prefs[CUSTOM_COLORS_KEY] ?: "")
             put("userName", prefs[USER_NAME_KEY] ?: "")
             put("userNickname", prefs[USER_NICKNAME_KEY] ?: "")
@@ -644,6 +682,11 @@ class ThemePreferences(
             } else {
                 prefs.remove(CRYSTAL_MESH_CUSTOM_ARGB_KEY)
             }
+            if (json.has("crystalMeshCustomColors")) {
+                prefs[CRYSTAL_MESH_CUSTOM_COLORS_KEY] = json.getString("crystalMeshCustomColors")
+            } else {
+                prefs.remove(CRYSTAL_MESH_CUSTOM_COLORS_KEY)
+            }
             prefs[CRYSTAL_MESH_CUSTOM_CHROMA_KEY] =
                 (json.optString("crystalMeshCustomChroma", DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA.toString()).toFloatOrNull()
                     ?: DEFAULT_CRYSTAL_MESH_CUSTOM_CHROMA).coerceIn(MIN_CRYSTAL_MESH_CUSTOM_CHROMA, 1f)
@@ -664,6 +707,7 @@ class ThemePreferences(
             prefs[HOME_VIEW_CALENDAR_KEY] = json.optBoolean("homeViewCalendar", false)
             prefs[CALENDAR_LIST_MODE_KEY] = json.optBoolean("calendarListMode", false)
             prefs[NOTES_TOOLBAR_PINNED] = json.optBoolean("notesToolbarPinned", false)
+            prefs[NOTE_PAPER_KEY] = json.optString("notePaper", NOTE_PAPER_DEFAULT)
 
             val customColors = json.optString("customColors", "")
             if (customColors.isNotEmpty()) prefs[CUSTOM_COLORS_KEY] = customColors

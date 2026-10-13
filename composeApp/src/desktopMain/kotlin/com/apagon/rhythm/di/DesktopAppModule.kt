@@ -120,8 +120,8 @@ val desktopAppModule = module {
     single<VaultFileSync> { DesktopVaultFileSync() }
     single<ProfileImageStore> { DesktopProfileImageStore(get()) }
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    single { SyncClient(get(), desktopDeviceId) }
-    single { SyncServer(get(), desktopDeviceId) }
+    single { SyncClient(get(), desktopDeviceId, get()) }
+    single { SyncServer(get(), desktopDeviceId, get()) }
     // Stage 13: resolved once at Koin start, same lifetime as the Tailscale
     // interface itself for a running process. Also read directly by main.kt
     // for SyncServer's bindHost — kept as two separate cheap lookups rather
@@ -153,6 +153,7 @@ val desktopAppModule = module {
     viewModel { JournalViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { NotesViewModel(get(), get(), get()) }
     viewModel { NotebookDetailViewModel(get()) }
+    viewModel { com.apagon.rhythm.ui.sync.QuickSyncViewModel(get(), get()) }
     viewModel { NotesSearchViewModel(get()) }
     viewModel { NoteEditorViewModel(get(), get(), get()) }
 

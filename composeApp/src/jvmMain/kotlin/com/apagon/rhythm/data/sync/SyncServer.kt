@@ -19,7 +19,8 @@ import kotlinx.serialization.json.Json
  */
 class SyncServer(
     private val syncEngine: SyncEngine,
-    private val deviceId: String
+    private val deviceId: String,
+    private val syncPreferences: SyncPreferences
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private var server: EmbeddedServer<*, *>? = null
@@ -34,9 +35,29 @@ class SyncServer(
                     // Watermark per phone, keyed by the deviceId every batch carries — see
                     // SyncPreferences.getLastSyncedAt.
                     val peer = incomingBatch.deviceId
+                    syncPreferences.recordIncoming(peer, incomingBatch.deviceName)
+                    // Turned off in this computer's device list: refuse, applying nothing. A device
+                    // that sends no name predates refusals and would read a refusal as an empty
+                    // successful sync (and move its watermark past changes it never sent), so it
+                    // gets a closed connection instead, which it reports as a failure.
+                    if (syncPreferences.devices().any { !it.outgoing && it.key.equals(peer, ignoreCase = true) && !it.enabled }) {
+                        if (incomingBatch.deviceName != null) {
+                            val name = localDeviceName()
+                            val refusal = SyncBatch(
+                                deviceId = deviceId,
+                                habits = emptyList(),
+                                completions = emptyList(),
+                                deviceName = name,
+                                refused = "$name has sync with this device turned off."
+                            )
+                            send(Frame.Text(json.encodeToString(SyncBatch.serializer(), refusal)))
+                        }
+                        return@webSocket
+                    }
                     val startedAt = System.currentTimeMillis()
                     syncEngine.applyIncomingBatch(incomingBatch)
                     val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
+                        .copy(deviceName = localDeviceName())
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                     syncEngine.markSynced(peer, startedAt)
                 }

@@ -171,7 +171,9 @@ fun crystalFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
 @ReadOnlyComposable
 fun crystalOwnFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
     if (mesh == CrystalMesh.CUSTOM) {
-        crystalCustomBlobs(LocalCrystalCustomSeed.current, LocalCrystalCustomChroma.current, dark)
+        val combo = LocalCrystalCustomColours.current
+        if (combo.size >= 2) crystalComboBlobs(combo, LocalCrystalCustomChroma.current, dark)
+        else crystalCustomBlobs(LocalCrystalCustomSeed.current, LocalCrystalCustomChroma.current, dark)
     } else {
         ambientBlobs(mesh, dark)
     }

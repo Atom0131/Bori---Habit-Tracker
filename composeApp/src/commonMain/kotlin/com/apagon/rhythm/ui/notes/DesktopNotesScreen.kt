@@ -243,6 +243,7 @@ fun DesktopNotesScreen(
             TopAppBar(
                 title = { Text("Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
                 actions = {
+                    com.apagon.rhythm.ui.sync.QuickSyncIconButton()
                     CrystalIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = onNavigateToSearch)
                 },
                 colors = crystalTopAppBarColors()

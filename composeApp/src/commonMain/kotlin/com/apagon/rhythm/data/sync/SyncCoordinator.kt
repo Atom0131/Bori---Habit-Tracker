@@ -8,4 +8,6 @@ package com.apagon.rhythm.data.sync
  */
 interface SyncCoordinator {
     suspend fun syncWith(peerAddress: String): SyncResult
+    /** Whether something is listening on [peerAddress]'s sync port right now (Online/Offline). */
+    suspend fun isReachable(peerAddress: String): Boolean = false
 }

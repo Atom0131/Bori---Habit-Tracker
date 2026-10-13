@@ -36,7 +36,7 @@ import com.apagon.rhythm.ui.components.crystalSliderColors
 import com.apagon.rhythm.ui.components.drawCrystalMeshField
 import com.apagon.rhythm.ui.theme.AmbientBaseDark
 import com.apagon.rhythm.ui.theme.AmbientBaseLight
-import com.apagon.rhythm.ui.theme.crystalCustomBlobs
+import com.apagon.rhythm.ui.theme.crystalComboBlobs
 import com.apagon.rhythm.ui.theme.habitColorPalette
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -319,38 +319,47 @@ fun SaturationValueSquare(
 }
 
 /**
- * Builds a `CrystalMesh.CUSTOM` field from one colour — the mesh-specific picker, distinct from
- * [CustomColorPickerDialog] because only the *hue* is taken (see `crystalCustomBlobs`'s own KDoc for
- * why the tones aren't the user's to pick) and because the field preview is the whole point of this
- * dialog, which a generic accent/room picker has no equivalent of.
+ * Builds a `CrystalMesh.CUSTOM` field from one to four colours — the mesh-specific picker, distinct
+ * from [CustomColorPickerDialog] because only each colour's *hue* (and, for whites and greys, how
+ * colourful it is) is taken: see `crystalComboBlobs`/`crystalCustomBlobs` for why the tones aren't the
+ * user's to pick. Port of Android's combo dialog (commit 887d333): colours run top to bottom of the
+ * screen like a wallpaper gradient, with one-click presets. Desktop keeps its live preview of the
+ * whole window while the dialog is open.
  */
 @Composable
 fun CrystalCustomFieldDialog(
-    initialColor: Color?,
+    initialColors: List<Color>,
     initialChroma: Float,
-    onSave: (Color, Float) -> Unit,
-    onPreview: (Color, Float) -> Unit = { _, _ -> },
+    onSave: (List<Color>, Float) -> Unit,
+    onPreview: (List<Color>, Float) -> Unit = { _, _ -> },
     onCancelPreview: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
-    var hsv by remember {
-        mutableStateOf(rgbToHsv((initialColor ?: Color(0xFF74D0C4)).toArgb()))
+    var colors by remember {
+        mutableStateOf(initialColors.ifEmpty { listOf(Color(0xFF74D0C4)) }.take(4))
     }
+    var selected by remember { mutableIntStateOf(0) }
     var chroma by remember { mutableStateOf(initialChroma) }
-    val picked = Color.hsv(hsv.first, hsv.second.coerceAtLeast(0.35f), hsv.third.coerceAtLeast(0.5f))
+    val current = colors[selected.coerceIn(0, colors.lastIndex)]
+    val currentHue = rgbToHsv(current.toArgb()).first
 
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
-    val blobs = crystalCustomBlobs(picked, chroma, dark)
+    val blobs = crystalComboBlobs(colors, chroma, dark)
     val cancelAndDismiss = { onCancelPreview(); onDismiss() }
+    fun update(newColors: List<Color>, newSelected: Int = selected) {
+        colors = newColors
+        selected = newSelected.coerceIn(0, newColors.lastIndex)
+        onPreview(newColors, chroma)
+    }
 
     ColorPickerDialogShell(
-        width = 320.dp,
+        width = 340.dp,
         title = "Custom Field",
         onDismiss = cancelAndDismiss,
         actions = {
             TextButton(onClick = cancelAndDismiss) { Text("Cancel") }
-            TextButton(onClick = { onSave(picked, chroma); onDismiss() }) { Text("Save") }
+            TextButton(onClick = { onSave(colors, chroma); onDismiss() }) { Text("Save") }
         }
     ) {
         Surface(
@@ -361,48 +370,83 @@ fun CrystalCustomFieldDialog(
             Column(
                 modifier = Modifier.padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // The real field, at swatch size.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
+                        .height(110.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .drawBehind { drawCrystalMeshField(base, blobs, dark) }
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 1f),
-                            RoundedCornerShape(16.dp)
-                        )
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 1f), RoundedCornerShape(16.dp))
                 )
 
-                Box(contentAlignment = Alignment.Center) {
-                    ColorWheel(
-                        hue = hsv.first,
-                        onHueChanged = {
-                            hsv = hsv.copy(first = it)
-                            // Recompute from the just-updated hsv rather than reusing `picked`
-                            // (that val was captured at this composition's start, so it's still
-                            // the previous hue until Compose recomposes).
-                            onPreview(
-                                Color.hsv(hsv.first, hsv.second.coerceAtLeast(0.35f), hsv.third.coerceAtLeast(0.5f)),
-                                chroma
-                            )
-                        },
-                        modifier = Modifier.size(200.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(110.dp)
-                            .pointerInput(Unit) { detectTapGestures { } }
-                            .clip(CircleShape)
-                            .background(Color.hsv(hsv.first, 1f, 1f))
-                            .border(
-                                2.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 1f),
-                                CircleShape
-                            )
-                    )
+                // The colours, top of the screen to bottom. Click one to edit it on the wheel;
+                // + adds one (up to four).
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    colors.forEachIndexed { i, c ->
+                        val isSel = i == selected
+                        Box(
+                            modifier = Modifier
+                                .size(if (isSel) 38.dp else 32.dp)
+                                .clip(CircleShape)
+                                .background(c)
+                                .border(
+                                    if (isSel) 3.dp else 1.dp,
+                                    if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    CircleShape
+                                )
+                                .clickable { selected = i }
+                        )
+                    }
+                    if (colors.size < 4) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable {
+                                    update(colors + Color.hsv((currentHue + 60f) % 360f, 0.7f, 0.9f), colors.size)
+                                }
+                        ) {
+                            Text("+", style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                }
+                if (colors.size > 1) {
+                    TextButton(
+                        onClick = { update(colors.toMutableList().also { it.removeAt(selected) }) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) { Text("Remove this colour", style = MaterialTheme.typography.labelMedium) }
+                }
+
+                ColorWheel(
+                    hue = currentHue,
+                    onHueChanged = { h ->
+                        update(colors.toMutableList().also { it[selected] = Color.hsv(h, 0.75f, 0.95f) })
+                    },
+                    modifier = Modifier.size(170.dp)
+                )
+
+                // One-click combos. Borikén is the light-blue flag's celeste, white and red.
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CUSTOM_FIELD_PRESETS.forEach { (name, preset) ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { update(preset, 0) }.padding(2.dp)
+                        ) {
+                            Row(Modifier.clip(RoundedCornerShape(4.dp))) {
+                                preset.forEach { c -> Box(Modifier.size(12.dp, 22.dp).background(c)) }
+                            }
+                            Text(name, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 }
             }
         }
@@ -413,7 +457,7 @@ fun CrystalCustomFieldDialog(
                 value = chroma,
                 onValueChange = {
                     chroma = it
-                    onPreview(picked, chroma)
+                    onPreview(colors, chroma)
                 },
                 valueRange = MIN_CRYSTAL_MESH_CUSTOM_CHROMA..1f,
                 colors = crystalSliderColors()
@@ -428,16 +472,16 @@ fun CrystalCustomFieldDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-
-        Text(
-            text = "The disc is the hue you picked; the panel above is the field it makes. " +
-                "Only the hue is used — brightness is fixed so cards and text keep the " +
-                "same contrast on every field.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
+
+/** Preset combos for the custom field, top-to-bottom order — the same four as Android. */
+private val CUSTOM_FIELD_PRESETS = listOf(
+    "Borikén" to listOf(Color(0xFF3EA6F2), Color(0xFFFFFFFF), Color(0xFFE4002B)),
+    "Sunset" to listOf(Color(0xFFF4A340), Color(0xFFE5537A), Color(0xFF7B4FD6)),
+    "Ocean" to listOf(Color(0xFF2EC4B6), Color(0xFF3A86FF), Color(0xFF4B3FB5)),
+    "Forest" to listOf(Color(0xFF4CAF50), Color(0xFF26A69A))
+)
 
 /**
  * Desktop port of androidMain's `ColorPickerRow` (`ui/util/SharedComposables.kt`): a custom-colour
