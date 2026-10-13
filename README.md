@@ -6,7 +6,7 @@ A Kotlin Multiplatform / Compose Desktop port of [Bori](https://play.google.com/
 Android habit tracker, journal, and planner. It covers habits, to-dos, calendar events, alarms,
 timers, reminders, notes and notebooks, and journaling, and it's local-first with no backend.
 
-This build runs natively on Linux (and should run on any JVM desktop target). It can optionally
+This build runs natively on Linux and Windows. It can optionally
 sync with the Android app over a local network or [Tailscale](https://tailscale.com/), with no
 account, server, or cloud dependency of any kind.
 
@@ -28,19 +28,30 @@ See [`DESIGN.md`](DESIGN.md) for the design system.
 
 ### Download (recommended for most users)
 
-Grab the installer for your distro from the [Releases](../../releases) page and install it with your
+Grab the installer for your distro (or Windows, see below) from the [Releases](../../releases) page and install it with your
 package manager's standard command (or just double-click it in your distro's software installer):
 
 | Distro | Download | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.0-1_amd64.deb` | `sudo apt install ./bori_1.0.0-1_amd64.deb` |
-| Fedora, openSUSE, RHEL | `bori-1.0.0-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.0-1.x86_64.rpm` |
-| Arch, CachyOS, Manjaro, Artix | `bori-1.0.0-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.0-1-x86_64.pkg.tar.zst` |
+| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.1-1_amd64.deb` | `sudo apt install ./bori_1.0.1-1_amd64.deb` |
+| Fedora, openSUSE, RHEL | `bori-1.0.1-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.1-1.x86_64.rpm` |
+| Arch, CachyOS, Manjaro, Artix | `bori-1.0.1-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.1-1-x86_64.pkg.tar.zst` |
+| Windows 10 / 11 | `bori-1.0.1.msi` | double-click it |
 
 Each package bundles its own Java runtime, so you don't need Java installed separately. Once
 installed, Bori is in your app menu, or run `bori` from a terminal. Data is stored under `~/.bori`.
 An existing `~/.rhythm` from before the rename is moved there automatically on first launch, with a
 `~/.rhythm` link left behind so older photo paths still work.
+
+#### Windows
+
+Download `bori-1.0.1.msi` from the [Releases](../../releases) page and double-click it. It installs
+just for your user, so there's no admin prompt, and adds Bori to the Start Menu and your desktop.
+The installer isn't code-signed yet, so Windows SmartScreen may warn about an unrecognised app:
+click **More info**, then **Run anyway**. Data is stored in `%APPDATA%\Bori`. To sync with your
+phone, install [Tailscale for Windows](https://tailscale.com/download/windows) and allow Bori
+through Windows Firewall when it asks. Installing a newer `.msi` upgrades Bori in place; uninstall
+it from Settings → Apps.
 
 #### Arch / CachyOS / Artix (pacman)
 
@@ -50,8 +61,8 @@ file (pacman will ask you to confirm; press Enter):
 
 ```bash
 cd ~/Downloads
-curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.0/bori-1.0.0-1-x86_64.pkg.tar.zst
-sudo pacman -U ./bori-1.0.0-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.1/bori-1.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bori-1.0.1-1-x86_64.pkg.tar.zst
 ```
 
 (Install from the downloaded file rather than passing the URL straight to `pacman -U`: for a URL,
