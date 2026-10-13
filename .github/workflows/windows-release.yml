@@ -1,0 +1,41 @@
+# Builds the Windows installer (per-user .msi). jpackage can't cross-build it from Linux, so it
+# runs on a Windows runner. Publishing a GitHub Release (gh release create) attaches the .msi to
+# that release; "Run workflow" on the Actions tab just builds it as a downloadable artifact.
+name: Windows installer
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  msi:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build .msi
+        run: ./gradlew.bat :composeApp:packageMsi --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bori-windows-msi
+          path: composeApp/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" composeApp/build/compose/binaries/main/msi/*.msi --clobber

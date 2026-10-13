@@ -1,5 +1,9 @@
 package com.apagon.rhythm.platform
 
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+
 /**
  * Posts a real OS desktop notification (the same `org.freedesktop.Notifications` D-Bus
  * service every browser/clock app on Linux uses) alongside the always-on-top alert
@@ -16,9 +20,20 @@ package com.apagon.rhythm.platform
  * startup call, so it must never stall the next tick. If `notify-send` isn't installed
  * (rare on a minimal/server-ish Linux install), this silently does nothing — the
  * always-on-top window remains the authoritative, always-present fallback.
+ *
+ * Off Linux (Windows) there's no `notify-send`. The alert goes out on [trayAlerts] instead, and
+ * main.kt's AWT `Tray` turns it into a native toast with `TrayState.sendNotification`.
  */
 class DesktopOsNotifier {
+    private val isLinux = System.getProperty("os.name").orEmpty().lowercase().contains("linux")
+    private val _trayAlerts = MutableSharedFlow<FiredAlert>(extraBufferCapacity = 8)
+    val trayAlerts: SharedFlow<FiredAlert> = _trayAlerts.asSharedFlow()
+
     fun notify(alert: FiredAlert) {
+        if (!isLinux) {
+            _trayAlerts.tryEmit(alert)
+            return
+        }
         runCatching {
             val urgency = if (alert.kind == FiredAlertKind.REMINDER) "normal" else "critical"
             ProcessBuilder(

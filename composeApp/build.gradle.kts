@@ -104,13 +104,19 @@ compose.desktop {
     application {
         mainClass = "com.apagon.rhythm.MainKt"
         // Lets main() set the X11 window class to "bori" (taskbar icon matching via bori.desktop).
-        jvmArgs += listOf("--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED")
+        // Linux only: sun.awt.X11 doesn't exist in a Windows JDK, where the flag just prints a
+        // startup warning. jpackage builds each OS's installers on that OS, so the host decides.
+        if (System.getProperty("os.name").orEmpty().lowercase().contains("linux")) {
+            jvmArgs += listOf("--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED")
+        }
 
         // First public release's installer packaging — no auto-versioning scheme exists yet,
         // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so
         // an end user installing the .deb/.rpm needs no separate Java install.
         nativeDistributions {
-            targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
+            // jpackage only builds the formats for the OS it runs on: Deb/Rpm here, Msi on the
+            // windows-latest runner in .github/workflows/windows-release.yml.
+            targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Msi)
 
             // jlink's default trimmed runtime only includes modules it can see referenced via
             // static jdeps analysis — it missed jdk.unsupported (needed for sun.misc.Unsafe,
@@ -131,6 +137,18 @@ compose.desktop {
                 iconFile.set(project.file("../new_icon_assets/bori_app_icon_512.png"))
                 menuGroup = "Utility"
                 appCategory = "Utility"
+            }
+
+            windows {
+                iconFile.set(project.file("../new_icon_assets/bori.ico"))
+                // Installs under the user's AppData: no admin/UAC prompt.
+                perUserInstall = true
+                dirChooser = false
+                menu = true
+                menuGroup = "Bori"
+                shortcut = true
+                // Never change this: it's how a newer .msi recognises and upgrades an older one.
+                upgradeUuid = "608d850c-1ad1-47f9-ae6e-4cc387cd9dc9"
             }
         }
     }

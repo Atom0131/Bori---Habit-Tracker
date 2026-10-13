@@ -17,6 +17,9 @@ import java.nio.file.StandardCopyOption
  * `-Dbori.home=/path` overrides the location (tests, a second profile). The old `-Drhythm.home`
  * is still honoured. Before this existed the path was spelled out in seven places, and the sync
  * preferences ignored the override entirely.
+ *
+ * On Windows it's `%APPDATA%\Bori`, where Windows apps keep their data. There was never a Rhythm
+ * for Windows, so there's nothing to migrate (and making the symlink would need admin rights).
  */
 object AppHome {
     val dir: File by lazy { resolve().apply { mkdirs() } }
@@ -24,6 +27,9 @@ object AppHome {
     private fun resolve(): File {
         (System.getProperty("bori.home") ?: System.getProperty("rhythm.home"))?.let { return File(it) }
         val home = System.getProperty("user.home")
+        if (System.getProperty("os.name").orEmpty().lowercase().contains("windows")) {
+            return File(System.getenv("APPDATA") ?: home, "Bori")
+        }
         val bori = File(home, ".bori")
         val legacy = File(home, ".rhythm")
         if (bori.exists() || !legacy.exists() || Files.isSymbolicLink(legacy.toPath())) {

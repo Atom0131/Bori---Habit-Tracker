@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
+import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -51,6 +52,7 @@ import com.apagon.rhythm.data.sync.findTailscaleAddress
 import com.apagon.rhythm.di.desktopAppModule
 import com.apagon.rhythm.platform.AlertCenter
 import com.apagon.rhythm.platform.DesktopAlarmClockService
+import com.apagon.rhythm.platform.DesktopOsNotifier
 import com.apagon.rhythm.platform.DesktopSingleInstance
 import com.apagon.rhythm.platform.LinuxStatusNotifierTray
 import com.apagon.rhythm.platform.FiredAlert
@@ -249,6 +251,14 @@ fun main() {
         DisposableEffect(nativeTray) { onDispose { nativeTray?.close() } }
         if (nativeTray == null && isTraySupported) {
             val trayState = rememberTrayState()
+            // Windows toasts for fired alerts (Linux uses notify-send; see DesktopOsNotifier).
+            val osNotifier = koinInject<DesktopOsNotifier>()
+            LaunchedEffect(trayState) {
+                osNotifier.trayAlerts.collect { alert ->
+                    val type = if (alert.kind == FiredAlertKind.REMINDER) Notification.Type.Info else Notification.Type.Warning
+                    trayState.sendNotification(Notification(alert.title, alert.subtitle, type))
+                }
+            }
             Tray(
                 // Its own image on purpose: KDE shows Java tray icons through its XEmbed bridge,
                 // which zooms them (the app icon came out cropped to its middle) and can't do
