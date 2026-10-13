@@ -128,7 +128,7 @@ compose.desktop {
             includeAllModules = true
 
             packageName = "bori"
-            packageVersion = "1.0.1"
+            packageVersion = "1.0.2"
             description = "Bori — habit tracker, journal, and planner"
             copyright = "© 2026 Apagon. Licensed under Apache 2.0."
             vendor = "Apagon"
