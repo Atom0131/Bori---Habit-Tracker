@@ -10,6 +10,7 @@ import com.apagon.rhythm.ui.theme.BorikenSlots
 import com.apagon.rhythm.ui.theme.BorikenCombo
 import com.apagon.rhythm.ui.theme.crystalOwnFieldBlobs
 import com.apagon.rhythm.ui.theme.crystalComboBlobs
+import com.apagon.rhythm.ui.theme.borikenFieldBlobs
 import com.apagon.rhythm.ui.components.TainoGlyphs
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -1473,7 +1474,7 @@ private fun CrystalMeshSwatch(
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
     // null is the Borikén swatch: the flag field. Every other swatch shows its own field, never
     // the flag that may be on screen behind it.
-    val blobs = if (mesh == null) crystalComboBlobs(BorikenCombo, 1f, dark, BorikenSlots)
+    val blobs = if (mesh == null) borikenFieldBlobs(dark)
                 else crystalOwnFieldBlobs(mesh, dark)
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(

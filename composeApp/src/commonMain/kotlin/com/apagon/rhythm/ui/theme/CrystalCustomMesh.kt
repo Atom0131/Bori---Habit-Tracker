@@ -190,14 +190,19 @@ fun crystalComboBlobs(
     chromaScale: Float,
     dark: Boolean,
     /** Which colour each slot takes; null = the top-to-bottom layout in [COMBO_SLOTS]. */
-    slots: IntArray? = null
+    slots: IntArray? = null,
+    /** Extra chroma per picked colour (same tone, so contrast is unchanged); null = 1 for all. */
+    colourChroma: FloatArray? = null
 ): List<Color> {
     if (colours.size <= 1) return crystalCustomBlobs(colours.firstOrNull(), chromaScale, dark)
     val picked = colours.take(4)
     val slotMap = slots ?: COMBO_SLOTS.getValue(picked.size)
-    val key = Triple(picked.map { it.toArgb() } + slotMap.toList().map { -it - 1 }, (chromaScale * 100).roundToInt(), dark)
+    val key = Triple(picked.map { it.toArgb() } + slotMap.toList().map { -it - 1 } + (colourChroma?.map { (it * 100).roundToInt() } ?: emptyList()), (chromaScale * 100).roundToInt(), dark)
     return comboCache.getOrPut(key) {
-        (0 until 5).map { i -> solveSlot(i, picked[slotMap[i]], chromaScale, dark) }
+        (0 until 5).map { i ->
+            val boost = colourChroma?.getOrNull(slotMap[i]) ?: 1f
+            solveSlot(i, picked[slotMap[i]], chromaScale * boost, dark)
+        }
     }
 }
 
@@ -210,3 +215,14 @@ val BorikenCombo = listOf(Color(0xFF3EA6F2), Color(0xFFFFFFFF), Color(0xFFE4002B
  * red at the bottom right (the stripes). Slots: top-left, top-right, centre, bottom-left, bottom-right.
  */
 val BorikenSlots = intArrayOf(0, 1, 0, 0, 2)
+
+/**
+ * How much more colour each Borikén colour gets than the mesh's usual cap: the red is pushed
+ * (2026-10-13, "just a little bolder"), celeste and white stay as they were. Only chroma moves —
+ * each slot keeps its tone, so cards and text read exactly as before.
+ */
+val BorikenChroma = floatArrayOf(1f, 1f, 1.6f)
+
+/** The Borikén field's five colours — the one call the field and its swatch share. */
+fun borikenFieldBlobs(dark: Boolean): List<Color> =
+    crystalComboBlobs(BorikenCombo, 1f, dark, BorikenSlots, BorikenChroma)
