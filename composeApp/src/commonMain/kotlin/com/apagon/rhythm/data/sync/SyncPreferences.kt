@@ -14,7 +14,9 @@ data class SyncDevice(
     val key: String,
     val outgoing: Boolean,
     val name: String? = null,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    /** "android", "windows", "linux", "macos"; null until the device has said (older versions). */
+    val os: String? = null
 ) {
     val isPhone: Boolean get() = !outgoing && key.startsWith("android-")
 }
@@ -48,10 +50,10 @@ interface SyncPreferences {
     /** Every listed device, incoming and outgoing. Keys match [getLastSyncedAt]'s. */
     suspend fun devices(): List<SyncDevice> = emptyList()
     /** A device just synced in: list it (on) if new, and keep its name current. */
-    suspend fun recordIncoming(deviceId: String, name: String?) {}
+    suspend fun recordIncoming(deviceId: String, name: String?, os: String? = null) {}
     /** Adds a computer to sync to (on), or turns an already-listed one back on. */
     suspend fun addComputer(address: String) {}
-    suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?) {}
+    suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?, os: String? = null) {}
     suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) {}
     suspend fun removeDevice(key: String, outgoing: Boolean) {}
     suspend fun getPeerAddress(): String?

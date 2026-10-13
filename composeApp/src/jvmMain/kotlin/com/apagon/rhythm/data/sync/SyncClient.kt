@@ -20,7 +20,7 @@ class SyncClient(
         val peer = "$peerHost:$port"
         val startedAt = System.currentTimeMillis()
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-            .copy(deviceName = localDeviceName())
+            .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
         val client = HttpClient(CIO) { install(WebSockets) }
         val result = try {
             var applied: SyncResult? = null
@@ -31,7 +31,7 @@ class SyncClient(
                     ?: throw IllegalStateException("The other computer closed the connection")
                 val responseBatch = json.decodeFromString(SyncBatch.serializer(), responseFrame.readText())
                 responseBatch.refused?.let { throw SyncRefusedException(it) }
-                syncPreferences.setDeviceName(peer, outgoing = true, name = responseBatch.deviceName)
+                syncPreferences.setDeviceName(peer, outgoing = true, name = responseBatch.deviceName, os = responseBatch.deviceOs)
                 applied = syncEngine.applyIncomingBatch(responseBatch)
             } }
             applied ?: SyncResult(0, 0, 0, 0)
@@ -55,3 +55,13 @@ fun localDeviceName(): String =
         ?: runCatching { java.io.File("/etc/hostname").readText().trim() }.getOrNull()?.takeIf { it.isNotBlank() }
         ?: runCatching { java.net.InetAddress.getLocalHost().hostName }.getOrNull()?.takeIf { it.isNotBlank() }
         ?: "Computer"
+
+/** This computer's OS as the sync protocol names it: "windows", "macos" or "linux". */
+fun localDeviceOs(): String {
+    val os = System.getProperty("os.name").orEmpty().lowercase()
+    return when {
+        "windows" in os -> "windows"
+        "mac" in os -> "macos"
+        else -> "linux"
+    }
+}

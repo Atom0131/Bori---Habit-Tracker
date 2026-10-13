@@ -35,7 +35,7 @@ class SyncServer(
                     // Watermark per phone, keyed by the deviceId every batch carries — see
                     // SyncPreferences.getLastSyncedAt.
                     val peer = incomingBatch.deviceId
-                    syncPreferences.recordIncoming(peer, incomingBatch.deviceName)
+                    syncPreferences.recordIncoming(peer, incomingBatch.deviceName, incomingBatch.deviceOs)
                     // Turned off in this computer's device list: refuse, applying nothing. A device
                     // that sends no name predates refusals and would read a refusal as an empty
                     // successful sync (and move its watermark past changes it never sent), so it
@@ -48,6 +48,7 @@ class SyncServer(
                                 habits = emptyList(),
                                 completions = emptyList(),
                                 deviceName = name,
+                                deviceOs = localDeviceOs(),
                                 refused = "$name has sync with this device turned off."
                             )
                             send(Frame.Text(json.encodeToString(SyncBatch.serializer(), refusal)))
@@ -57,7 +58,7 @@ class SyncServer(
                     val startedAt = System.currentTimeMillis()
                     syncEngine.applyIncomingBatch(incomingBatch)
                     val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-                        .copy(deviceName = localDeviceName())
+                        .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                     syncEngine.markSynced(peer, startedAt)
                 }

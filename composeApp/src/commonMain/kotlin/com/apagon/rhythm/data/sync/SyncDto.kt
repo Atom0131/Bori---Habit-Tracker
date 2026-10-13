@@ -717,6 +717,8 @@ data class SyncBatch(
     val activeDays: List<String>? = null,
     /** What the sender calls itself (a computer's host name, "Atom's Z Fold8"), for device lists. */
     val deviceName: String? = null,
+    /** The sender's OS — "android", "windows", "linux", "macos" — for the symbol in device lists. */
+    val deviceOs: String? = null,
     /**
      * Set only on a reply that refuses the sync — this device has sync with the sender turned off.
      * A refused reply carries no data and nothing was applied. Same field as Android's.

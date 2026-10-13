@@ -338,6 +338,8 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
             .forEachIndexed { i, d ->
                 if (i > 0) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OsMark(d.os ?: if (d.isPhone) "android" else null)
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(d.name ?: if (d.isPhone) "Phone" else "Computer", style = MaterialTheme.typography.bodyLarge)
                         val kind = when {

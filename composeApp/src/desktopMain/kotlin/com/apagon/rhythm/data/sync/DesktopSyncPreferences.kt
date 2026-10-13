@@ -82,14 +82,15 @@ class DesktopSyncPreferences : SyncPreferences {
 
     override suspend fun devices(): List<SyncDevice> = listOf(read())
 
-    override suspend fun recordIncoming(deviceId: String, name: String?) {
+    override suspend fun recordIncoming(deviceId: String, name: String?, os: String?) {
         if (deviceId.isBlank()) return
+        val n = name?.takeIf { it.isNotBlank() }
         val current = devices().firstOrNull { it.matches(deviceId, false) }
-        if (current != null && (name.isNullOrBlank() || current.name == name)) return
+        if (current != null && (n == null || current.name == n) && (os == null || current.os == os)) return
         editDevices { list ->
             if (list.any { it.matches(deviceId, false) }) {
-                list.map { if (it.matches(deviceId, false)) it.copy(name = name) else it }
-            } else list + SyncDevice(deviceId, outgoing = false, name = name?.takeIf { it.isNotBlank() })
+                list.map { if (it.matches(deviceId, false)) it.copy(name = n ?: it.name, os = os ?: it.os) else it }
+            } else list + SyncDevice(deviceId, outgoing = false, name = n, os = os)
         }
     }
 
@@ -102,10 +103,14 @@ class DesktopSyncPreferences : SyncPreferences {
         }
     }
 
-    override suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?) {
-        if (name.isNullOrBlank()) return
-        if (devices().firstOrNull { it.matches(key, outgoing) }?.name == name) return
-        editDevices { list -> list.map { if (it.matches(key, outgoing)) it.copy(name = name) else it } }
+    override suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?, os: String?) {
+        val n = name?.takeIf { it.isNotBlank() }
+        if (n == null && os == null) return
+        val current = devices().firstOrNull { it.matches(key, outgoing) } ?: return
+        if ((n == null || current.name == n) && (os == null || current.os == os)) return
+        editDevices { list ->
+            list.map { if (it.matches(key, outgoing)) it.copy(name = n ?: it.name, os = os ?: it.os) else it }
+        }
     }
 
     override suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) =
