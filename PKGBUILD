@@ -3,7 +3,7 @@ pkgname=bori
 # Renamed from "rhythm" on 2026-10-09; installing bori replaces an installed rhythm package.
 conflicts=('rhythm')
 replaces=('rhythm')
-pkgver=1.0.4
+pkgver=1.0.5
 pkgrel=1
 pkgdesc="Habit tracker, journal, and planner, local-first, with optional sync to the Android app"
 arch=('x86_64')
