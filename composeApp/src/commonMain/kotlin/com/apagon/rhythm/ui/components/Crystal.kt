@@ -1,5 +1,7 @@
 package com.apagon.rhythm.ui.components
 
+import com.apagon.rhythm.ui.theme.LocalBorikenField
+
 import com.apagon.rhythm.ui.theme.LocalBoriken
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -553,8 +555,14 @@ fun AmbientBackground(modifier: Modifier = Modifier) {
     val mesh = LocalCrystalMesh.current
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
     val blobs = crystalFieldBlobs(mesh, dark)
-    Box(modifier.drawBehind { drawCrystalMeshField(base, blobs, dark) })
+    val flag = LocalBorikenField.current
+    Box(modifier.drawBehind { drawField(flag, base, blobs, dark) })
 }
+
+/** This window's field: the Borikén flag when it's the chosen field, the blob mesh otherwise. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawField(
+    flag: Boolean, base: Color, blobs: List<Color>, dark: Boolean
+) = if (flag) drawBorikenFlagField(base, dark) else drawCrystalMeshField(base, blobs, dark)
 
 /**
  * Crystal panel styling as a [Modifier] — the workhorse of this file. Under Crystal: a real
@@ -690,6 +698,7 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
     val meshDark = isDark
     val meshBase = if (meshDark) AmbientBaseDark else AmbientBaseLight
     val meshBlobs = crystalFieldBlobs(LocalCrystalMesh.current, meshDark)
+    val meshFlag = LocalBorikenField.current
     MaterialTheme(colorScheme = windowScheme) {
         Box {
             if (paintField && !isSolidField) {
@@ -699,7 +708,7 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
                 Box(
                     Modifier.matchParentSize()
                         .let { if (field != null) glassBlur.sourceModifier(field, it) else it }
-                        .drawBehind { drawCrystalMeshField(meshBase, meshBlobs, meshDark) }
+                        .drawBehind { drawField(meshFlag, meshBase, meshBlobs, meshDark) }
                 )
             } else if (paintField && isSolidField) {
                 Box(Modifier.matchParentSize().background(solidFieldColor()))
@@ -747,10 +756,11 @@ fun Modifier.crystalMenuField(): Modifier {
     val dark = isDark
     val base = if (dark) AmbientBaseDark else AmbientBaseLight
     val blobs = crystalFieldBlobs(LocalCrystalMesh.current, dark)
+    val flag = LocalBorikenField.current
     val tint = MaterialTheme.colorScheme.surfaceContainer
     val tintAlpha = crystalSurfaceAlpha(LocalCrystalStyle.current, dark, LocalCrystalIntensity.current)
     return this.drawBehind {
-        drawCrystalMeshField(base, blobs, dark)
+        drawField(flag, base, blobs, dark)
         drawRect(tint.copy(alpha = tintAlpha))
     }
 }

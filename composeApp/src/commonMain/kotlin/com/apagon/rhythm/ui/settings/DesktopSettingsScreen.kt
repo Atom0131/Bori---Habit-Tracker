@@ -2,6 +2,7 @@ package com.apagon.rhythm.ui.settings
 
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.ui.components.BorikenUnlockDialog
+import com.apagon.rhythm.ui.components.drawBorikenFlagField
 import com.apagon.rhythm.core.app.AppInfo
 import androidx.compose.material3.FilterChip
 import kotlinx.coroutines.launch
@@ -1488,7 +1489,9 @@ private fun CrystalMeshSwatch(
                 .clickable(onClick = onClick)
         ) {
             androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCrystalMeshField(base = base, blobs = blobs, dark = dark)
+                // The Borikén swatch shows the flag itself, as the field does.
+                if (mesh == null) drawBorikenFlagField(base = base, dark = dark)
+                else drawCrystalMeshField(base = base, blobs = blobs, dark = dark)
             }
         }
         Spacer(Modifier.height(4.dp))
