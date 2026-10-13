@@ -14,7 +14,8 @@ import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.data.preferences.ThemeStyle
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.repository.TodoRepository
-import com.apagon.rhythm.data.sync.LocalSyncAddress
+import com.apagon.rhythm.data.sync.SyncAddressSource
+import com.apagon.rhythm.data.sync.SyncListenState
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.platform.FilePicker
@@ -51,15 +52,15 @@ class DesktopSettingsViewModel(
     private val photoStorage: PhotoStorage,
     private val syncCoordinator: SyncCoordinator,
     private val syncPreferences: SyncPreferences,
-    localSyncAddress: LocalSyncAddress,
+    syncAddressSource: SyncAddressSource,
 ) : ViewModel() {
 
     // Moved here from DesktopHabitViewModel so "Sync with phone" lives under Settings -> Data
     // Management, matching Android's own placement (Settings -> Data Management -> "Pair with
     // Desktop") instead of sitting on the Today screen. Desktop is always the sync server; see
     // ref_notes/plan_2026-09-25_stage13_tailscale_pairing.md's design decision on sync direction.
-    val ownSyncAddress: String = localSyncAddress.display
-    val ownSyncAddressForPairing: String = localSyncAddress.addressForPairing
+    /** Where this computer's sync server listens right now; follows Tailscale coming and going. */
+    val syncListenState: StateFlow<SyncListenState> = syncAddressSource.state
 
     // Stage 3.5 — optional, default-off vault *file* sync (separate from row-level Note/Notebook
     // sync, which is always on). Off unless the user explicitly turns it on, on each device

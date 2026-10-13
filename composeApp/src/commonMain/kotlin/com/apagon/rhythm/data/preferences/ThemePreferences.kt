@@ -591,7 +591,12 @@ class ThemePreferences(
     suspend fun setUserAge(age: String) { touchPreferences { it[USER_AGE_KEY] = age } }
     suspend fun setUserPronouns(pronouns: String) { touchPreferences { it[USER_PRONOUNS_KEY] = pronouns } }
     suspend fun setIsPro(isPro: Boolean) { touchPreferences { it[IS_PRO_KEY] = isPro } }
-    suspend fun setHasSeenOnboarding(seen: Boolean) { touchPreferences { it[HAS_SEEN_ONBOARDING_KEY] = seen } }
+    /**
+     * Deliberately **not** through [touchPreferences]: finishing the intro on a brand-new desktop
+     * must not give its untouched default theme a fresh timestamp, or it would win the first sync
+     * and replace the phone's theme (the 2026-10-09 bug [touchPreferences] describes).
+     */
+    suspend fun setHasSeenOnboarding(seen: Boolean) { dataStore.edit { it[HAS_SEEN_ONBOARDING_KEY] = seen } }
     suspend fun setHasCompletedInteractiveTutorial(completed: Boolean) { touchPreferences { it[HAS_COMPLETED_INTERACTIVE_TUTORIAL_KEY] = completed } }
     suspend fun setHasSeenHabitCreationTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_HABIT_CREATION_TUTORIAL_KEY] = seen } }
     suspend fun setHasSeenNotesTemplateTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_NOTES_TEMPLATE_TUTORIAL_KEY] = seen } }

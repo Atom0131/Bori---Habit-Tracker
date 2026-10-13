@@ -1,17 +1,26 @@
 package com.apagon.rhythm.data.sync
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
- * This device's own address for a peer to sync against, as a ready-to-show
- * string (e.g. "100.x.y.z:47890", or "Tailscale not detected (using
- * 127.0.0.1:47890)" as a fallback) — Stage 13. Desktop-only for now: nothing
- * else currently needs to display its own reachable address. commonMain so
- * DesktopHabitViewModel can hold one without reaching into desktopMain (which
- * commonMain can't see) — the real resolution logic lives in desktopMain's
- * findTailscaleAddress().
+ * Where this computer's sync server is listening right now (2026-10-13). It used to be a value
+ * computed once at launch, so a Tailscale that came up after Bori did left the server on loopback,
+ * unreachable from the phone, until Bori was quit and restarted. The desktop's SyncAddressMonitor
+ * now re-checks every few seconds and rebinds, and the Sync screen follows this state.
  */
-data class LocalSyncAddress(
-    /** Human-readable, e.g. "100.x.y.z:47890" or "Tailscale not detected (using 127.0.0.1:47890)". */
-    val display: String,
-    /** Always a plain "host:port", even on the loopback fallback — what actually gets encoded into the pairing QR code. */
-    val addressForPairing: String
-)
+sealed interface SyncListenState {
+    data object Starting : SyncListenState
+
+    /** [viaTailscale] false means loopback only: nothing else can reach this computer. */
+    data class Listening(val host: String, val port: Int, val viaTailscale: Boolean) : SyncListenState {
+        /** Plain "host:port", what the pairing QR code encodes. */
+        val address: String get() = "$host:$port"
+    }
+
+    data class Failed(val reason: String) : SyncListenState
+}
+
+/** commonMain view of the desktop's SyncAddressMonitor. */
+interface SyncAddressSource {
+    val state: StateFlow<SyncListenState>
+}

@@ -32,9 +32,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.apagon.rhythm.data.sync.SyncListenState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -112,6 +115,7 @@ private enum class SettingsSection(val label: String) {
     LAYOUT("Layout & Calendar"),
     DATA("Data"),
     RECENTLY_DELETED("Recently Deleted"),
+    HELP("Help"),
     ABOUT("About")
 }
 
@@ -262,6 +266,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 onShowArchivedHabits = { showArchivedHabits = true },
                                 onShowArchivedTodos = { showArchivedTodos = true }
                             )
+                            SettingsSection.HELP -> HelpSectionContent()
                             SettingsSection.ABOUT -> AboutSectionContent(
                                 onShowPrivacyPolicy = { showPrivacyPolicy = true },
                                 themePreferences = viewModel.themePreferences
@@ -921,52 +926,32 @@ private fun DataSectionContent(
     }
 }
 
-/** Moved here from the Today screen so "Sync with phone" lives under Settings -> Data,
- *  matching Android's own placement (Settings -> Data Management -> "Pair with Desktop")
- *  instead of sitting on the Today screen. Desktop is always the sync server. */
+/** Settings → Sync: whether this computer is reachable (with the pairing QR), every device it
+ *  syncs with, the setup guide, and the less common options. Desktop is always the sync server for
+ *  phones; Tailscale is the only way in (see SyncAddressMonitor). */
 @Composable
 private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
     var showSync by remember { mutableStateOf(false) }
-    var showQrCode by remember { mutableStateOf(false) }
-    val qrCodeRenderer = koinInject<QrCodeRenderer>()
+    var showGuide by remember { mutableStateOf(false) }
     val quickSync = koinViewModel<com.apagon.rhythm.ui.sync.QuickSyncViewModel>()
     val vaultFileSyncEnabled by viewModel.vaultFileSyncEnabled.collectAsState()
+    val listen by viewModel.syncListenState.collectAsState()
+
+    if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
 
     SettingsSection("Sync") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SyncStatusCard(listen, onHowTo = { showGuide = true })
             // As Android's Sync screen: every device, each with its own on/off switch.
             com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
-            TextButton(onClick = { showSync = !showSync }) {
-                Text(if (showSync) "Hide pairing and options" else "Pair a phone or computer, and options")
+            Row {
+                TextButton(onClick = { showGuide = true }) { Text("How to set up sync") }
+                TextButton(onClick = { showSync = !showSync }) {
+                    Text(if (showSync) "Fewer options" else "More options")
+                }
             }
 
             if (showSync) {
-                // This device's own address, read-only — the user reads it off this line and
-                // types it into the phone's peer-address field (desktop is always the sync
-                // server). The QR toggle below is the easier path — same address, scanned
-                // instead of typed.
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
-                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-                    horizontalArrangement = Arrangement.spacedBy(DesktopLayout.itemSpacing),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Your address: ${viewModel.ownSyncAddress}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    TextButton(onClick = { showQrCode = !showQrCode }) {
-                        Text(if (showQrCode) "Hide QR Code" else "Show QR Code")
-                    }
-                }
-                if (showQrCode) {
-                    qrCodeRenderer.QrCodeImage(
-                        text = viewModel.ownSyncAddressForPairing,
-                        modifier = Modifier.size(200.dp).padding(top = 8.dp)
-                    )
-                }
-
                 // A computer this one syncs to (Linux ↔ Windows): its address, or scan-less pairing
                 // by reading the other computer's "Your address" line.
                 var newComputer by remember { mutableStateOf("") }
@@ -1022,6 +1007,83 @@ private fun SyncWithPhoneSection(viewModel: DesktopSettingsViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * The top of Settings → Sync. Ready: the address and the QR code a phone scans. Not ready: why,
+ * and the way to the setup guide. Follows SyncAddressMonitor, so it turns ready by itself once
+ * Tailscale comes up.
+ */
+@Composable
+private fun SyncStatusCard(listen: SyncListenState, onHowTo: () -> Unit) {
+    val qrCodeRenderer = koinInject<QrCodeRenderer>()
+    val ready = listen is SyncListenState.Listening && listen.viaTailscale
+    Row(
+        modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(10.dp).clip(CircleShape).background(
+                        when {
+                            ready -> Color(0xFF34A853)
+                            listen is SyncListenState.Starting -> MaterialTheme.colorScheme.outline
+                            else -> MaterialTheme.colorScheme.error
+                        }
+                    )
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    when (listen) {
+                        is SyncListenState.Starting -> "Starting sync…"
+                        is SyncListenState.Failed -> "Sync can't start"
+                        is SyncListenState.Listening -> if (listen.viaTailscale) "Ready for your phone" else "Tailscale isn't running on this computer"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            when (listen) {
+                is SyncListenState.Listening -> if (listen.viaTailscale) {
+                    Text(
+                        "On your phone: Bori → Settings → Sync with Computers → Scan QR Code.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(
+                            "This computer's address: ${listen.address}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        "Your phone reaches this computer through Tailscale, a free private network. " +
+                            "Install it and sign in with the same account as your phone; Bori notices " +
+                            "within about 15 seconds, no restart needed.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Button(colors = crystalButtonColors(), onClick = onHowTo) { Text("How to set up sync") }
+                }
+                is SyncListenState.Failed -> {
+                    Text(listen.reason, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        "Bori tries again every 15 seconds. Closing the other program, or another copy of Bori, fixes it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                SyncListenState.Starting -> {}
+            }
+        }
+        if (ready) {
+            Box(Modifier.background(Color.White, RoundedCornerShape(12.dp)).padding(8.dp)) {
+                qrCodeRenderer.QrCodeImage(text = (listen as SyncListenState.Listening).address, modifier = Modifier.size(168.dp))
             }
         }
     }
@@ -1098,6 +1160,46 @@ private fun ImportPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+/** Settings → Help: the sync setup guide and the intro, both reachable again any time. */
+@Composable
+private fun HelpSectionContent() {
+    var showGuide by remember { mutableStateOf(false) }
+    if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsSection("Help") {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HelpRow(
+                    "Set up sync",
+                    "Connect your phone and computers over Tailscale: install, sign in, scan the QR code.",
+                    "Open guide"
+                ) { showGuide = true }
+                HelpRow(
+                    "Replay the intro",
+                    "The welcome pages Bori showed the first time you opened it.",
+                    "Replay"
+                ) { com.apagon.rhythm.ui.onboarding.OnboardingReplay.requested = true }
+                HelpRow(
+                    "Downloads and install help",
+                    "Every Bori release for Windows and Linux, with install steps for each system.",
+                    "Open GitHub"
+                ) { runCatching { uri.openUri(com.apagon.rhythm.ui.help.SyncGuideLinks.RELEASES) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpRow(title: String, description: String, action: String, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        OutlinedButton(onClick = onClick) { Text(action) }
+    }
 }
 
 @Composable

@@ -7,8 +7,8 @@ Android habit tracker, journal, and planner. It covers habits, to-dos, calendar 
 timers, reminders, notes and notebooks, and journaling, and it's local-first with no backend.
 
 This build runs natively on Linux and Windows. It can optionally
-sync with the Android app over a local network or [Tailscale](https://tailscale.com/), with no
-account, server, or cloud dependency of any kind.
+sync with the Android app (and with your other computers) over [Tailscale](https://tailscale.com/),
+a free private network between your own devices, with no Bori account, server, or cloud of any kind.
 
 The desktop build is free and fully featured. There's no paywall or license check here. (The
 Android app's own subscription model doesn't apply to this repo.)
@@ -107,10 +107,36 @@ Fork it, branch, open a PR.
 
 ## Syncing with the Android app
 
-Sync is opt-in, peer-to-peer, and manually triggered. Syncing with the phone needs Bori Pro on the Android app; the desktop side is free. There's no background or cloud sync. From
-Settings → Data → Sync with Phone, pair by entering the other device's local network or Tailscale
-address and tapping Sync. Two desktop instances can also sync with each other for local testing by
-launching each with its own data directory and port:
+Sync is opt-in, peer-to-peer, and manually triggered: the phone, or another computer, connects
+straight to this computer over Tailscale. Syncing with the phone needs Bori Pro on the Android app;
+the desktop side is free. There's no background or cloud sync. The same steps are in the app under
+**Settings → Help → Set up sync**.
+
+1. **Install Tailscale on every device** and sign in with the same account on all of them.
+   - Android: [Tailscale on Google Play](https://play.google.com/store/apps/details?id=com.tailscale.ipn), then switch it on (a key icon appears in the status bar). On Samsung phones, set Tailscale's battery use to *Unrestricted* so it stays on.
+   - Windows: [Tailscale for Windows](https://tailscale.com/download/windows), then sign in from its tray icon.
+   - Arch / CachyOS / Manjaro:
+     ```bash
+     sudo pacman -S tailscale && sudo systemctl enable --now tailscaled
+     sudo tailscale up
+     ```
+   - Other Linux distros:
+     ```bash
+     curl -fsSL https://tailscale.com/install.sh | sh
+     sudo tailscale up
+     ```
+2. **Open Bori on the computer → Settings → Data → Sync.** Once Tailscale is up it shows
+   *Ready for your phone* with a QR code (Bori notices Tailscale within about 15 seconds; no
+   restart needed). On Windows, allow Bori when Windows Firewall asks.
+3. **On the phone:** Bori → Settings → Sync with Computers → **Scan QR Code**.
+
+Settings → Sync lists every phone and computer this one syncs with, each with an on/off switch.
+To sync two computers, open **More options** on one and add the other's address. The sync server
+only ever listens on the computer's Tailscale address (or `127.0.0.1` when Tailscale isn't
+running), never on your local network.
+
+Two desktop instances can also sync with each other for local testing by launching each with its
+own data directory and port:
 
 ```bash
 java -Dbori.home=/path/to/device-a -Dbori.syncPort=47890 -jar ...

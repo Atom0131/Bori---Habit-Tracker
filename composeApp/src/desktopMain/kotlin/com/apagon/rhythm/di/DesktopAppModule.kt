@@ -21,7 +21,8 @@ import com.apagon.rhythm.data.repository.TodoRepository
 import com.apagon.rhythm.data.sync.DEFAULT_SYNC_PORT
 import com.apagon.rhythm.data.sync.DesktopSyncPreferences
 import com.apagon.rhythm.data.sync.JvmSyncCoordinator
-import com.apagon.rhythm.data.sync.LocalSyncAddress
+import com.apagon.rhythm.data.sync.SyncAddressMonitor
+import com.apagon.rhythm.data.sync.SyncAddressSource
 import com.apagon.rhythm.data.sync.SyncClient
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncEngine
@@ -122,18 +123,13 @@ val desktopAppModule = module {
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SyncClient(get(), desktopDeviceId, get()) }
     single { SyncServer(get(), desktopDeviceId, get()) }
-    // Stage 13: resolved once at Koin start, same lifetime as the Tailscale
-    // interface itself for a running process. Also read directly by main.kt
-    // for SyncServer's bindHost — kept as two separate cheap lookups rather
-    // than threading one value through, since main() runs before Koin's
-    // module block would otherwise make this single available to it.
+    // Where the sync server listens, re-checked while Bori runs (see SyncAddressMonitor). main.kt
+    // starts it; Settings → Sync shows its state.
     single {
-        val host = findTailscaleAddress()
         val port = (System.getProperty("bori.syncPort") ?: System.getProperty("rhythm.syncPort"))?.toIntOrNull() ?: DEFAULT_SYNC_PORT
-        val addressForPairing = "${host ?: "127.0.0.1"}:$port"
-        val display = if (host != null) addressForPairing else "Tailscale not detected (using $addressForPairing)"
-        LocalSyncAddress(display = display, addressForPairing = addressForPairing)
+        SyncAddressMonitor(get(), port)
     }
+    single<SyncAddressSource> { get<SyncAddressMonitor>() }
     single<SyncCoordinator> { JvmSyncCoordinator(get()) }
     single<PurchaseLauncher> { DesktopPurchaseLauncher() }
     single<QrCodeRenderer> { DesktopQrCodeRenderer() }

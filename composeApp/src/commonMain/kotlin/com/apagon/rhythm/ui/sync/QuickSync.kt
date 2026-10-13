@@ -324,7 +324,7 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
 
     if (devices.isEmpty()) {
         Text(
-            "No devices yet. Pair a phone with the QR code below, or add another computer's address.",
+            "No devices yet. When this computer shows Ready for your phone, scan its QR code with the phone — or see How to set up sync.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

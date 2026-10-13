@@ -141,9 +141,9 @@ fun main() {
     // to the real Tailscale interface IP when one is found, falling back to
     // 127.0.0.1 (never 0.0.0.0) so Stage 4b's local-loopback two-instance
     // dev workflow keeps working when Tailscale isn't installed/running.
-    val syncPort = (System.getProperty("bori.syncPort") ?: System.getProperty("rhythm.syncPort"))?.toIntOrNull() ?: DEFAULT_SYNC_PORT
-    val bindHost = findTailscaleAddress() ?: "127.0.0.1"
-    koinApp.koin.get<SyncServer>().start(bindHost = bindHost, port = syncPort)
+    // Now owned by SyncAddressMonitor, which also rebinds when Tailscale comes up (or moves) later.
+    koinApp.koin.get<com.apagon.rhythm.data.sync.SyncAddressMonitor>()
+        .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
     // Stage 6 billing shim: there's no desktop payment rail and no plan to
     // build one, so desktop is unconditionally Pro rather than wiring up a
@@ -227,6 +227,7 @@ fun main() {
 
             RhythmThemedRoot(themePreferences = themePreferences) {
                 DesktopAppRoot()
+                com.apagon.rhythm.ui.onboarding.DesktopOnboardingHost(themePreferences)
             }
         }
 
