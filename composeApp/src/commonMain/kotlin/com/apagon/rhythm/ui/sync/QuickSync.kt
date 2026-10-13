@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apagon.rhythm.data.sync.AutoSyncRunner
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncDevice
 import com.apagon.rhythm.data.sync.SyncPreferences
@@ -63,8 +64,14 @@ sealed interface QuickSyncStatus {
 
 class QuickSyncViewModel(
     private val syncCoordinator: SyncCoordinator,
-    private val syncPreferences: SyncPreferences
+    private val syncPreferences: SyncPreferences,
+    private val autoSync: AutoSyncRunner
 ) : ViewModel() {
+    /** "Sync automatically", in minutes (0 = off); null until read. */
+    val autoSyncMinutes: StateFlow<Int?> = autoSync.minutes
+
+    fun setAutoSyncMinutes(minutes: Int) = viewModelScope.launch { autoSync.setMinutes(minutes) }
+
     private val _devices = MutableStateFlow<List<SyncDevice>>(emptyList())
     val devices: StateFlow<List<SyncDevice>> = _devices.asStateFlow()
 

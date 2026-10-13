@@ -144,6 +144,9 @@ fun main() {
     // Now owned by SyncAddressMonitor, which also rebinds when Tailscale comes up (or moves) later.
     koinApp.koin.get<com.apagon.rhythm.data.sync.SyncAddressMonitor>()
         .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    // "Sync automatically" (Settings → Data Management → Sync with Phone & Computers).
+    koinApp.koin.get<com.apagon.rhythm.data.sync.AutoSyncRunner>()
+        .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
     // Stage 6 billing shim: there's no desktop payment rail and no plan to
     // build one, so desktop is unconditionally Pro rather than wiring up a

@@ -131,6 +131,7 @@ val desktopAppModule = module {
     }
     single<SyncAddressSource> { get<SyncAddressMonitor>() }
     single<SyncCoordinator> { JvmSyncCoordinator(get()) }
+    single { com.apagon.rhythm.data.sync.AutoSyncRunner(get(), get()) }
     single<PurchaseLauncher> { DesktopPurchaseLauncher() }
     single<QrCodeRenderer> { DesktopQrCodeRenderer() }
     single<ImageBitmapLoader> { DesktopImageBitmapLoader() }
@@ -149,7 +150,7 @@ val desktopAppModule = module {
     viewModel { JournalViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { NotesViewModel(get(), get(), get()) }
     viewModel { NotebookDetailViewModel(get()) }
-    viewModel { com.apagon.rhythm.ui.sync.QuickSyncViewModel(get(), get()) }
+    viewModel { com.apagon.rhythm.ui.sync.QuickSyncViewModel(get(), get(), get()) }
     viewModel { NotesSearchViewModel(get()) }
     viewModel { NoteEditorViewModel(get(), get(), get()) }
 

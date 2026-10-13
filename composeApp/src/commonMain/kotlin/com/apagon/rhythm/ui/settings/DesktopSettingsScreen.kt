@@ -920,6 +920,7 @@ private fun DataSectionContent(
 
     val listen by viewModel.syncListenState.collectAsState()
     SettingsSection("Sync with Phone & Computers") {
+      Column {
         HelpRow(
             title = when (val l = listen) {
                 is SyncListenState.Listening -> if (l.viaTailscale) "Ready for your phone" else "Tailscale isn't running"
@@ -930,6 +931,10 @@ private fun DataSectionContent(
             action = "Open",
             onClick = onOpenSync
         )
+        // As on the phone: how often to sync sits right under the way in, not only inside it.
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        DesktopAutoSyncRow()
+      }
     }
     SettingsSection("Habit Archive") {
         HelpRow("View Archived Habits", "${archivedHabits.size} archived", "Open", onShowArchivedHabits)
@@ -965,6 +970,21 @@ private fun DataSectionContent(
     }
 }
 
+/** "Sync automatically", as on the phone. The desktop reaches only computers; phones sync in on
+ *  the schedule set on each phone, which [note] says. */
+@Composable
+private fun DesktopAutoSyncRow() {
+    val quickSync = koinViewModel<com.apagon.rhythm.ui.sync.QuickSyncViewModel>()
+    val minutes by quickSync.autoSyncMinutes.collectAsState()
+    minutes?.let { m ->
+        com.apagon.rhythm.ui.sync.AutoSyncRow(
+            minutes = m,
+            onChange = quickSync::setAutoSyncMinutes,
+            note = "Your phone syncs with this computer on the schedule you pick on the phone (Settings → Data Management → Sync automatically)."
+        )
+    }
+}
+
 /** Settings → Data Management → Sync with Phone & Computers, laid out like the phone's Sync with
  *  Computers screen: what it is, whether this computer is reachable (with the pairing QR), every
  *  device with its switch, adding a computer, What to sync, and the rarer options. Desktop is
@@ -990,6 +1010,10 @@ private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
     SettingsSection("Your devices") {
         // As the phone's "Your computers": every device, each with its own on/off switch.
         com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
+    }
+
+    SettingsSection("Sync automatically") {
+        DesktopAutoSyncRow()
     }
 
     SettingsSection("Add another computer") {

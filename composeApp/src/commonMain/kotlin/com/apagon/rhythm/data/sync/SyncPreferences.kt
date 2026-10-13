@@ -56,6 +56,9 @@ interface SyncPreferences {
     suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?, os: String? = null) {}
     suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) {}
     suspend fun removeDevice(key: String, outgoing: Boolean) {}
+    /** "Sync automatically", in minutes; 0 = only when asked. See [AutoSyncRunner]. */
+    suspend fun getAutoSyncMinutes(): Int = 0
+    suspend fun setAutoSyncMinutes(minutes: Int) {}
     suspend fun getPeerAddress(): String?
     suspend fun setPeerAddress(address: String?)
 }

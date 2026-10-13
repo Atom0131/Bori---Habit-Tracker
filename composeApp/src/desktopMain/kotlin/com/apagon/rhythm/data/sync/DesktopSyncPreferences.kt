@@ -17,7 +17,9 @@ private data class SyncPrefsData(
     val peerAddress: String? = null,
     val peerWatermarks: Map<String, Long> = emptyMap(),
     /** Null until first written; then the device list, replacing [peerAddress]. */
-    val devices: List<SyncDevice>? = null
+    val devices: List<SyncDevice>? = null,
+    /** "Sync automatically", minutes; 0 = off. */
+    val autoSyncMinutes: Int = 0
 )
 
 // Desktop has no DataStore plumbing at all today (nothing constructs a
@@ -118,6 +120,12 @@ class DesktopSyncPreferences : SyncPreferences {
 
     override suspend fun removeDevice(key: String, outgoing: Boolean) =
         editDevices { list -> list.filterNot { it.matches(key, outgoing) } }
+
+    override suspend fun getAutoSyncMinutes(): Int = read().autoSyncMinutes
+
+    override suspend fun setAutoSyncMinutes(minutes: Int) = mutex.withLock {
+        write(read().copy(autoSyncMinutes = minutes.coerceAtLeast(0)))
+    }
 
     override suspend fun setPeerAddress(address: String?) = mutex.withLock {
         write(read().copy(peerAddress = address))
