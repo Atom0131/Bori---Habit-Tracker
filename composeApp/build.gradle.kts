@@ -8,6 +8,27 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+/** The one place the desktop version is set: the installers, PKGBUILD-independent, and About. */
+val boriVersion = "1.0.3"
+
+// AppInfo.VERSION is generated from boriVersion, so Settings → About can't drift from the
+// installer again (it said 1.0.0 through the 1.0.1 and 1.0.2 releases).
+val generateAppInfo by tasks.registering {
+    val outDir = layout.buildDirectory.dir("generated/appinfo/kotlin")
+    val version = boriVersion
+    inputs.property("version", version)
+    outputs.dir(outDir)
+    doLast {
+        val file = outDir.get().file("com/apagon/rhythm/core/app/AppInfo.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            "package com.apagon.rhythm.core.app\n\n" +
+                "/** Generated from boriVersion in composeApp/build.gradle.kts. */\n" +
+                "object AppInfo {\n    const val VERSION = \"$version\"\n}\n"
+        )
+    }
+}
+
 kotlin {
     jvm("desktop")
 
@@ -29,6 +50,9 @@ kotlin {
             }
         }
 
+        commonMain {
+            kotlin.srcDir(generateAppInfo)
+        }
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -128,7 +152,7 @@ compose.desktop {
             includeAllModules = true
 
             packageName = "bori"
-            packageVersion = "1.0.2"
+            packageVersion = boriVersion
             description = "Bori — habit tracker, journal, and planner"
             copyright = "© 2026 Apagon. Licensed under Apache 2.0."
             vendor = "Apagon"
