@@ -56,10 +56,10 @@ package manager's standard command (or just double-click it in your distro's sof
 
 | Distro | Download | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.7-1_amd64.deb` | `sudo apt install ./bori_1.0.7-1_amd64.deb` |
-| Fedora, openSUSE, RHEL | `bori-1.0.7-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.7-1.x86_64.rpm` |
-| Arch, CachyOS, Manjaro, Artix | `bori-1.0.7-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.7-1-x86_64.pkg.tar.zst` |
-| Windows 10 / 11 | `bori-1.0.7.msi` | double-click it |
+| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.8-1_amd64.deb` | `sudo apt install ./bori_1.0.8-1_amd64.deb` |
+| Fedora, openSUSE, RHEL | `bori-1.0.8-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.8-1.x86_64.rpm` |
+| Arch, CachyOS, Manjaro, Artix | `bori-1.0.8-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.8-1-x86_64.pkg.tar.zst` |
+| Windows 10 / 11 | `bori-1.0.8.msi` | double-click it |
 
 Each package bundles its own Java runtime, so you don't need Java installed separately. Once
 installed, Bori is in your app menu, or run `bori` from a terminal. Data is stored under `~/.bori`.
@@ -80,7 +80,7 @@ Coming from 1.0.5 or older? Install the latest version by hand once (below); aft
 
 #### Windows
 
-Download `bori-1.0.7.msi` from the [Releases](../../releases) page and double-click it. It installs
+Download `bori-1.0.8.msi` from the [Releases](../../releases) page and double-click it. It installs
 just for your user, so there's no admin prompt, and adds Bori to the Start Menu and your desktop.
 The installer isn't code-signed yet, so Windows SmartScreen may warn about an unrecognised app:
 click **More info**, then **Run anyway**. Data is stored in `%APPDATA%\Bori`. To sync with your
@@ -96,8 +96,8 @@ file (pacman will ask you to confirm; press Enter):
 
 ```bash
 cd ~/Downloads
-curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.7/bori-1.0.7-1-x86_64.pkg.tar.zst
-sudo pacman -U ./bori-1.0.7-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.8/bori-1.0.8-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bori-1.0.8-1-x86_64.pkg.tar.zst
 ```
 
 (Install from the downloaded file rather than passing the URL straight to `pacman -U`: for a URL,
