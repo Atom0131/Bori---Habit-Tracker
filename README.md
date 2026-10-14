@@ -1,6 +1,6 @@
-# Bori (Desktop) <img src="docs/pr-flag-celeste.svg" height="22" alt="Puerto Rico flag, celeste" title="Bori, from Borikén">
+# Bori Habit Tracker (Desktop) <img src="docs/pr-flag-celeste.svg" height="22" alt="Puerto Rico flag, celeste" title="Bori, from Borikén">
 
-*Formerly Rhythm. Renamed to Bori in October 2026.*
+*Formerly **Rhythm Habit Tracker**. Renamed to Bori in October 2026.*
 
 A Kotlin Multiplatform / Compose Desktop port of [Bori](https://play.google.com/store/apps/details?id=com.apagon.rhythm), an
 Android habit tracker, journal, and planner. It covers habits, to-dos, calendar events, alarms,
