@@ -173,6 +173,10 @@ interface HabitDao {
     @Query("SELECT * FROM checklist_items")
     suspend fun getAllChecklistItemsForBackup(): List<ChecklistItem>
 
+    /** Habits with at least one timed step: the routines, which get a play button. */
+    @Query("SELECT DISTINCT habitId FROM checklist_items WHERE durationSeconds > 0")
+    fun getRoutineHabitIds(): kotlinx.coroutines.flow.Flow<List<Long>>
+
     @Query("SELECT * FROM checklist_item_completions")
     suspend fun getAllChecklistItemCompletionsForBackup(): List<ChecklistItemCompletion>
 

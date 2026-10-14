@@ -79,6 +79,8 @@ class ThemePreferences(
         /** The hidden Borikén edition (same names as on the phone, so preference sync carries them). */
         val BORIKEN_UNLOCKED_KEY = booleanPreferencesKey("boriken_unlocked")
         val BORIKEN_MODE_KEY = booleanPreferencesKey("boriken_mode")
+        // Routines read each step aloud (Android 1.88). Same key and export name as the phone, so it syncs.
+        val ROUTINE_SPEAK_STEPS_KEY = booleanPreferencesKey("routine_speak_steps")
         /** Borikén is still supplying the background / the accent; cleared by the user's own pick. */
         val BORIKEN_FIELD_KEY = booleanPreferencesKey("boriken_field")
         val BORIKEN_ACCENT_KEY = booleanPreferencesKey("boriken_accent")
@@ -310,6 +312,12 @@ class ThemePreferences(
     // ── Borikén ──────────────────────────────────────────────────────────────────────────────────
     val borikenUnlocked: Flow<Boolean> = dataStore.data.map { it[BORIKEN_UNLOCKED_KEY] ?: false }
     val borikenMode: Flow<Boolean> = dataStore.data.map { it[BORIKEN_MODE_KEY] ?: false }
+
+    val routineSpeakSteps: Flow<Boolean> = dataStore.data.map { it[ROUTINE_SPEAK_STEPS_KEY] ?: false }
+
+    suspend fun setRoutineSpeakSteps(enabled: Boolean) {
+        touchPreferences { it[ROUTINE_SPEAK_STEPS_KEY] = enabled }
+    }
     val borikenField: Flow<Boolean> = dataStore.data.map { it[BORIKEN_FIELD_KEY] ?: true }
     val borikenAccent: Flow<Boolean> = dataStore.data.map { it[BORIKEN_ACCENT_KEY] ?: true }
 
@@ -675,6 +683,7 @@ class ThemePreferences(
             put("amoledMode", prefs[AMOLED_MODE_KEY] ?: false)
             put("borikenUnlocked", prefs[BORIKEN_UNLOCKED_KEY] ?: false)
             put("borikenMode", prefs[BORIKEN_MODE_KEY] ?: false)
+            put("routineSpeakSteps", prefs[ROUTINE_SPEAK_STEPS_KEY] ?: false)
             put("borikenField", prefs[BORIKEN_FIELD_KEY] ?: true)
             put("borikenAccent", prefs[BORIKEN_ACCENT_KEY] ?: true)
             put("accentColorIndex", prefs[ACCENT_COLOR_KEY] ?: 0)
@@ -747,6 +756,7 @@ class ThemePreferences(
             // lock it again.
             if (json.has("borikenUnlocked")) prefs[BORIKEN_UNLOCKED_KEY] = json.optBoolean("borikenUnlocked", false)
             if (json.has("borikenMode")) prefs[BORIKEN_MODE_KEY] = json.optBoolean("borikenMode", false)
+            if (json.has("routineSpeakSteps")) prefs[ROUTINE_SPEAK_STEPS_KEY] = json.optBoolean("routineSpeakSteps", false)
             if (json.has("borikenField")) prefs[BORIKEN_FIELD_KEY] = json.optBoolean("borikenField", true)
             if (json.has("borikenAccent")) prefs[BORIKEN_ACCENT_KEY] = json.optBoolean("borikenAccent", true)
             prefs[ACCENT_COLOR_KEY] = json.optInt("accentColorIndex", 0)

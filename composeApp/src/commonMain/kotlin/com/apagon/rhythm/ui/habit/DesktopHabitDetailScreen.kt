@@ -1,6 +1,14 @@
 package com.apagon.rhythm.ui.habit
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
+import com.apagon.rhythm.data.routine.formatStepDuration
+import com.apagon.rhythm.data.routine.isRoutine
+import com.apagon.rhythm.data.routine.routineTotalSeconds
+import com.apagon.rhythm.ui.util.MomentumButton
+import com.apagon.rhythm.core.time.now
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -44,10 +52,11 @@ import androidx.compose.material.icons.Icons
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
+fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit, onStartRoutine: () -> Unit = {}) {
     val repository = koinInject<HabitRepository>()
     val viewModel = remember(habitId) { DesktopHabitDetailViewModel(habitId, repository) }
     val stat by viewModel.habitStat.collectAsState()
+    val items by remember(habitId) { repository.getItemsForHabit(habitId) }.collectAsState(initial = emptyList())
 
     Scaffold(
         containerColor = crystalScaffoldColor(),
@@ -60,7 +69,17 @@ fun DesktopHabitDetailScreen(habitId: Long, onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            // As on the phone's habit sheet: a routine's way in, and to its history once it's done.
+            if (items.isRoutine()) {
+                // Shown when done too, as the way to the routine's history (and to run it again).
+                val doneToday = stat?.completedDates?.contains(kotlinx.datetime.LocalDate.now().toString()) == true
+                MomentumButton(
+                    text = if (doneToday) "Routine & history" else "Start routine · ${formatStepDuration(items.routineTotalSeconds())}",
+                    onClick = onStartRoutine,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
             stat?.let { DesktopHabitStatsContent(it) }
         }
     }

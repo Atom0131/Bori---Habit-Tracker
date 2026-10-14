@@ -59,7 +59,7 @@ import com.apagon.rhythm.ui.util.EditorialTitle
 
 private enum class DurationTarget(val title: String) { TIMER("Duration"), WORK("Work"), SHORT("Short Break"), LONG("Long Break") }
 
-private fun hms(total: Int) = Triple(total / 3600, (total % 3600) / 60, total % 60)
+internal fun hms(total: Int) = Triple(total / 3600, (total % 3600) / 60, total % 60)
 private fun fmt(total: Int): String { val (h, m, sec) = hms(total); return "%02d:%02d:%02d".format(h, m, sec) }
 
 /**
@@ -180,7 +180,7 @@ fun DesktopAddTimerSheet(
 /** Hours / minutes / seconds entry, the desktop stand-in for Android's wheel-based
  * RhythmDurationPickerDialog. */
 @Composable
-private fun DurationPickerDialog(title: String, initialSeconds: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+internal fun DurationPickerDialog(title: String, initialSeconds: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
     val (h0, m0, s0) = hms(initialSeconds)
     var h by remember { mutableStateOf(h0.toString()) }
     var m by remember { mutableStateOf(m0.toString()) }

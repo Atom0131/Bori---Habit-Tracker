@@ -173,6 +173,10 @@ val desktopAppModule = module {
     single { AlertCenter() }
     single { com.apagon.rhythm.platform.DesktopAppUpdater() } bind com.apagon.rhythm.platform.AppUpdates::class
     single { DesktopOsNotifier() }
+    // Timed routines (Android 1.88's Routines A–C, ported 2026-10-13).
+    single { get<DesktopHabitDatabase>().routineRunLogDao() }
+    single<com.apagon.rhythm.data.routine.RoutinePlatform> { com.apagon.rhythm.platform.DesktopRoutinePlatform(get()) }
+    single { com.apagon.rhythm.data.routine.RoutineRunner(get(), get(), get(), get()) }
     single { DesktopAlarmClockService(get(), get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
     viewModel { ReminderViewModel(get(), get()) }

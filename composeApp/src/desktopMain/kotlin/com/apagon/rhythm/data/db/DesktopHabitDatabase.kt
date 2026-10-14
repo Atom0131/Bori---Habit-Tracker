@@ -23,6 +23,7 @@ import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.NoteLink
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.model.Reminder
+import com.apagon.rhythm.data.model.RoutineRunLog
 import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.data.model.TodoSubtask
@@ -40,8 +41,8 @@ import java.io.File
 // starting from whatever version this database is actually at by then —
 // they don't need to match Android's schema version.
 @Database(
-    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class, ActiveDay::class],
-    version = 14,
+    entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class, ActiveDay::class, RoutineRunLog::class],
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -58,6 +59,7 @@ abstract class DesktopHabitDatabase : RoomDatabase() {
     abstract fun noteLinkDao(): NoteLinkDao
     abstract fun todoSubtaskDao(): TodoSubtaskDao
     abstract fun activeDayDao(): ActiveDayDao
+    abstract fun routineRunLogDao(): RoutineRunLogDao
 }
 
 // Same sync-bookkeeping columns as commonMain's MIGRATION_33_34, applied to
@@ -523,6 +525,30 @@ val DESKTOP_HABIT_MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+// Routine run history (`RoutineRunLog`), the phone's table since Android 1.88: written exactly as
+// Room generates it, so the identity check on open passes.
+val DESKTOP_HABIT_MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_runs` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`habitId` INTEGER NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`startedAt` INTEGER NOT NULL, " +
+                "`finishedAt` INTEGER NOT NULL, " +
+                "`stepsDone` INTEGER NOT NULL, " +
+                "`stepsSkipped` INTEGER NOT NULL, " +
+                "`stepsTotal` INTEGER NOT NULL, " +
+                "`plannedSeconds` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`habitId`) REFERENCES `habits`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+        )
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_routine_runs_habitId_startedAt` " +
+                "ON `routine_runs` (`habitId`, `startedAt`)"
+        )
+    }
+}
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Dbori.home=<dir> overrides ~/.bori (see AppHome) — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -532,7 +558,7 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12, DESKTOP_HABIT_MIGRATION_12_13, DESKTOP_HABIT_MIGRATION_13_14)
+        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12, DESKTOP_HABIT_MIGRATION_12_13, DESKTOP_HABIT_MIGRATION_13_14, DESKTOP_HABIT_MIGRATION_14_15)
         .addCallback(object : RoomDatabase.Callback() {
             // Every open, fresh or migrated: the active-days triggers (IF NOT EXISTS).
             override fun onOpen(connection: SQLiteConnection) = ActiveDayTriggers.install(connection)

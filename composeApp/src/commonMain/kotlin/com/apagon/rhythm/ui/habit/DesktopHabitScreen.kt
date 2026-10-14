@@ -114,6 +114,18 @@ internal fun DesktopTodayListContent(
     // Plain local state, matching this project's existing showX/editingX
     // toggle pattern rather than a real navigation library (Stage 11 territory).
     var selectedHabitId by remember { mutableStateOf<Long?>(null) }
+    // The routine player takes the same right-hand pane (the phone opens it as its own screen).
+    var routineHabitId by remember { mutableStateOf<Long?>(null) }
+    val routineRequest by RoutineNav.request.collectAsState()
+    LaunchedEffect(routineRequest) {
+        routineRequest?.let {
+            routineHabitId = it
+            selectedHabitId = null
+            RoutineNav.request.value = null
+        }
+    }
+    val habitRepository = koinInject<com.apagon.rhythm.data.repository.HabitRepository>()
+    val routineHabitIds by remember { habitRepository.getRoutineHabitIds() }.collectAsState(initial = emptyList())
 
     val themePreferences = koinInject<ThemePreferences>()
     val userName by themePreferences.userName.collectAsState(initial = "")
@@ -151,7 +163,8 @@ internal fun DesktopTodayListContent(
     // than Notes/Journal's persistent-rail treatment (Habits is this app's primary landing screen,
     // not a browse-then-drill-down surface), but the same "don't discard the list" principle.
     Row(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = if (selectedHabitId != null) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxSize()) {
+        val paneOpen = selectedHabitId != null || routineHabitId != null
+        Box(modifier = if (paneOpen) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxSize()) {
             DesktopHabitList(
                 viewModel = viewModel,
                 habitListViewModel = habitListViewModel,
@@ -173,7 +186,9 @@ internal fun DesktopTodayListContent(
                 onToggleHabitsExpanded = { habitsExpanded = !habitsExpanded },
                 habitsDoneExpanded = habitsDoneExpanded,
                 onToggleHabitsDone = { habitsDoneExpanded = !habitsDoneExpanded },
-                onSelectHabit = { selectedHabitId = it },
+                onSelectHabit = { selectedHabitId = it; routineHabitId = null },
+                routineHabitIds = routineHabitIds.toSet(),
+                onStartRoutine = { routineHabitId = it; selectedHabitId = null },
                 onEditHabit = { editingHabit = it },
                 remindersEventsItems = {
                     remindersSection(
@@ -211,10 +226,19 @@ internal fun DesktopTodayListContent(
             )
         }
 
-        selectedHabitId?.let { habitId ->
+        routineHabitId?.let { habitId ->
             VerticalDivider()
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                DesktopHabitDetailScreen(habitId = habitId, onBack = { selectedHabitId = null })
+                key(habitId) { DesktopRoutinePlayer(habitId = habitId, onBack = { routineHabitId = null }) }
+            }
+        } ?: selectedHabitId?.let { habitId ->
+            VerticalDivider()
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DesktopHabitDetailScreen(
+                    habitId = habitId,
+                    onBack = { selectedHabitId = null },
+                    onStartRoutine = { routineHabitId = habitId; selectedHabitId = null }
+                )
             }
         }
     }
@@ -241,7 +265,7 @@ internal fun DesktopTodayListContent(
             DesktopAddHabitSheet(
                 onDismiss = { editingHabit = null },
                 initialHabit = habit,
-                initialChecklist = items.sortedBy { it.sortOrder }.map { it.label },
+                initialChecklist = items.sortedBy { it.sortOrder }.map { com.apagon.rhythm.data.repository.ChecklistDraft(it.label, it.durationSeconds) },
                 onSave = { name, description, frequency, weekDaysMask, monthDaysMask, isChecklist, checklistItems,
                            colorIndex, colorArgb, durationDays, iconIndex, reminderTime ->
                     habitListViewModel.updateHabit(
@@ -277,6 +301,8 @@ internal fun DesktopHabitList(
     onToggleHabitsDone: () -> Unit,
     onSelectHabit: (Long) -> Unit,
     onEditHabit: (Habit) -> Unit,
+    routineHabitIds: Set<Long> = emptySet(),
+    onStartRoutine: (Long) -> Unit = {},
     remindersEventsItems: LazyListScope.() -> Unit = {},
     extraItems: LazyListScope.() -> Unit = {}
 ) {
@@ -331,7 +357,9 @@ internal fun DesktopHabitList(
                 onToggleCompletion = habitListViewModel::toggleCompletion,
                 onView = { habit -> onSelectHabit(habit.id) },
                 onEdit = onEditHabit,
-                isDueToday = selectedDate == LocalDate.now()
+                isDueToday = selectedDate == LocalDate.now(),
+                routineHabitIds = routineHabitIds,
+                onStartRoutine = { onStartRoutine(it.id) }
             )
 
             remindersEventsItems()

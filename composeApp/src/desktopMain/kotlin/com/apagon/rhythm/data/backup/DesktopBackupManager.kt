@@ -17,6 +17,7 @@ import com.apagon.rhythm.data.model.Habit
 import com.apagon.rhythm.data.model.HabitCompletion
 import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.model.JournalEntry
+import com.apagon.rhythm.data.model.RoutineRunLog
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Notebook
 import com.apagon.rhythm.data.model.NoteLink
@@ -94,6 +95,7 @@ class DesktopBackupManager(
         val habits = habitDao.getAllHabitsForBackup()
         val completions = habitDao.getAllCompletionsForBackup()
         val activeDays = db.activeDayDao().getAll()
+        val routineRuns = db.routineRunLogDao().getAll()
         val checklistItems = habitDao.getAllChecklistItemsForBackup()
         val checklistItemCompletions = habitDao.getAllChecklistItemCompletionsForBackup()
         val reminders = reminderDao.getAllRemindersForBackup()
@@ -142,6 +144,17 @@ class DesktopBackupManager(
             put("notes", notesToJson(notes))
             put("journalEntries", journalEntriesToJson(journalEntries))
             put("noteLinks", noteLinksToJson(noteLinks))
+            // Same key and shape as the phone's backup (Android 1.88), so either app restores the other's.
+            put("routineRuns", JSONArray().also { arr ->
+                routineRuns.forEach { r ->
+                    arr.put(JSONObject().apply {
+                        put("habitId", r.habitId); put("date", r.date)
+                        put("startedAt", r.startedAt); put("finishedAt", r.finishedAt)
+                        put("stepsDone", r.stepsDone); put("stepsSkipped", r.stepsSkipped)
+                        put("stepsTotal", r.stepsTotal); put("plannedSeconds", r.plannedSeconds)
+                    })
+                }
+            })
             put("noteImages", noteImages)
             // No profileImage key — see comment above.
             put("preferences", preferences)
@@ -182,6 +195,8 @@ class DesktopBackupManager(
             habitDao.deleteAllChecklistItemCompletions()
             habitDao.deleteAllChecklistItems()
             habitDao.deleteAllCompletions()
+            // Explicitly, not trusting the cascade: it only fires with foreign keys switched on.
+            db.routineRunLogDao().deleteAll()
             habitDao.deleteAllHabits()
             db.activeDayDao().deleteAll()
             reminderDao.deleteAll()
@@ -196,7 +211,8 @@ class DesktopBackupManager(
             todoDao.deleteAll()
 
             // Insert in FK-safe order (parents before children).
-            habitDao.insertAllHabits(jsonToHabits(root.optJSONArray("habits") ?: JSONArray()))
+            val restoredHabits = jsonToHabits(root.optJSONArray("habits") ?: JSONArray())
+            habitDao.insertAllHabits(restoredHabits)
             habitDao.insertChecklistItems(jsonToChecklistItems(root.optJSONArray("checklistItems") ?: JSONArray()))
             habitDao.insertAllChecklistItemCompletions(jsonToChecklistItemCompletions(root.optJSONArray("checklistItemCompletions") ?: JSONArray()))
             // Active days before completions; the completions' insert trigger then adds their dates
@@ -206,6 +222,21 @@ class DesktopBackupManager(
                 db.activeDayDao().insertAll((0 until arr.length()).map { ActiveDay(arr.getString(it)) })
             }
             habitDao.insertAllCompletions(jsonToCompletions(root.optJSONArray("habitCompletions") ?: JSONArray()))
+            // Routine history cascades off the habits (deleted with them above). Put back only rows
+            // whose habit came back too: an orphan would fail the foreign key. Same as the phone.
+            root.optJSONArray("routineRuns")?.let { arr ->
+                val habitIds = restoredHabits.map { it.id }.toSet()
+                val logs = (0 until arr.length()).mapNotNull { i ->
+                    val o = arr.getJSONObject(i)
+                    RoutineRunLog(
+                        habitId = o.getLong("habitId"), date = o.getString("date"),
+                        startedAt = o.getLong("startedAt"), finishedAt = o.getLong("finishedAt"),
+                        stepsDone = o.optInt("stepsDone"), stepsSkipped = o.optInt("stepsSkipped"),
+                        stepsTotal = o.optInt("stepsTotal"), plannedSeconds = o.optInt("plannedSeconds")
+                    ).takeIf { it.habitId in habitIds }
+                }
+                db.routineRunLogDao().insertAll(logs)
+            }
             reminderDao.insertAll(jsonToReminders(root.optJSONArray("reminders") ?: JSONArray()))
             calendarDao.insertAll(jsonToCalendarEvents(root.optJSONArray("calendarEvents") ?: JSONArray()))
             // Strictly after the events — the foreign key would reject these otherwise. A backup

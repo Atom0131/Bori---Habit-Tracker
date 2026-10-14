@@ -80,7 +80,7 @@ class DesktopHabitViewModel(
         weekDaysMask: Int,
         monthDaysMask: Int,
         isChecklist: Boolean = false,
-        checklistItems: List<String> = emptyList(),
+        checklistItems: List<com.apagon.rhythm.data.repository.ChecklistDraft> = emptyList(),
         colorIndex: Int = 0,
         colorArgb: Int? = null,
         durationDays: Int = 0,

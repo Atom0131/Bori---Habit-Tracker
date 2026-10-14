@@ -347,6 +347,9 @@ private val SIDEBAR_WIDTH = 220.dp
 @Composable
 private fun DesktopAppRoot() {
     var selectedSection by remember { mutableIntStateOf(0) }
+    // A routine asked to be opened (sidebar card): it lives on Today.
+    val routineRequest by com.apagon.rhythm.ui.habit.RoutineNav.request.collectAsState()
+    LaunchedEffect(routineRequest) { if (routineRequest != null) selectedSection = 0 }
 
     Row(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -377,6 +380,10 @@ private fun DesktopAppRoot() {
                 )
             }
             androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            com.apagon.rhythm.ui.habit.RoutineSidebarCard(
+                onOpen = { com.apagon.rhythm.ui.habit.RoutineNav.open(it) },
+                modifier = Modifier.padding(top = 12.dp)
+            )
             com.apagon.rhythm.ui.update.UpdateBanner(modifier = Modifier.padding(top = 12.dp))
         }
         // Borikén: the open section's own mark leads the Crystal watermark, as each phone tab does.

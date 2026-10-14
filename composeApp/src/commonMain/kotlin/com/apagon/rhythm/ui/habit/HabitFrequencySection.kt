@@ -34,6 +34,7 @@ import com.apagon.rhythm.ui.util.SectionEmptyCard
 import com.apagon.rhythm.ui.theme.resolveDisplayColor
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
@@ -61,7 +62,9 @@ internal fun LazyListScope.habitFrequencySection(
     onView: (Habit) -> Unit,
     onEdit: (Habit) -> Unit,
     isDueToday: Boolean = false,
-    emptyLabel: String = "No habits yet"
+    emptyLabel: String = "No habits yet",
+    routineHabitIds: Set<Long> = emptySet(),
+    onStartRoutine: (Habit) -> Unit = {}
 ) {
     item(key = "${sectionKey}_header") {
         CollapsibleSectionHeader(
@@ -86,7 +89,8 @@ internal fun LazyListScope.habitFrequencySection(
             onToggle = { onToggleCompletion(habit.id, false) },
             onClick = { onView(habit) },
             onEdit = { onEdit(habit) },
-            isDueToday = isDueToday
+            isDueToday = isDueToday,
+            onStartRoutine = if (habit.id in routineHabitIds) ({ onStartRoutine(habit) }) else null
         )
     }
 
@@ -127,7 +131,9 @@ private fun DesktopHabitRow(
     onToggle: () -> Unit,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    isDueToday: Boolean = false
+    isDueToday: Boolean = false,
+    /** Non-null for a routine still to do: the play button that starts it, as on the phone's row. */
+    onStartRoutine: (() -> Unit)? = null
 ) {
     val habitColor = resolveDisplayColor(habit.colorIndex, habit.colorArgb)
     Box(
@@ -167,6 +173,17 @@ private fun DesktopHabitRow(
                 Box(Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                 Spacer(Modifier.width(4.dp))
                 Text("Due Today", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            if (onStartRoutine != null && !isDone) {
+                Spacer(Modifier.weight(1f))
+                // Kept clear of the colour dot on the right edge (10dp + its 10dp padding).
+                IconButton(onClick = onStartRoutine, modifier = Modifier.padding(end = 18.dp)) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Start routine",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

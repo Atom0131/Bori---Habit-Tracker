@@ -157,38 +157,44 @@ class HabitRepository constructor(
 
     // ── Checklist Items ───────────────────────────────────────────────────────
 
-    suspend fun addHabitWithItems(habit: Habit, items: List<String>): Long {
+    suspend fun addHabitWithItems(habit: Habit, items: List<ChecklistDraft>): Long {
         val habitId = habitDao.insertHabit(habit)
         if (items.isNotEmpty()) {
-            habitDao.insertChecklistItems(items.mapIndexed { index, label ->
-                ChecklistItem(habitId = habitId, label = label, sortOrder = index)
+            habitDao.insertChecklistItems(items.mapIndexed { index, draft ->
+                ChecklistItem(
+                    habitId = habitId, label = draft.label, sortOrder = index,
+                    durationSeconds = draft.durationSeconds
+                )
             })
         }
         widgetRefresher.refreshAll()
         return habitId
     }
 
-    suspend fun updateHabitWithItems(habit: Habit, newLabels: List<String>) {
+    suspend fun updateHabitWithItems(habit: Habit, newItems: List<ChecklistDraft>) {
         habitDao.updateHabit(habit.copy(updatedAt = System.currentTimeMillis()))
         val existing = habitDao.getItemsForHabit(habit.id).first()
 
-        // Rows keep their item (its ticks and the phone's step time) by matching an existing item
-        // of the same label **one to one, in order** — matching by label alone gave two steps called
-        // "Rest" the same item and dropped the second.
+        // Rows keep their item (and so today's tick) by matching an existing item of the same
+        // label **one to one, in order**. Matching by label alone gave two steps called "Rest" the
+        // same item and dropped the second. The step's time comes from the editor, as on the phone.
         val unmatched = existing.sortedBy { it.sortOrder }.toMutableList()
         val toUpdate = mutableListOf<ChecklistItem>()
         val toInsert = mutableListOf<ChecklistItem>()
-        newLabels.forEachIndexed { index, label ->
-            val match = unmatched.firstOrNull { it.label == label }
+        newItems.forEachIndexed { index, draft ->
+            val match = unmatched.firstOrNull { it.label == draft.label }
             if (match != null) {
                 unmatched.remove(match)
-                toUpdate += match.copy(sortOrder = index)
+                toUpdate += match.copy(sortOrder = index, durationSeconds = draft.durationSeconds)
             } else {
-                toInsert += ChecklistItem(habitId = habit.id, label = label, sortOrder = index)
+                toInsert += ChecklistItem(
+                    habitId = habit.id, label = draft.label, sortOrder = index,
+                    durationSeconds = draft.durationSeconds
+                )
             }
         }
         val toDelete = unmatched.toList()
-        
+
         if (toDelete.isNotEmpty()) {
             habitDao.deleteChecklistItems(toDelete)
         }
@@ -203,6 +209,9 @@ class HabitRepository constructor(
 
     fun getItemsForHabit(habitId: Long): Flow<List<ChecklistItem>> =
         habitDao.getItemsForHabit(habitId)
+
+    /** Ids of the habits that are timed routines (a step with a time). */
+    fun getRoutineHabitIds(): Flow<List<Long>> = habitDao.getRoutineHabitIds()
 
     // ── Sync (Stage 2) — checklist items/completions, full-replace-per-parent ───────────────────
     // Nested two levels (Habit -> ChecklistItem -> ChecklistItemCompletion); itemId resolution
@@ -274,4 +283,20 @@ class HabitRepository constructor(
             if (allChecked) markComplete(habitId, date)
         }
     }
+
+    /**
+     * A routine step finished: tick it on [date] if it isn't already, which completes the habit
+     * by the ordinary checklist rule once the last step is ticked. Never unticks.
+     */
+    suspend fun completeRoutineStep(habitId: Long, itemId: Long, date: String) {
+        val items = habitDao.getItemsForHabit(habitId).first()
+        val item = items.firstOrNull { it.id == itemId } ?: return
+        val checked = habitDao.getItemCompletionsByHabitsOnDateSync(listOf(habitId), date)
+            .map { it.itemId }.toSet()
+        if (item.id in checked) return
+        toggleChecklistItem(habitId, item, isCurrentlyDone = false, date, emptySet(), items, checked)
+    }
 }
+
+/** One row of the checklist editor: what the user typed, and the step's time (0 = untimed). */
+data class ChecklistDraft(val label: String, val durationSeconds: Int = 0)

@@ -1,5 +1,10 @@
 package com.apagon.rhythm.ui.habit
 
+import com.apagon.rhythm.data.repository.ChecklistDraft
+import com.apagon.rhythm.data.routine.formatStepDuration
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -97,7 +102,7 @@ fun DesktopAddHabitSheet(
     onDismiss: () -> Unit,
     /** Non-null opens the sheet as "Edit Habit", pre-filled from this habit (Android's `initialHabit`). */
     initialHabit: Habit? = null,
-    initialChecklist: List<String> = emptyList(),
+    initialChecklist: List<ChecklistDraft> = emptyList(),
     onSave: (
         name: String,
         description: String,
@@ -105,7 +110,7 @@ fun DesktopAddHabitSheet(
         weekDaysMask: Int,
         monthDaysMask: Int,
         isChecklist: Boolean,
-        checklistItems: List<String>,
+        checklistItems: List<ChecklistDraft>,
         colorIndex: Int,
         colorArgb: Int?,
         durationDays: Int,
@@ -147,7 +152,9 @@ fun DesktopAddHabitSheet(
     var iconIndex by remember { mutableIntStateOf(h?.iconIndex ?: -1) }
 
     var isChecklist by remember { mutableStateOf(h?.isChecklist ?: false) }
-    val checklistItems = remember { mutableStateListOf<String>() }
+    // Each step with its time (0 = untimed). A time on any step makes the habit a timed routine.
+    val checklistItems = remember { mutableStateListOf<ChecklistDraft>() }
+    var editingDurationIndex by remember { mutableStateOf<Int?>(null) }
     // The habit's items load asynchronously, so they arrive after the first composition.
     LaunchedEffect(initialChecklist) {
         if (checklistItems.isEmpty()) checklistItems.addAll(initialChecklist)
@@ -337,7 +344,7 @@ fun DesktopAddHabitSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Break this into steps", style = MaterialTheme.typography.bodyLarge)
-                        Text("Counts as done once every step is ticked", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Tick them off, or give each a time to run it as a timed routine", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.width(12.dp))
                     Switch(checked = isChecklist, onCheckedChange = null, colors = crystalSwitchColors())
@@ -345,12 +352,61 @@ fun DesktopAddHabitSheet(
                 if (isChecklist) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Subtasks", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        checklistItems.forEachIndexed { index, label ->
-                            FluidTextField(value = label, onValueChange = { checklistItems[index] = it }, label = "ITEM ${index + 1}")
+
+                        // Templates only while there are no steps yet, so one can never overwrite work.
+                        // They fill the steps and their times, and the name if it is still empty.
+                        if (checklistItems.isEmpty()) {
+                            Text("Start from a template", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(RoutineTemplates.all) { template ->
+                                    FilterChip(
+                                        selected = false,
+                                        onClick = {
+                                            checklistItems.addAll(template.steps.map { ChecklistDraft(it.first, it.second) })
+                                            if (name.isBlank()) name = template.name
+                                        },
+                                        label = { Text(template.name) },
+                                        colors = crystalFilterChipColors()
+                                    )
+                                }
+                            }
+                        }
+
+                        checklistItems.forEachIndexed { index, draft ->
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                FluidTextField(
+                                    value = draft.label,
+                                    onValueChange = { checklistItems[index] = draft.copy(label = it) },
+                                    label = "ITEM ${index + 1}",
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                // A time on a step is what turns a checklist into a routine.
+                                StepDurationChip(draft.durationSeconds) { editingDurationIndex = index }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    StepMoveButton(Icons.Filled.KeyboardArrowUp, "Move step up", enabled = index > 0) {
+                                        checklistItems.swap(index, index - 1)
+                                    }
+                                    StepMoveButton(Icons.Filled.KeyboardArrowDown, "Move step down", enabled = index < checklistItems.lastIndex) {
+                                        checklistItems.swap(index, index + 1)
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        checklistItems.removeAt(index)
+                                        if (editingDurationIndex == index) editingDurationIndex = null
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Remove step",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                                }
+                            }
                         }
                         val commitNewItem = {
                             val trimmed = newChecklistItem.trim()
-                            if (trimmed.isNotEmpty()) { checklistItems.add(trimmed); newChecklistItem = "" }
+                            if (trimmed.isNotEmpty()) { checklistItems.add(ChecklistDraft(trimmed)); newChecklistItem = "" }
                         }
                         FluidTextField(
                             value = newChecklistItem,
@@ -375,6 +431,13 @@ fun DesktopAddHabitSheet(
                                 Text("Add item", style = MaterialTheme.typography.bodyMedium, color = tint)
                             }
                         }
+                        val totalSeconds = checklistItems.sumOf { it.durationSeconds }
+                        Text(
+                            if (totalSeconds > 0) "Routine · ${formatStepDuration(totalSeconds)} in total"
+                            else "Give steps a time to run this as a timed routine",
+                            style = if (totalSeconds > 0) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
+                            color = if (totalSeconds > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -384,8 +447,9 @@ fun DesktopAddHabitSheet(
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    val finalItems = (if (newChecklistItem.isNotBlank()) checklistItems + newChecklistItem.trim() else checklistItems.toList())
-                        .map { it.trim() }.filter { it.isNotEmpty() }
+                    // A half-typed last step is kept; blank labels are dropped (clearing one removes it).
+                    val finalItems = (if (newChecklistItem.isNotBlank()) checklistItems + ChecklistDraft(newChecklistItem.trim()) else checklistItems.toList())
+                        .map { it.copy(label = it.label.trim()) }.filter { it.label.isNotEmpty() }
                     val totalDays = if (untilEndOfYear) {
                         val today = LocalDate.now()
                         today.daysUntil(LocalDate(today.year, 12, 31)) + 1
@@ -409,6 +473,19 @@ fun DesktopAddHabitSheet(
         }
     }
 
+    editingDurationIndex?.let { index ->
+        val draft = checklistItems.getOrNull(index)
+        com.apagon.rhythm.ui.alarms.DurationPickerDialog(
+            title = draft?.label?.takeIf { it.isNotBlank() } ?: "Step time",
+            initialSeconds = draft?.durationSeconds ?: 0,
+            onDismiss = { editingDurationIndex = null },
+            onConfirm = { seconds ->
+                if (index in checklistItems.indices) checklistItems[index] = checklistItems[index].copy(durationSeconds = seconds)
+                editingDurationIndex = null
+            }
+        )
+    }
+
     if (showTimePicker) {
         val state = rememberTimePickerState(initialHour = reminderHour, initialMinute = reminderMinute, is24Hour = is24Hour)
         RhythmAlertDialog(
@@ -427,3 +504,82 @@ fun DesktopAddHabitSheet(
     }
 }
 
+/**
+ * The trailing control on a step: "Time" while untimed, its duration once set. Setting 0 in the
+ * dialog clears it. Port of the phone's `StepDurationChip`.
+ */
+@Composable
+private fun StepDurationChip(seconds: Int, onClick: () -> Unit) {
+    val timed = seconds > 0
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        // A fixed minimum width, so rows with "6 s" and "1 min 30 s" keep their fields lined up.
+        modifier = Modifier.height(56.dp).widthIn(min = 104.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Icon(
+                Icons.Filled.Timer,
+                contentDescription = if (timed) "Step time ${formatStepDuration(seconds)}" else "Add a time to this step",
+                tint = if (timed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (timed) formatStepDuration(seconds) else "Time",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (timed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepMoveButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(width = 32.dp, height = 28.dp)) {
+        Icon(
+            icon, contentDescription = label,
+            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+private fun <T> MutableList<T>.swap(i: Int, j: Int) {
+    if (i !in indices || j !in indices) return
+    val t = this[i]; this[i] = this[j]; this[j] = t
+}
+
+/**
+ * Starting points for a routine, the same five as the phone. Plain data: picking one just fills the
+ * editor. Times are in seconds; 0 = an untimed step that waits for Done.
+ */
+private object RoutineTemplates {
+    data class Template(val name: String, val steps: List<Pair<String, Int>>)
+
+    val all = listOf(
+        Template("Morning routine", listOf(
+            "Drink a glass of water" to 60, "Stretch" to 300, "Shower" to 600,
+            "Get dressed" to 300, "Breakfast" to 900, "Plan the day" to 300
+        )),
+        Template("Workout", listOf(
+            "Warm up" to 300, "Push-ups" to 60, "Rest" to 30, "Squats" to 60, "Rest" to 30,
+            "Plank" to 60, "Rest" to 30, "Lunges" to 60, "Cool down" to 300
+        )),
+        Template("Focus session", listOf(
+            "Clear your desk" to 120, "Focus" to 1500, "Break" to 300, "Focus" to 1500, "Review" to 300
+        )),
+        Template("Wind down", listOf(
+            "Tidy up" to 600, "Brush teeth" to 180, "Skincare" to 300, "Read" to 900, "Lights out" to 0
+        )),
+        Template("Meditation", listOf(
+            "Settle in" to 60, "Breathe" to 300, "Body scan" to 300, "Sit quietly" to 300
+        ))
+    )
+}

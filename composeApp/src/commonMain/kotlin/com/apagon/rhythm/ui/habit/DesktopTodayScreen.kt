@@ -8,6 +8,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,6 +75,11 @@ fun DesktopTodayScreen(
     calendarViewModel: DesktopCalendarViewModel = koinViewModel()
 ) {
     val calendarMode by settingsViewModel.homeViewCalendar.collectAsState()
+    // A routine to open shows in the list's right-hand pane, so leave Calendar for the list.
+    val routineRequest by RoutineNav.request.collectAsState()
+    LaunchedEffect(routineRequest, calendarMode) {
+        if (routineRequest != null && calendarMode) settingsViewModel.setHomeViewCalendar(false)
+    }
     var showAddMenu by remember { mutableStateOf(false) }
     var showAddHabitDialog by remember { mutableStateOf(false) }
     var showAddTodoDialog by remember { mutableStateOf(false) }
