@@ -13,7 +13,7 @@ interface AppUpdates {
     /** Epoch millis of the last finished check, or 0 if Bori has never checked. */
     val lastCheckedAt: StateFlow<Long>
 
-    /** Settings → About's "Check now": checks straight away instead of waiting for the week. */
+    /** Settings → Data Management → Updates → "Check now": checks straight away instead of waiting for the week. */
     fun checkNow()
 
     /** Downloads, verifies and installs [UpdateState.Available], then restarts Bori. */

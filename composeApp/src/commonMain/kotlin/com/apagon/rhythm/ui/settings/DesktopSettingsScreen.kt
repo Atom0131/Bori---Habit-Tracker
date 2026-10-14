@@ -946,6 +946,10 @@ private fun DataSectionContent(
     SettingsSection("Recently Deleted") {
         HelpRow("Trash Bin", "Restore or permanently delete items", "Open", onOpenRecentlyDeleted)
     }
+    // Desktop only (the phone updates through the Play Store): Bori's own updates from GitHub.
+    SettingsSection("Updates") {
+        com.apagon.rhythm.ui.update.UpdateSettingsRows()
+    }
 
     if (showExportDialog) {
         ExportBackupDialog(
@@ -1371,8 +1375,6 @@ private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreference
             TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
                 Text("Privacy Policy")
             }
-            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            com.apagon.rhythm.ui.update.UpdateAboutRows()
         }
     }
 }

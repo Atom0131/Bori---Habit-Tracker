@@ -118,16 +118,15 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
     }
 }
 
-/** Settings → About: the update status, when Bori last checked, and Check now. */
+/** Settings → Data Management → Updates: the update status, when Bori last checked, and Check now. */
 @Composable
-fun UpdateAboutRows() {
+fun UpdateSettingsRows() {
     val updates = koinInject<AppUpdates>()
     val state by updates.state.collectAsState()
     val lastChecked by updates.lastCheckedAt.collectAsState()
     var showNotes by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Updates", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
         val status = when (val s = state) {
             UpdateState.Checking -> "Checking…"
             UpdateState.UpToDate -> "You're on the latest version."
