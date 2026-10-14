@@ -9,7 +9,7 @@ plugins {
 }
 
 /** The one place the desktop version is set: the installers, PKGBUILD-independent, and About. */
-val boriVersion = "1.0.8"
+val boriVersion = "1.0.9"
 
 // AppInfo.VERSION is generated from boriVersion, so Settings → About can't drift from the
 // installer again (it said 1.0.0 through the 1.0.1 and 1.0.2 releases).
