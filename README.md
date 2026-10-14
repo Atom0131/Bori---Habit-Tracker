@@ -10,8 +10,12 @@ This build runs natively on Linux and Windows. It can optionally
 sync with the Android app (and with your other computers) over [Tailscale](https://tailscale.com/),
 a free private network between your own devices, with no Bori account, server, or cloud of any kind.
 
-The desktop build is free and fully featured. There's no paywall or license check here. (The
-Android app's own subscription model doesn't apply to this repo.)
+The desktop build is free and fully featured. There's no paywall or license check here.
+
+**Sync between computers is free, with no limit.** Keep Bori in sync across as many Linux and
+Windows computers as you like. **Only syncing with the phone needs a license:** Bori Pro on the
+Android app (subscription or lifetime), bought in the phone app. Nothing is ever paid for on the
+desktop side.
 
 ## Stack
 
@@ -119,9 +123,16 @@ Fork it, branch, open a PR.
 
 ## Syncing with the Android app
 
-Sync is opt-in, peer-to-peer, and manually triggered: the phone, or another computer, connects
-straight to this computer over Tailscale. Syncing with the phone needs Bori Pro on the Android app;
-the desktop side is free. There's no background or cloud sync. The same steps are in the app under
+Sync is opt-in and peer-to-peer: the phone, or another computer, connects straight to this
+computer over Tailscale. There's no cloud. Sync when you tap Sync, or turn on **Sync automatically**
+(every 15 minutes up to once a day) on each device.
+
+| Syncing between | Cost |
+|---|---|
+| Computer ↔ computer (Linux and Windows, as many as you want) | Free |
+| Phone ↔ computer | Needs Bori Pro on the Android app (the desktop side stays free) |
+
+The same steps are in the app under
 **Settings → Tutorials → Set up computer sync**.
 
 1. **Install Tailscale on every device** and sign in with the same account on all of them.
