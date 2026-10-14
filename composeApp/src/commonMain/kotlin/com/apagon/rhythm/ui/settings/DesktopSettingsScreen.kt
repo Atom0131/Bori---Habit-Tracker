@@ -1371,6 +1371,8 @@ private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreference
             TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
                 Text("Privacy Policy")
             }
+            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            com.apagon.rhythm.ui.update.UpdateAboutRows()
         }
     }
 }

@@ -193,7 +193,14 @@ fun main() {
         showMainWindow()
     }
 
+    // "Bori 1.0.6 is ready" (asks first; GitHub is checked at most once a week). See DesktopAppUpdater.
+    val appUpdater = koinApp.koin.get<com.apagon.rhythm.platform.DesktopAppUpdater>()
+    appUpdater.start()
+
     application {
+        LaunchedEffect(Unit) {
+            appUpdater.quitApp = { java.awt.EventQueue.invokeLater { exitApplication() } }
+        }
         val themePreferences = koinInject<ThemePreferences>()
         val runInBackground by themePreferences.runInBackground.collectAsState(initial = false)
 
@@ -369,6 +376,8 @@ private fun DesktopAppRoot() {
                     glyph = sectionGlyph(index)
                 )
             }
+            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            com.apagon.rhythm.ui.update.UpdateBanner(modifier = Modifier.padding(top = 12.dp))
         }
         // Borikén: the open section's own mark leads the Crystal watermark, as each phone tab does.
         val pageGlyph = sectionGlyph(selectedSection)

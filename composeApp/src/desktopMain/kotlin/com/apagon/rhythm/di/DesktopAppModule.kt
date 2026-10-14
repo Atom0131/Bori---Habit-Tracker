@@ -171,6 +171,7 @@ val desktopAppModule = module {
     // ── Stage 12: Alarms/Timers/Reminders/Clock ─────────────────────────────
     single<ReminderScheduling> { DesktopReminderScheduling() }
     single { AlertCenter() }
+    single { com.apagon.rhythm.platform.DesktopAppUpdater() } bind com.apagon.rhythm.platform.AppUpdates::class
     single { DesktopOsNotifier() }
     single { DesktopAlarmClockService(get(), get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
