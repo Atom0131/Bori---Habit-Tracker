@@ -3,8 +3,27 @@
 *Formerly **Rhythm Habit Tracker**. Renamed to Bori in October 2026.*
 
 A Kotlin Multiplatform / Compose Desktop port of [Bori](https://play.google.com/store/apps/details?id=com.apagon.rhythm), an
-Android habit tracker, journal, and planner. It covers habits, to-dos, calendar events, alarms,
-timers, reminders, notes and notebooks, and journaling, and it's local-first with no backend.
+Android habit tracker, journal, and planner. It covers habits (with a built-in routine manager),
+to-dos, calendar events, alarms, timers, reminders, notes and notebooks, and journaling, and it's
+local-first with no backend.
+
+### Routines inside your habits
+
+Any habit can be broken into steps, and giving a step a time turns the habit into a **timed
+routine**. Press ▶ on the habit and Bori walks you through it: a countdown ring for each step, a
+chime when one ends and the next begins, pause, +1 min, skip and done, and a summary at the end
+("8 of 9 steps · took 12 min · planned 15 min"). Finished steps tick themselves off, so the habit
+completes when the routine does.
+
+- **Templates** to start from: Morning routine, Workout, Focus session, Wind down, Meditation.
+  Every step and time stays editable, and steps can be reordered or removed.
+- **Keeps running in the background.** A card in the sidebar shows the current step and time left
+  on every page, and a system notification marks each new step. Closing Bori or restarting the
+  computer mid-routine picks up where it left off.
+- **Recent runs** for each routine: when, how long against the plan, and how many steps were done.
+- **Steps read aloud**, optionally ("Stretch, 5 minutes"). Windows has a voice built in; on Linux
+  install `speech-dispatcher` (with `espeak-ng`).
+- The same routines run on the phone, and the steps and their times sync between your devices.
 
 This build runs natively on Linux and Windows. It can optionally
 sync with the Android app (and with your other computers) over [Tailscale](https://tailscale.com/),
@@ -37,10 +56,10 @@ package manager's standard command (or just double-click it in your distro's sof
 
 | Distro | Download | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.6-1_amd64.deb` | `sudo apt install ./bori_1.0.6-1_amd64.deb` |
-| Fedora, openSUSE, RHEL | `bori-1.0.6-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.6-1.x86_64.rpm` |
-| Arch, CachyOS, Manjaro, Artix | `bori-1.0.6-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.6-1-x86_64.pkg.tar.zst` |
-| Windows 10 / 11 | `bori-1.0.6.msi` | double-click it |
+| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.0.7-1_amd64.deb` | `sudo apt install ./bori_1.0.7-1_amd64.deb` |
+| Fedora, openSUSE, RHEL | `bori-1.0.7-1.x86_64.rpm` | `sudo dnf install ./bori-1.0.7-1.x86_64.rpm` |
+| Arch, CachyOS, Manjaro, Artix | `bori-1.0.7-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.0.7-1-x86_64.pkg.tar.zst` |
+| Windows 10 / 11 | `bori-1.0.7.msi` | double-click it |
 
 Each package bundles its own Java runtime, so you don't need Java installed separately. Once
 installed, Bori is in your app menu, or run `bori` from a terminal. Data is stored under `~/.bori`.
@@ -57,11 +76,11 @@ Bori then downloads the installer for your system, checks it against the release
 version. On Linux your system asks for your password once, as for any package install; on Windows
 there's no prompt. You can also check any time from **Settings → About → Check now**.
 
-Coming from 1.0.5 or older? Install 1.0.6 by hand once (below); after that it updates itself.
+Coming from 1.0.5 or older? Install the latest version by hand once (below); after that it updates itself.
 
 #### Windows
 
-Download `bori-1.0.6.msi` from the [Releases](../../releases) page and double-click it. It installs
+Download `bori-1.0.7.msi` from the [Releases](../../releases) page and double-click it. It installs
 just for your user, so there's no admin prompt, and adds Bori to the Start Menu and your desktop.
 The installer isn't code-signed yet, so Windows SmartScreen may warn about an unrecognised app:
 click **More info**, then **Run anyway**. Data is stored in `%APPDATA%\Bori`. To sync with your
@@ -77,8 +96,8 @@ file (pacman will ask you to confirm; press Enter):
 
 ```bash
 cd ~/Downloads
-curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.6/bori-1.0.6-1-x86_64.pkg.tar.zst
-sudo pacman -U ./bori-1.0.6-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.0.7/bori-1.0.7-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bori-1.0.7-1-x86_64.pkg.tar.zst
 ```
 
 (Install from the downloaded file rather than passing the URL straight to `pacman -U`: for a URL,
