@@ -234,9 +234,24 @@ fun main() {
         ) {
             window.minimumSize = java.awt.Dimension(960, 600)
             mainWindowRef.value = window
+            // What Skiko draws this window with (Settings → About, and render.log): the only way to
+            // tell a Windows laptop on its Intel chip, or on no GPU at all, from one on its NVIDIA.
+            LaunchedEffect(Unit) {
+                androidx.compose.runtime.withFrameNanos { }
+                val api = runCatching { window.renderApi.name }.getOrDefault("UNKNOWN")
+                com.apagon.rhythm.platform.RenderInfo.api.value = api
+                runCatching {
+                    java.io.File(com.apagon.rhythm.platform.AppHome.dir, "render.log").appendText(
+                        "${java.time.LocalDateTime.now().withNano(0)}  ${com.apagon.rhythm.core.app.AppInfo.VERSION}  " +
+                            "${System.getProperty("os.name")} ${System.getProperty("os.version")}  " +
+                            "renderApi=$api  gpu.priority=${System.getProperty("skiko.gpu.priority") ?: "auto"}\n"
+                    )
+                }
+            }
 
             RhythmThemedRoot(themePreferences = themePreferences) {
                 DesktopAppRoot()
+                com.apagon.rhythm.ui.util.FrameMeterOverlay()
                 com.apagon.rhythm.ui.onboarding.DesktopOnboardingHost(themePreferences)
             }
         }

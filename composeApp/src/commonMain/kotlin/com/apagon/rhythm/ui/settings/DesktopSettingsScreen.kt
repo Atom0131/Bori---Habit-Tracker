@@ -1375,6 +1375,30 @@ private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreference
             TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
                 Text("Privacy Policy")
             }
+            // Diagnostics for slow drawing (a choppy tab switch on a Windows laptop, 2026-10-14).
+            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            val renderApi by com.apagon.rhythm.platform.RenderInfo.api.collectAsState()
+            val frameMeter by com.apagon.rhythm.platform.RenderInfo.showFrameMeter.collectAsState()
+            Text(
+                "Graphics: " + (renderApi?.let { com.apagon.rhythm.platform.RenderInfo.label(it) } ?: "…"),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (com.apagon.rhythm.platform.RenderInfo.isSoftware(renderApi)) {
+                Text(
+                    "Bori is drawing without the graphics card, so glass effects will be slow. " +
+                        "Updating the graphics driver usually fixes this.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            SettingsRow("Show frame rate") {
+                Switch(
+                    checked = frameMeter,
+                    onCheckedChange = { com.apagon.rhythm.platform.RenderInfo.showFrameMeter.value = it },
+                    colors = crystalSwitchColors()
+                )
+            }
         }
     }
 }

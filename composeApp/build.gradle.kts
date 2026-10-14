@@ -133,6 +133,10 @@ compose.desktop {
         if (System.getProperty("os.name").orEmpty().lowercase().contains("linux")) {
             jvmArgs += listOf("--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED")
         }
+        // On a laptop with two GPUs (Intel + NVIDIA), ask Skiko for the discrete one. Read only by its
+        // Direct3D/Metal paths; a single-GPU machine just uses what it has. Windows stuttered on tab
+        // switches (2026-10-14) and Java apps are often handed the integrated chip by default.
+        jvmArgs += listOf("-Dskiko.gpu.priority=discrete")
 
         // First public release's installer packaging — no auto-versioning scheme exists yet,
         // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so

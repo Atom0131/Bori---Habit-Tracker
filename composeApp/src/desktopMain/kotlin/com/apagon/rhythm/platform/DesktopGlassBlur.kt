@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -58,6 +59,11 @@ class DesktopGlassBlur : GlassBlur {
                 noiseFactor = 0.05f,
                 fallbackTint = HazeTint(tintColor.copy(alpha = fallbackAlpha))
             )
-        )
+        ) {
+            // Blur a half-size copy of the background: a quarter of the pixels per surface, and
+            // invisible at Crystal's 8–24dp radius. Every card, tile and chip is its own blur, so a
+            // tab switch builds dozens at once; at full size that stuttered on Windows (2026-10-14).
+            inputScale = HazeInputScale.Fixed(0.5f)
+        }
     }
 }
