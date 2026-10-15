@@ -109,6 +109,9 @@ kotlin {
             // generation, no Android dependency needed for encoding.
             implementation(libs.zxing.core)
 
+            // Windows title bar colour (DwmSetWindowAttribute) — see WindowsTitleBar.
+            implementation("net.java.dev.jna:jna:5.15.0")
+
             // Crystal's real backdrop blur. The multiplatform `haze` coordinate (not
             // `haze-android`) resolves to the `haze-jvm` artifact for this source set,
             // which ships a real Skia-backed RenderEffect blur for non-Android targets —
@@ -137,6 +140,13 @@ compose.desktop {
         // Direct3D/Metal paths; a single-GPU machine just uses what it has. Windows stuttered on tab
         // switches (2026-10-14) and Java apps are often handed the integrated chip by default.
         jvmArgs += listOf("-Dskiko.gpu.priority=discrete")
+        // Windows: Java 21 records the app's class-data cache on first launch and reuses it after
+        // (startup measured 1.9 s to 1.0 s on Linux with such a cache). The per-user install folder
+        // is the user's own, so the cache can live next to the app; it's rebuilt by itself after an
+        // update changes the jars. Needs the Java 21+ runtime the Windows workflow builds with.
+        if (System.getProperty("os.name").orEmpty().lowercase().contains("windows")) {
+            jvmArgs += listOf("-XX:+AutoCreateSharedArchive", "-XX:SharedArchiveFile=\$APPDIR/bori.jsa")
+        }
 
         // First public release's installer packaging — no auto-versioning scheme exists yet,
         // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so
@@ -178,6 +188,34 @@ compose.desktop {
                 // Never change this: it's how a newer .msi recognises and upgrades an older one.
                 upgradeUuid = "608d850c-1ad1-47f9-ae6e-4cc387cd9dc9"
             }
+        }
+    }
+}
+
+// Startup speed (2026-10-15, "almost seconds to load" on Windows): give the bundled Java runtime its
+// base class-data cache. jlink normally leaves it out, and without it the JVM verifies and parses
+// every JDK class on each launch; it is also what Java 21's auto-created app cache builds on (see
+// the Windows jvmArgs above). Measured on Linux: an app cache halves startup (1.88 s to 0.97 s).
+// Compose always adds --strip-native-commands, which removes the `java` launcher jlink's
+// --generate-cds-archive needs, so the runtime is linked a second time here with Compose's own
+// arguments, minus that flag, plus the archive.
+tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractJLinkTask>().configureEach {
+    val argsFile = layout.buildDirectory.file("compose/tmp/${name}.args.txt")
+    val jdk = javaHome
+    val out = destinationDir
+    doLast {
+        val exe = if (System.getProperty("os.name").orEmpty().lowercase().contains("windows")) "jlink.exe" else "jlink"
+        val args = argsFile.get().asFile.readLines()
+            .filter { it.isNotBlank() && it.trim() != "--strip-native-commands" }
+            .map { it.trim().removeSurrounding("\"") } + "--generate-cds-archive"
+        val dir = out.get().asFile
+        dir.deleteRecursively()
+        val proc = ProcessBuilder(listOf(File(jdk.get(), "bin/$exe").absolutePath) + args)
+            .redirectErrorStream(true).start()
+        val log = proc.inputStream.bufferedReader().readText()
+        check(proc.waitFor() == 0) { "jlink with --generate-cds-archive failed:\n$log" }
+        check(File(dir, "lib/server/classes.jsa").exists() || File(dir, "bin/server/classes.jsa").exists()) {
+            "jlink ran but wrote no CDS archive:\n$log"
         }
     }
 }

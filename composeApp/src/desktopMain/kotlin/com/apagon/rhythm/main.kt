@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -244,13 +245,22 @@ fun main() {
                     java.io.File(com.apagon.rhythm.platform.AppHome.dir, "render.log").appendText(
                         "${java.time.LocalDateTime.now().withNano(0)}  ${com.apagon.rhythm.core.app.AppInfo.VERSION}  " +
                             "${System.getProperty("os.name")} ${System.getProperty("os.version")}  " +
-                            "renderApi=$api  gpu.priority=${System.getProperty("skiko.gpu.priority") ?: "auto"}\n"
+                            "renderApi=$api  gpu.priority=${System.getProperty("skiko.gpu.priority") ?: "auto"}  " +
+                            "startup=${System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime}ms  " +
+                            "cds=${System.getProperty("bori.cds") ?: (if (java.lang.management.ManagementFactory.getRuntimeMXBean().inputArguments.any { it.startsWith("-XX:SharedArchiveFile") }) "on" else "off")}\n"
                     )
                 }
             }
 
             RhythmThemedRoot(themePreferences = themePreferences) {
                 DesktopAppRoot()
+                // Windows: colour the title bar like the top of the window, not system white.
+                val titleBar = com.apagon.rhythm.ui.components.crystalWindowTopColor()
+                val titleText = if (titleBar.luminance() < 0.45f) androidx.compose.ui.graphics.Color.White
+                                else androidx.compose.ui.graphics.Color(0xFF1B1B1F)
+                LaunchedEffect(titleBar) {
+                    com.apagon.rhythm.platform.WindowsTitleBar.apply(window, titleBar, titleText, dark = titleBar.luminance() < 0.45f)
+                }
                 com.apagon.rhythm.ui.util.FrameMeterOverlay()
                 com.apagon.rhythm.ui.onboarding.DesktopOnboardingHost(themePreferences)
             }

@@ -20,7 +20,8 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          # 21: the app's class-data cache (-XX:+AutoCreateSharedArchive) needs Java 19+.
+          java-version: '21'
 
       - uses: gradle/actions/setup-gradle@v4
 

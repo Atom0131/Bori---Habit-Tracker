@@ -777,3 +777,21 @@ fun crystalAssistChipColors(): ChipColors = if (isCrystal()) {
 } else {
     AssistChipDefaults.assistChipColors()
 }
+
+/**
+ * The colour along the top edge of the window, for the Windows title bar to match (it was the
+ * system's white bar above Bori's own colours). Under Crystal: the field's top-left and top-right
+ * blobs over its base at the strength they're painted with; Solid: the solid field; the Material
+ * styles: the background.
+ */
+@Composable
+fun crystalWindowTopColor(): Color {
+    if (!isCrystal()) return MaterialTheme.colorScheme.background
+    if (isSolidField) return solidFieldColor()
+    val dark = isDark
+    val base = com.apagon.rhythm.ui.theme.crystalFieldBase(dark)
+    val blobs = com.apagon.rhythm.ui.theme.crystalFieldBlobs(LocalCrystalMesh.current, dark)
+    val strength = 0.85f * com.apagon.rhythm.ui.theme.crystalFieldDilution(dark) * 0.75f
+    val top = androidx.compose.ui.graphics.lerp(blobs[0], blobs[1], 0.5f)
+    return androidx.compose.ui.graphics.lerp(base, top, strength.coerceIn(0f, 1f))
+}
