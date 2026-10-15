@@ -20,15 +20,45 @@ import kotlinx.serialization.json.Json
 class SyncServer(
     private val syncEngine: SyncEngine,
     private val deviceId: String,
-    private val syncPreferences: SyncPreferences
+    private val syncPreferences: SyncPreferences,
+    private val presence: PresenceRegistry
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private var server: EmbeddedServer<*, *>? = null
 
     fun start(bindHost: String, port: Int) {
         server = embeddedServer(CIO, host = bindHost, port = port) {
-            install(WebSockets)
+            // Pings keep the phones' presence sockets alive across idle minutes and notice a phone
+            // that vanished (screen off, Tailscale dropped) within half a minute.
+            install(WebSockets) {
+                pingPeriodMillis = 15_000L
+                timeoutMillis = 30_000L
+            }
             routing {
+                webSocket(PRESENCE_PATH) {
+                    val hello = (incoming.receive() as? Frame.Text)?.readText()
+                        ?.let { runCatching { json.decodeFromString(PresenceMessage.serializer(), it) }.getOrNull() }
+                        ?.takeIf { it.type == PRESENCE_HELLO && !it.deviceId.isNullOrBlank() }
+                        ?: return@webSocket
+                    val phone = hello.deviceId!!
+                    syncPreferences.recordIncoming(phone, hello.deviceName, hello.deviceOs)
+                    if (syncPreferences.devices().any { !it.outgoing && it.key.equals(phone, ignoreCase = true) && !it.enabled }) {
+                        send(Frame.Text(json.encodeToString(PresenceMessage.serializer(),
+                            PresenceMessage(type = PRESENCE_REFUSED, error = "${localDeviceName()} has sync with this device turned off."))))
+                        return@webSocket
+                    }
+                    presence.register(phone, this)
+                    try {
+                        for (frame in incoming) {
+                            val text = (frame as? Frame.Text)?.readText() ?: continue
+                            val message = runCatching { json.decodeFromString(PresenceMessage.serializer(), text) }.getOrNull() ?: continue
+                            if (message.type == PRESENCE_SYNC_RESULT) presence.complete(message)
+                        }
+                    } finally {
+                        presence.unregister(phone, this)
+                    }
+                }
+
                 webSocket("/sync") {
                     val incomingFrame = incoming.receive() as? Frame.Text ?: return@webSocket
                     val incomingBatch = json.decodeFromString(SyncBatch.serializer(), incomingFrame.readText())

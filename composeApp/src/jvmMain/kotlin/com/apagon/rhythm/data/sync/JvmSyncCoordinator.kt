@@ -4,8 +4,13 @@ import kotlinx.coroutines.sync.withLock
 
 /** Bridges the commonMain-safe SyncCoordinator interface to the real Ktor-based SyncClient (jvmMain only). */
 class JvmSyncCoordinator(
-    private val syncClient: SyncClient
+    private val syncClient: SyncClient,
+    private val presence: PresenceRegistry
 ) : SyncCoordinator {
+    override val connectedPhones: kotlinx.coroutines.flow.StateFlow<Set<String>> = presence.connected
+
+    override suspend fun requestPhoneSync(deviceId: String): PhoneSyncOutcome = presence.requestSync(deviceId)
+
     /** One outgoing sync at a time: the automatic sync (AutoSyncRunner) and a click must never interleave watermarks. */
     private val lock = kotlinx.coroutines.sync.Mutex()
 

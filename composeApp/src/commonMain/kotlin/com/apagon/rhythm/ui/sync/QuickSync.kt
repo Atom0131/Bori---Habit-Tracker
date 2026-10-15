@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,6 +36,7 @@ import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncDevice
 import com.apagon.rhythm.data.sync.SyncPreferences
 import com.apagon.rhythm.data.sync.SyncResult
+import com.apagon.rhythm.data.sync.PhoneSyncOutcome
 import com.apagon.rhythm.ui.components.CrystalIconButton
 import com.apagon.rhythm.ui.components.crystalCardSurface
 import kotlinx.coroutines.async
@@ -133,7 +136,7 @@ class QuickSyncViewModel(
             syncPreferences.addComputer(a)
             syncPreferences.setPeerAddress(a)
             refresh()
-            runSync(listOf(a))
+            runSync(listOf(SyncDevice(key = a, outgoing = true)), emptyList())
         }
     }
 
@@ -147,17 +150,30 @@ class QuickSyncViewModel(
         refresh()
     }
 
-    /** Syncs with every outgoing computer that's switched on, one after another. */
+    /** Phones with Bori open and connected to this computer right now (device ids, lowercase). */
+    val connectedPhones: StateFlow<Set<String>> = syncCoordinator.connectedPhones
+
+    fun isConnected(device: SyncDevice): Boolean = device.key.trim().lowercase() in connectedPhones.value
+
+    /**
+     * Syncs with everything switched on: computers this one syncs to, directly; phones by asking
+     * them over their presence socket (they can't be reached otherwise). Computer ↔ computer works
+     * exactly as before.
+     */
     fun syncAll() = viewModelScope.launch {
-        val targets = syncPreferences.devices().filter { it.outgoing && it.enabled }.map { it.key }
-        if (targets.isEmpty()) {
-            _status.value = QuickSyncStatus.Failed("No computers are switched on for sync")
+        val devices = syncPreferences.devices().filter { it.enabled }
+        val computers = devices.filter { it.outgoing }
+        val phones = devices.filter { it.isPhone }
+        if (computers.isEmpty() && phones.isEmpty()) {
+            _status.value = QuickSyncStatus.Failed("No devices to sync with yet. Pair your phone or add a computer.")
             return@launch
         }
-        runSync(targets)
+        runSync(computers, phones)
     }
 
-    fun syncOne(device: SyncDevice) = viewModelScope.launch { runSync(listOf(device.key)) }
+    fun syncOne(device: SyncDevice) = viewModelScope.launch {
+        if (device.outgoing) runSync(listOf(device), emptyList()) else runSync(emptyList(), listOf(device))
+    }
 
     /**
      * Forgets every watermark, then syncs with every switched-on computer, so rows made before sync
@@ -168,37 +184,48 @@ class QuickSyncViewModel(
         syncAll()
     }
 
-    private suspend fun runSync(addresses: List<String>) {
+    private suspend fun runSync(computers: List<SyncDevice>, phones: List<SyncDevice>) {
         if (_status.value == QuickSyncStatus.Syncing) return
         _status.value = QuickSyncStatus.Syncing
-        val names = syncPreferences.devices().filter { it.outgoing }.associate { it.key to (it.name ?: it.key) }
         var received = 0
-        var anyOk = false
-        val failures = mutableListOf<String>()
-        for (address in addresses) {
-            runCatching { syncCoordinator.syncWith(address) }
+        val synced = mutableListOf<String>()
+        val problems = mutableListOf<String>()
+        fun nameOf(d: SyncDevice) = d.name ?: if (d.isPhone) "your phone" else d.key
+        for (computer in computers) {
+            runCatching { syncCoordinator.syncWith(computer.key) }
                 .onSuccess { r: SyncResult ->
-                    anyOk = true
+                    synced += nameOf(computer)
                     received += r.habitsInserted + r.habitsUpdated + r.completionsInserted +
                         r.completionsUpdated + r.otherInserted + r.otherUpdated
-                    _peerResult.value = _peerResult.value + (address to "Synced just now")
-                    _online.value = _online.value + (address to true)
+                    _peerResult.value = _peerResult.value + (computer.key to "Synced just now")
+                    _online.value = _online.value + (computer.key to true)
                 }
                 .onFailure { e ->
                     val message = e.message ?: e::class.simpleName ?: "Sync failed"
-                    failures += "${names[address] ?: address}: $message"
-                    _peerResult.value = _peerResult.value + (address to message)
+                    problems += "${nameOf(computer)}: $message"
+                    _peerResult.value = _peerResult.value + (computer.key to message)
                 }
         }
+        for (phone in phones) {
+            val result = when (val outcome = syncCoordinator.requestPhoneSync(phone.key)) {
+                is PhoneSyncOutcome.Done -> { synced += nameOf(phone); "Synced just now" }
+                is PhoneSyncOutcome.Failed -> outcome.message.also { problems += "${nameOf(phone)}: $it" }
+                PhoneSyncOutcome.NotConnected ->
+                    "Open Bori on ${nameOf(phone)} to sync, or turn on Sync automatically there".also { problems += it }
+                PhoneSyncOutcome.TimedOut -> "${nameOf(phone)} didn't finish in time".also { problems += it }
+            }
+            _peerResult.value = _peerResult.value + (phone.key to result)
+        }
         refresh()
-        _status.value = if (!anyOk) QuickSyncStatus.Failed(failures.joinToString("\n"))
-        else QuickSyncStatus.Done(
-            (if (received == 0) "Already up to date" else "Synced: received $received") +
-                failures.joinToString("") { "\n$it" }
-        )
+        val head = when {
+            synced.isEmpty() -> null
+            computers.isNotEmpty() && received == 0 && synced.size == computers.size + phones.size && phones.isEmpty() -> "Already up to date"
+            else -> "Synced: " + synced.joinToString(" · ")
+        }
+        _status.value = if (head == null) QuickSyncStatus.Failed(problems.joinToString("\n"))
+        else QuickSyncStatus.Done((listOf(head) + problems).joinToString("\n"))
     }
 
-    /** Back to idle once a result has been shown (the Notes button's few-second message). */
     fun clearResult() {
         if (_status.value is QuickSyncStatus.Done || _status.value is QuickSyncStatus.Failed) {
             _status.value = QuickSyncStatus.Idle
@@ -238,13 +265,16 @@ fun QuickSyncCard(modifier: Modifier = Modifier, viewModel: QuickSyncViewModel =
     val now by viewModel.now.collectAsState()
     // Nothing to show until something has been set up, as on Android.
     if (devices.isEmpty()) return
-    val canSync = devices.any { it.outgoing && it.enabled }
+    // Phones count too (2026-10-15): the computer asks them over their presence socket. Before,
+    // a computer with only a phone paired showed this card with nothing to click.
+    val canSync = devices.any { it.enabled && (it.outgoing || it.isPhone) }
     val syncing = status is QuickSyncStatus.Syncing
     Row(
         modifier = modifier
             .fillMaxWidth()
             .crystalCardSurface()
-            .clickable(enabled = canSync && !syncing) { viewModel.syncAll() }
+            .clickable(enabled = canSync && !syncing, role = androidx.compose.ui.semantics.Role.Button) { viewModel.syncAll() }
+            .pointerHoverIcon(if (canSync && !syncing) PointerIcon.Hand else PointerIcon.Default)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -278,7 +308,7 @@ fun QuickSyncCard(modifier: Modifier = Modifier, viewModel: QuickSyncViewModel =
 fun QuickSyncIconButton(viewModel: QuickSyncViewModel = koinViewModel()) {
     val devices by viewModel.devices.collectAsState()
     val status by viewModel.status.collectAsState()
-    if (devices.none { it.outgoing && it.enabled }) return
+    if (devices.none { it.enabled && (it.outgoing || it.isPhone) }) return
     LaunchedEffect(status) {
         if (status is QuickSyncStatus.Done || status is QuickSyncStatus.Failed) {
             delay(4_000L)
@@ -312,6 +342,7 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
     val results by viewModel.peerResult.collectAsState()
     val status by viewModel.status.collectAsState()
     val now by viewModel.now.collectAsState()
+    val connectedPhones by viewModel.connectedPhones.collectAsState()
     var removing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<SyncDevice?>(null) }
 
     removing?.let { d ->
@@ -354,7 +385,13 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
                             d.outgoing -> "Computer · this one syncs to it"
                             else -> "Computer · syncs with this one"
                         }
-                        val up = if (d.outgoing) online[d.key] else null
+                        // Computers: is their sync port answering. Phones: is Bori open there and
+                        // connected to this computer (only then can Sync reach it).
+                        val up = when {
+                            d.outgoing -> online[d.key]
+                            d.isPhone -> d.key.trim().lowercase() in connectedPhones
+                            else -> null
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (up != null) {
                                 androidx.compose.foundation.layout.Box(
@@ -366,7 +403,12 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(
-                                (if (up == null) "" else if (up) "Online · " else "Offline · ") + kind +
+                                (when {
+                                    up == null -> ""
+                                    d.isPhone -> if (up) "Bori open · " else "Bori closed · "
+                                    up -> "Online · "
+                                    else -> "Offline · "
+                                }) + kind +
                                     (if (d.outgoing) " · ${d.key}" else ""),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -378,8 +420,8 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (d.outgoing) {
-                        androidx.compose.material3.TextButton(onClick = { viewModel.syncOne(d) }, enabled = !syncing) { Text("Sync") }
+                    if (d.outgoing || d.isPhone) {
+                        androidx.compose.material3.TextButton(onClick = { viewModel.syncOne(d) }, enabled = !syncing && d.enabled) { Text("Sync") }
                     }
                     androidx.compose.material3.TextButton(onClick = { removing = d }) {
                         Text("Remove", color = MaterialTheme.colorScheme.error)
@@ -392,16 +434,36 @@ fun SyncDeviceList(viewModel: QuickSyncViewModel) {
                 }
             }
     }
-    when (val s = status) {
-        is QuickSyncStatus.Syncing -> Text("Syncing…", style = MaterialTheme.typography.bodySmall)
-        is QuickSyncStatus.Done -> Text(s.message, style = MaterialTheme.typography.bodySmall)
-        is QuickSyncStatus.Failed -> Text(s.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        QuickSyncStatus.Idle -> {}
-    }
-    if (devices.any { it.outgoing && it.enabled }) {
-        FilledTonalButton(onClick = { viewModel.syncAll() }, enabled = !syncing) {
-            if (syncing) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-            else Text(if (devices.count { it.outgoing && it.enabled } > 1) "Sync all computers now" else "Sync now")
+}
+
+/**
+ * The Sync row for a Settings group (Data Management): the whole row is the Sync button whenever
+ * there's a device to sync with, and it shows "Syncing…" and then the result in place.
+ */
+@Composable
+fun QuickSyncItem(viewModel: QuickSyncViewModel = koinViewModel()) {
+    val devices by viewModel.devices.collectAsState()
+    val status by viewModel.status.collectAsState()
+    val lastSynced by viewModel.lastSynced.collectAsState()
+    val now by viewModel.now.collectAsState()
+    val canSync = devices.any { it.enabled && (it.outgoing || it.isPhone) }
+    val syncing = status is QuickSyncStatus.Syncing
+    com.apagon.rhythm.ui.settings.SettingsItem(
+        title = "Sync now",
+        description = when (val s = status) {
+            is QuickSyncStatus.Syncing -> "Syncing…"
+            is QuickSyncStatus.Failed -> s.message
+            is QuickSyncStatus.Done -> s.message
+            QuickSyncStatus.Idle -> if (devices.isEmpty()) "Pair your phone or add a computer to start syncing"
+                                    else lastSyncedLine(devices, lastSynced, now)
+        },
+        descriptionColor = if (status is QuickSyncStatus.Failed) MaterialTheme.colorScheme.error else Color.Unspecified,
+        icon = Icons.Default.Sync,
+        onClick = { viewModel.syncAll() },
+        enabled = canSync && !syncing,
+        trailing = {
+            if (syncing) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            else if (canSync) FilledTonalButton(onClick = { viewModel.syncAll() }) { Text("Sync now") }
         }
-    }
+    )
 }

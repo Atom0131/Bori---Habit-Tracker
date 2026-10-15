@@ -1,5 +1,23 @@
 package com.apagon.rhythm.ui.settings
 
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Policy
 import com.apagon.rhythm.data.preferences.ThemePreferences
 import com.apagon.rhythm.ui.components.BorikenUnlockDialog
 import com.apagon.rhythm.core.app.AppInfo
@@ -114,15 +132,22 @@ import androidx.compose.ui.layout.ContentScale
 // 2026-10-13: names and grouping mirror the phone's Settings (Profile, Appearance, Calendar
 // Integration, Data Management, Tutorials, About). Sync and Recently Deleted live inside Data
 // Management as sub-pages, as on the phone, so they're off the rail ([inRail] false).
-private enum class SettingsSection(val label: String, val inRail: Boolean = true) {
-    PROFILE("Profile"),
-    APPEARANCE("Appearance"),
-    CALENDAR("Calendar Integration"),
-    DATA("Data Management"),
-    SYNC("Sync with Phone & Computers", inRail = false),
-    RECENTLY_DELETED("Recently Deleted", inRail = false),
-    TUTORIALS("Tutorials"),
-    ABOUT("About")
+private enum class SettingsSection(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val subtitle: String? = null,
+    val inRail: Boolean = true
+) {
+    PROFILE("Profile", Icons.Default.Person, "Your name and picture, and sync at a glance"),
+    APPEARANCE("Appearance", Icons.Default.Palette, "Theme, background, glass and layout"),
+    CALENDAR("Calendar Integration", Icons.Default.CalendarMonth, "Show your computer's calendars in Bori"),
+    DATA("Data Management", Icons.Default.Storage, "Sync, backups, archives and updates"),
+    SYNC("Sync with Phone & Computers", Icons.Default.Sync,
+        "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing.",
+        inRail = false),
+    RECENTLY_DELETED("Recently Deleted", Icons.Default.Delete, inRail = false),
+    TUTORIALS("Tutorials", Icons.Default.School, "Guides and the welcome intro"),
+    ABOUT("About", Icons.Default.Info)
 }
 
 // Desktop counterpart to androidMain's SettingsScreen.kt (Stage 11) — a
@@ -185,7 +210,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
     ) { padding ->
         Row(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(
-                modifier = Modifier.width(200.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 8.dp)
+                modifier = Modifier.width(232.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 8.dp)
             ) {
                 SettingsSection.entries.filter { it.inRail }.forEach { section ->
                     // A Data Management sub-page keeps Data Management highlighted.
@@ -202,8 +227,17 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 else Modifier
                             )
                             .clickable { selectedSection = section }
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .pointerHoverIcon(androidx.compose.ui.input.pointer.PointerIcon.Hand)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            section.icon,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Text(
                             section.label,
                             style = MaterialTheme.typography.bodyLarge,
@@ -217,18 +251,21 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
             VerticalDivider()
 
             // Stage 16a: same centered content-width cap every other primary screen got.
-            Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+            // Next to the menu, not centred in the pane: centred, a wide window left a big empty gap
+            // between the menu and the page (Windows report, 2026-10-15).
+            Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopStart) {
                 when (selectedSection) {
                     SettingsSection.RECENTLY_DELETED -> Column(Modifier.fillMaxSize()) {
                         SubPageBackRow { selectedSection = SettingsSection.DATA }
                         DesktopRecentlyDeletedScreen()
                     }
                     else -> Column(
-                        modifier = Modifier.fillMaxHeight().widthIn(max = DesktopLayout.contentMaxWidth).fillMaxWidth()
-                            .verticalScroll(rememberScrollState()).padding(DesktopLayout.screenPadding),
+                        modifier = Modifier.fillMaxHeight().widthIn(max = 800.dp).fillMaxWidth()
+                            .verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
                         if (!selectedSection.inRail) SubPageBackRow { selectedSection = SettingsSection.DATA }
+                        SettingsPageHeader(selectedSection.label, selectedSection.subtitle)
                         when (selectedSection) {
                             SettingsSection.PROFILE -> ProfileSectionContent(
                                 userNickname = userNickname,
@@ -348,10 +385,10 @@ private fun ProfileSectionContent(
 ) {
     // Android's profile card: photo, name, @nickname and a chevron, the whole card opening the
     // editor (it showed the nickname as the name, pronouns/age, and an "Edit" link).
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onEdit).padding(16.dp),
+            modifier = Modifier.fillMaxWidth().crystalCardSurface().clickable(onClick = onEdit)
+                .pointerHoverIcon(androidx.compose.ui.input.pointer.PointerIcon.Hand).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -436,7 +473,6 @@ private fun AppearanceSectionContent(
     }
     // Android's Appearance order and shape: one expandable glass card per setting — Theme Style,
     // Crystal Background, Glass, Accent Colour, Theme — not a card of rows with text-link choices.
-    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     val borikenUnlocked by viewModel.themePreferences.borikenUnlocked.collectAsState(initial = false)
     val borikenMode by viewModel.themePreferences.borikenMode.collectAsState(initial = false)
     val borikenField by viewModel.themePreferences.borikenField.collectAsState(initial = true)
@@ -861,19 +897,18 @@ private fun LayoutSectionContent(
 
 @Composable
 private fun CalendarSectionContent(viewModel: DesktopSettingsViewModel, calendarIntegrationEnabled: Boolean) {
-    SettingsSection("Calendar Integration") {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SettingsRow("Enable device calendars") {
+    SettingsGroup(
+        footer = if (calendarIntegrationEnabled) "No calendars found on this device." else null
+    ) {
+        SettingsItem(
+            title = "Enable device calendars",
+            description = "Show events from this computer's calendars alongside Bori's own",
+            icon = Icons.Default.CalendarMonth,
+            onClick = { viewModel.setCalendarIntegrationEnabled(!calendarIntegrationEnabled) },
+            trailing = {
                 Switch(checked = calendarIntegrationEnabled, onCheckedChange = { viewModel.setCalendarIntegrationEnabled(it) }, colors = crystalSwitchColors())
             }
-            if (calendarIntegrationEnabled) {
-                Text(
-                    "No calendars found on this device.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        )
     }
 }
 
@@ -894,61 +929,89 @@ private fun DataSectionContent(
     // rather than guessing whether a file needs a password before picking it.
     var showImportPasswordDialog by remember { mutableStateOf(false) }
 
-    // Same groups and order as the phone's Data Management page.
-    SettingsSection("Backup & Restore") {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { showExportDialog = true }) { Text("Export") }
-                TextButton(onClick = { viewModel.importBackup() }) { Text("Import") }
-            }
-            when (backupState) {
-                is DesktopBackupState.Success -> Text(backupState.message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-                is DesktopBackupState.Error -> Text(backupState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                DesktopBackupState.Idle -> {}
-            }
-            // "password protected" / "Incorrect password" are the two strings
-            // DesktopBackupManager.importFromJson returns for an encrypted file — surface the
-            // password prompt automatically rather than making the user notice the error text
-            // and re-click Import themselves.
-            LaunchedEffect(backupState) {
-                val message = (backupState as? DesktopBackupState.Error)?.message
-                if (message != null && message.contains("password", ignoreCase = true)) {
-                    showImportPasswordDialog = true
-                }
+    // Same groups as the phone's Data Management page, as grouped rows (2026-10-15 redesign).
+    val listen by viewModel.syncListenState.collectAsState()
+    SettingsGroup(header = "Sync") {
+        com.apagon.rhythm.ui.sync.QuickSyncItem()
+        SettingsDivider()
+        SettingsItem(
+            title = "Sync with Phone & Computers",
+            description = when (val l = listen) {
+                is SyncListenState.Listening -> if (l.viaTailscale) "Ready for your phone · devices, pairing QR code, what to sync"
+                                                else "Tailscale isn't running · open for help"
+                is SyncListenState.Failed -> "Sync can't start · open for details"
+                SyncListenState.Starting -> "Starting…"
+            },
+            icon = Icons.Default.Devices,
+            onClick = onOpenSync,
+            trailing = { SettingsChevron() }
+        )
+        SettingsDivider()
+        // Lined up with the text of the rows above, which sits after a 22dp icon and 16dp gap.
+        Box(Modifier.padding(start = 54.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) { DesktopAutoSyncRow() }
+    }
+
+    SettingsGroup(
+        header = "Backup & Restore",
+        footer = when (backupState) {
+            is DesktopBackupState.Success -> backupState.message
+            is DesktopBackupState.Error -> backupState.message
+            DesktopBackupState.Idle -> "Backups work across Bori on your phone and computers."
+        }
+    ) {
+        SettingsItem(
+            title = "Export backup",
+            description = "Save everything to a file, optionally protected with a password",
+            icon = Icons.Default.FileUpload,
+            onClick = { showExportDialog = true },
+            trailing = { SettingsChevron() }
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Import backup",
+            description = "Restore from a Bori backup file. This replaces what's on this computer.",
+            icon = Icons.Default.FileDownload,
+            onClick = { viewModel.importBackup() },
+            trailing = { SettingsChevron() }
+        )
+        // "password protected" / "Incorrect password" are the two strings
+        // DesktopBackupManager.importFromJson returns for an encrypted file: ask for the
+        // password straight away rather than leaving the user to re-click Import.
+        LaunchedEffect(backupState) {
+            val message = (backupState as? DesktopBackupState.Error)?.message
+            if (message != null && message.contains("password", ignoreCase = true)) {
+                showImportPasswordDialog = true
             }
         }
     }
 
-    val listen by viewModel.syncListenState.collectAsState()
-    SettingsSection("Sync with Phone & Computers") {
-      Column {
-        HelpRow(
-            title = when (val l = listen) {
-                is SyncListenState.Listening -> if (l.viaTailscale) "Ready for your phone" else "Tailscale isn't running"
-                is SyncListenState.Failed -> "Sync can't start"
-                SyncListenState.Starting -> "Starting…"
-            },
-            description = "Sync with Bori on your phone and your other computers over Tailscale: devices, pairing QR code, and what to sync.",
-            action = "Open",
-            onClick = onOpenSync
+    SettingsGroup(header = "Archive & Trash") {
+        SettingsItem(
+            title = "Archived habits",
+            icon = Icons.Default.Inventory2,
+            onClick = onShowArchivedHabits,
+            trailing = { SettingsChevron("${archivedHabits.size}") }
         )
-        // As on the phone: how often to sync sits right under the way in, not only inside it.
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        DesktopAutoSyncRow()
-      }
+        SettingsDivider()
+        SettingsItem(
+            title = "Archived to-dos",
+            icon = Icons.Default.TaskAlt,
+            onClick = onShowArchivedTodos,
+            trailing = { SettingsChevron("${archivedTodos.size}") }
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Recently deleted",
+            description = "Restore or permanently delete items",
+            icon = Icons.Default.Delete,
+            onClick = onOpenRecentlyDeleted,
+            trailing = { SettingsChevron() }
+        )
     }
-    SettingsSection("Habit Archive") {
-        HelpRow("View Archived Habits", "${archivedHabits.size} archived", "Open", onShowArchivedHabits)
-    }
-    SettingsSection("To-do Archive") {
-        HelpRow("View Archived To-dos", "${archivedTodos.size} archived", "Open", onShowArchivedTodos)
-    }
-    SettingsSection("Recently Deleted") {
-        HelpRow("Trash Bin", "Restore or permanently delete items", "Open", onOpenRecentlyDeleted)
-    }
+
     // Desktop only (the phone updates through the Play Store): Bori's own updates from GitHub.
-    SettingsSection("Updates") {
-        com.apagon.rhythm.ui.update.UpdateSettingsRows()
+    SettingsGroup(header = "App updates") {
+        Box(Modifier.padding(16.dp)) { com.apagon.rhythm.ui.update.UpdateSettingsRows() }
     }
 
     if (showExportDialog) {
@@ -1004,17 +1067,22 @@ private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
 
     if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
 
-    Text(
-        "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing. Choose below what this computer sends and receives.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
     SyncStatusCard(listen, onHowTo = { showGuide = true })
-    TextButton(onClick = { showGuide = true }) { Text("How to set up sync") }
+    SettingsGroup {
+        com.apagon.rhythm.ui.sync.QuickSyncItem(quickSync)
+        SettingsDivider()
+        SettingsItem(
+            title = "How to set up sync",
+            description = "Step by step for your phone, Windows and Linux",
+            icon = Icons.Default.School,
+            onClick = { showGuide = true },
+            trailing = { SettingsChevron() }
+        )
+    }
 
     SettingsSection("Your devices") {
         // As the phone's "Your computers": every device, each with its own on/off switch.
-        com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync)
+        Column { com.apagon.rhythm.ui.sync.SyncDeviceList(quickSync) }
     }
 
     SettingsSection("Sync automatically") {
@@ -1056,44 +1124,46 @@ private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
 
     WhatToSyncSection(viewModel.themePreferences)
 
-    SettingsSection("Options") {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Forgets every watermark before syncing, so rows made before sync ever ran (or
-            // before an entity type joined sync) go across too. Once per device after a
-            // meaningful sync-scope change, not routinely.
-            TextButton(onClick = { quickSync.forceFullResyncThenSync() }) {
-                Text("Force full resync (first-time or after an update)")
+    SettingsGroup(header = "Advanced") {
+        // Forgets every watermark before syncing, so rows made before sync ever ran (or before an
+        // entity type joined sync) go across too. Once per device after a meaningful sync-scope
+        // change, not routinely.
+        SettingsItem(
+            title = "Force full resync",
+            description = "Sends everything again. For a first sync or after an update.",
+            onClick = { quickSync.forceFullResyncThenSync() },
+            trailing = { SettingsChevron() }
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Experimental options",
+            onClick = { showSync = !showSync },
+            trailing = {
+                Icon(
+                    if (showSync) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            TextButton(onClick = { showSync = !showSync }) {
-                Text(if (showSync) "Hide experimental options" else "Experimental options")
-            }
-            if (showSync) {
-
-                // Stage 3.5 — optional, default-off vault *file* sync. Off unless explicitly
-                // turned on here, independently on each device (not something a sync round can
-                // enable on the peer) — see ThemePreferences.vaultFileSyncEnabled's own KDoc.
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(top = DesktopLayout.itemSpacing)
-                        .crystalCardSurface().padding(DesktopLayout.compactCardPadding),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    SettingsRow("Sync Notes vault files (experimental)") {
-                        Switch(
-                            checked = vaultFileSyncEnabled,
-                            onCheckedChange = { viewModel.setVaultFileSyncEnabled(it) },
-                            colors = crystalSwitchColors()
-                        )
-                    }
-                    Text(
-                        "Also syncs the Notes Markdown vault folder (files, manifest, and images) " +
-                            "so an external tool indexed against it stays current on both devices. " +
-                            "Private notebooks are always excluded. Both devices must turn this on " +
-                            "for files to transfer.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (showSync) {
+            SettingsDivider()
+            // Stage 3.5: optional, default-off vault *file* sync, turned on independently on each
+            // device (see ThemePreferences.vaultFileSyncEnabled's KDoc).
+            SettingsItem(
+                title = "Sync Notes vault files",
+                description = "Also syncs the Notes Markdown vault folder (files, manifest and images) so an external " +
+                    "tool indexed against it stays current on both devices. Private notebooks are always excluded. " +
+                    "Both devices must turn this on.",
+                onClick = { viewModel.setVaultFileSyncEnabled(!vaultFileSyncEnabled) },
+                trailing = {
+                    Switch(
+                        checked = vaultFileSyncEnabled,
+                        onCheckedChange = { viewModel.setVaultFileSyncEnabled(it) },
+                        colors = crystalSwitchColors()
                     )
                 }
-            }
+            )
         }
     }
 }
@@ -1298,39 +1368,33 @@ private fun HelpSectionContent() {
     var showGuide by remember { mutableStateOf(false) }
     if (showGuide) com.apagon.rhythm.ui.help.SyncSetupGuideSheet(onDismiss = { showGuide = false })
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SettingsSection("Tutorials") {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HelpRow(
-                    "Set up computer sync",
-                    "Connect your phone and computers over Tailscale: install, sign in, scan the QR code.",
-                    "Open"
-                ) { showGuide = true }
-                HelpRow(
-                    "Welcome intro",
-                    "The welcome pages Bori showed the first time you opened it.",
-                    "Replay"
-                ) { com.apagon.rhythm.ui.onboarding.OnboardingReplay.requested = true }
-                HelpRow(
-                    "Downloads and install help",
-                    "Every Bori release for Windows and Linux, with install steps for each system.",
-                    "Open GitHub"
-                ) { runCatching { uri.openUri(com.apagon.rhythm.ui.help.SyncGuideLinks.RELEASES) } }
-            }
-        }
+    SettingsGroup {
+        SettingsItem(
+            title = "Set up computer sync",
+            description = "Connect your phone and computers over Tailscale: install, sign in, scan the QR code.",
+            icon = Icons.Default.Devices,
+            onClick = { showGuide = true },
+            trailing = { SettingsChevron() }
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Welcome intro",
+            description = "The welcome pages Bori showed the first time you opened it.",
+            icon = Icons.Default.PlayCircle,
+            onClick = { com.apagon.rhythm.ui.onboarding.OnboardingReplay.requested = true },
+            trailing = { SettingsChevron("Replay") }
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Downloads and install help",
+            description = "Every Bori release for Windows and Linux, with install steps for each system.",
+            icon = Icons.Default.Download,
+            onClick = { runCatching { uri.openUri(com.apagon.rhythm.ui.help.SyncGuideLinks.RELEASES) } },
+            trailing = { SettingsChevron("GitHub") }
+        )
     }
 }
 
-@Composable
-private fun HelpRow(title: String, description: String, action: String, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        OutlinedButton(onClick = onClick) { Text(action) }
-    }
-}
 
 @Composable
 private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreferences: ThemePreferences) {
@@ -1349,64 +1413,72 @@ private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreference
             }
         )
     }
-    SettingsSection("About") {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Bori", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Text(
-                "Version ${AppInfo.VERSION}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        val now = System.currentTimeMillis()
-                        if (clicks == 0 || now - firstClickAt > 3_000) { clicks = 0; firstClickAt = now }
-                        clicks++
-                        if (clicks >= 10) {
-                            clicks = 0
-                            scope.launch { themePreferences.setBorikenUnlocked() }
-                            showUnlocked = true
-                        }
-                    }
-                    .padding(vertical = 4.dp)
-            )
-            TextButton(onClick = onShowPrivacyPolicy, modifier = Modifier.padding(start = 0.dp)) {
-                Text("Privacy Policy")
+    val renderApi by com.apagon.rhythm.platform.RenderInfo.api.collectAsState()
+    val frameMeter by com.apagon.rhythm.platform.RenderInfo.showFrameMeter.collectAsState()
+    SettingsGroup {
+        // The version row is also the Borikén Easter egg, as on the phone: ten clicks within three
+        // seconds. Nothing hints at it, so no hand cursor or highlight.
+        Box(
+            Modifier.fillMaxWidth().clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) {
+                val now = System.currentTimeMillis()
+                if (clicks == 0 || now - firstClickAt > 3_000) { clicks = 0; firstClickAt = now }
+                clicks++
+                if (clicks >= 10) {
+                    clicks = 0
+                    scope.launch { themePreferences.setBorikenUnlocked() }
+                    showUnlocked = true
+                }
             }
-            // Diagnostics for slow drawing (a choppy tab switch on a Windows laptop, 2026-10-14).
-            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            val renderApi by com.apagon.rhythm.platform.RenderInfo.api.collectAsState()
-            val frameMeter by com.apagon.rhythm.platform.RenderInfo.showFrameMeter.collectAsState()
-            Text(
-                "Graphics: " + (renderApi?.let { com.apagon.rhythm.platform.RenderInfo.label(it) } ?: "…"),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (com.apagon.rhythm.platform.RenderInfo.isSoftware(renderApi)) {
-                Text(
-                    "Bori is drawing without the graphics card, so glass effects will be slow. " +
-                        "Updating the graphics driver usually fixes this.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            SettingsRow("Show frame rate") {
+        ) {
+            SettingsItem(title = "Bori", description = "Version ${AppInfo.VERSION}", icon = Icons.Default.Info)
+        }
+        SettingsDivider()
+        SettingsItem(
+            title = "Privacy Policy",
+            icon = Icons.Default.Policy,
+            onClick = onShowPrivacyPolicy,
+            trailing = { SettingsChevron() }
+        )
+    }
+    // Diagnostics for slow drawing (a choppy tab switch on a Windows laptop, 2026-10-14).
+    SettingsGroup(header = "Diagnostics") {
+        SettingsItem(
+            title = "Graphics",
+            description = (renderApi?.let { com.apagon.rhythm.platform.RenderInfo.label(it) } ?: "…") +
+                if (com.apagon.rhythm.platform.RenderInfo.isSoftware(renderApi))
+                    ". Bori is drawing without the graphics card, so glass effects will be slow; updating the graphics driver usually fixes this."
+                else "",
+            descriptionColor = if (com.apagon.rhythm.platform.RenderInfo.isSoftware(renderApi)) MaterialTheme.colorScheme.error else Color.Unspecified
+        )
+        SettingsDivider()
+        SettingsItem(
+            title = "Show frame rate",
+            description = "Frame rate and the slowest frame, in the corner of the window",
+            onClick = { com.apagon.rhythm.platform.RenderInfo.showFrameMeter.value = !frameMeter },
+            trailing = {
                 Switch(
                     checked = frameMeter,
                     onCheckedChange = { com.apagon.rhythm.platform.RenderInfo.showFrameMeter.value = it },
                     colors = crystalSwitchColors()
                 )
             }
-        }
+        )
     }
 }
 
 @Composable
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
         Box(
             modifier = Modifier.fillMaxWidth()
                 .crystalCardSurface(fill = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -1418,7 +1490,7 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun SettingsRow(label: String, trailing: @Composable () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

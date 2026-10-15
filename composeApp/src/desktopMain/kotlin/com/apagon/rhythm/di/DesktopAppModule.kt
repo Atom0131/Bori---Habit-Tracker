@@ -122,7 +122,8 @@ val desktopAppModule = module {
     single<ProfileImageStore> { DesktopProfileImageStore(get()) }
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SyncClient(get(), desktopDeviceId, get()) }
-    single { SyncServer(get(), desktopDeviceId, get()) }
+    single { com.apagon.rhythm.data.sync.PresenceRegistry() }
+    single { SyncServer(get(), desktopDeviceId, get(), get()) }
     // Where the sync server listens, re-checked while Bori runs (see SyncAddressMonitor). main.kt
     // starts it; Settings → Sync shows its state.
     single {
@@ -130,7 +131,7 @@ val desktopAppModule = module {
         SyncAddressMonitor(get(), port)
     }
     single<SyncAddressSource> { get<SyncAddressMonitor>() }
-    single<SyncCoordinator> { JvmSyncCoordinator(get()) }
+    single<SyncCoordinator> { JvmSyncCoordinator(get(), get()) }
     single { com.apagon.rhythm.data.sync.AutoSyncRunner(get(), get()) }
     single<PurchaseLauncher> { DesktopPurchaseLauncher() }
     single<QrCodeRenderer> { DesktopQrCodeRenderer() }
