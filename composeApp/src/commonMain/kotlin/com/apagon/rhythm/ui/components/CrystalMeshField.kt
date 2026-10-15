@@ -32,11 +32,13 @@ fun DrawScope.drawCrystalMeshField(
      * covers instead of a miniature of the whole thing. */
     fieldSize: Size = size,
     /** Where the drawn box sits inside [fieldSize]. */
-    origin: Offset = Offset.Zero
+    origin: Offset = Offset.Zero,
+    /** How strongly the blobs are painted; Borikén by day passes its own (see `crystalFieldDilution`). */
+    dilution: Float = if (dark) MESH_BLOB_DILUTION_DARK else MESH_BLOB_DILUTION_LIGHT
 ) {
     drawRect(base)
     val r = BLOB_EXTENT
-    val dilute = if (dark) MESH_BLOB_DILUTION_DARK else MESH_BLOB_DILUTION_LIGHT
+    val dilute = dilution
     fun blob(color: Color, cx: Float, cy: Float, alpha: Float, rad: Float) {
         val center = Offset(cx - origin.x, cy - origin.y)
         val rx = fieldSize.width * rad

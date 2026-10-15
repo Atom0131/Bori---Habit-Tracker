@@ -166,6 +166,32 @@ fun crystalFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
         borikenFieldBlobs(dark)
     } else crystalOwnFieldBlobs(mesh, dark)
 
+/**
+ * Borikén in daytime paints at most of night's strength (0.82) over a celeste-tinted base. The light field's usual
+ * recipe (blobs at 0.68 strength over near-white #EAF0F6) left ~42% white in every pixel, so the
+ * flag's red never came through by day (2026-10-14: "the white washes it out"). Night is unchanged.
+ */
+val BorikenDayBase = Color(0xFFD8E8F5)
+const val BorikenDayDilution = 0.82f
+
+/** The field's base colour: Borikén's tinted daytime base, else the plain light/dark base. */
+@Composable
+@ReadOnlyComposable
+fun crystalFieldBase(dark: Boolean): Color = when {
+    dark -> AmbientBaseDark
+    LocalBorikenField.current -> BorikenDayBase
+    else -> AmbientBaseLight
+}
+
+/** How strongly the field's colour blobs are painted: Borikén's daytime strength, else the usual. */
+@Composable
+@ReadOnlyComposable
+fun crystalFieldDilution(dark: Boolean): Float = when {
+    dark -> com.apagon.rhythm.ui.components.MESH_BLOB_DILUTION_DARK
+    LocalBorikenField.current -> BorikenDayDilution
+    else -> com.apagon.rhythm.ui.components.MESH_BLOB_DILUTION_LIGHT
+}
+
 /** [mesh]'s own colours, ignoring Borikén — what its swatch in the picker shows. */
 @Composable
 @ReadOnlyComposable

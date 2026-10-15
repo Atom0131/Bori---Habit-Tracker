@@ -1499,7 +1499,10 @@ private fun CrystalMeshSwatch(
     modifier: Modifier = Modifier
 ) {
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    // The Borikén swatch shows Borikén's own daytime base and strength; every other swatch the usual.
+    val base = if (dark) AmbientBaseDark else if (mesh == null) com.apagon.rhythm.ui.theme.BorikenDayBase else AmbientBaseLight
+    val dilution = if (mesh == null && !dark) com.apagon.rhythm.ui.theme.BorikenDayDilution
+                   else if (dark) com.apagon.rhythm.ui.components.MESH_BLOB_DILUTION_DARK else com.apagon.rhythm.ui.components.MESH_BLOB_DILUTION_LIGHT
     // null is the Borikén swatch: the flag field. Every other swatch shows its own field, never
     // the flag that may be on screen behind it.
     val blobs = if (mesh == null) borikenFieldBlobs(dark)
@@ -1517,7 +1520,7 @@ private fun CrystalMeshSwatch(
                 .clickable(onClick = onClick)
         ) {
             androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCrystalMeshField(base = base, blobs = blobs, dark = dark)
+                drawCrystalMeshField(base = base, blobs = blobs, dark = dark, dilution = dilution)
             }
         }
         Spacer(Modifier.height(4.dp))

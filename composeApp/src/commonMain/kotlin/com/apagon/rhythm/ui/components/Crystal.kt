@@ -58,6 +58,8 @@ import com.apagon.rhythm.platform.GlassBlur
 import com.apagon.rhythm.platform.GlassBlurField
 import com.apagon.rhythm.ui.theme.AmbientBaseDark
 import com.apagon.rhythm.ui.theme.AmbientBaseLight
+import com.apagon.rhythm.ui.theme.crystalFieldBase
+import com.apagon.rhythm.ui.theme.crystalFieldDilution
 import com.apagon.rhythm.ui.theme.CrystalSolidLight
 import com.apagon.rhythm.ui.theme.LocalCrystalBackground
 import com.apagon.rhythm.ui.theme.LocalCrystalIntensity
@@ -476,7 +478,7 @@ private val PANEL_STOP_SHAPE = floatArrayOf(0.85f, 0.85f, 0.64f, 0.85f, 0.85f)
 @ReadOnlyComposable
 private fun panelFieldStops(mesh: CrystalMesh, dark: Boolean): List<Color> {
     val blobs = crystalFieldBlobs(mesh, dark)
-    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    val base = crystalFieldBase(dark)
     val lerpMean = if (dark) PANEL_LERP_DARK else PANEL_LERP_LIGHT
     return blobs.mapIndexed { i, blob ->
         val t = (lerpMean * PANEL_STOP_SHAPE.getOrElse(i) { 1f }).coerceIn(0f, 1f)
@@ -551,9 +553,10 @@ fun AmbientBackground(modifier: Modifier = Modifier) {
     }
     val dark = isDark
     val mesh = LocalCrystalMesh.current
-    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    val base = crystalFieldBase(dark)
     val blobs = crystalFieldBlobs(mesh, dark)
-    Box(modifier.drawBehind { drawCrystalMeshField(base, blobs, dark) })
+    val dilution = crystalFieldDilution(dark)
+    Box(modifier.drawBehind { drawCrystalMeshField(base, blobs, dark, dilution = dilution) })
 }
 
 /**
@@ -688,7 +691,8 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
         )
     }
     val meshDark = isDark
-    val meshBase = if (meshDark) AmbientBaseDark else AmbientBaseLight
+    val meshBase = crystalFieldBase(meshDark)
+    val meshDilution = crystalFieldDilution(meshDark)
     val meshBlobs = crystalFieldBlobs(LocalCrystalMesh.current, meshDark)
     MaterialTheme(colorScheme = windowScheme) {
         Box {
@@ -699,7 +703,7 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
                 Box(
                     Modifier.matchParentSize()
                         .let { if (field != null) glassBlur.sourceModifier(field, it) else it }
-                        .drawBehind { drawCrystalMeshField(meshBase, meshBlobs, meshDark) }
+                        .drawBehind { drawCrystalMeshField(meshBase, meshBlobs, meshDark, dilution = meshDilution) }
                 )
             } else if (paintField && isSolidField) {
                 Box(Modifier.matchParentSize().background(solidFieldColor()))
@@ -745,12 +749,13 @@ fun CrystalWindowContent(paintField: Boolean = true, content: @Composable () -> 
 fun Modifier.crystalMenuField(): Modifier {
     if (!isCrystal() || isSolidField) return this
     val dark = isDark
-    val base = if (dark) AmbientBaseDark else AmbientBaseLight
+    val base = crystalFieldBase(dark)
     val blobs = crystalFieldBlobs(LocalCrystalMesh.current, dark)
+    val dilution = crystalFieldDilution(dark)
     val tint = MaterialTheme.colorScheme.surfaceContainer
     val tintAlpha = crystalSurfaceAlpha(LocalCrystalStyle.current, dark, LocalCrystalIntensity.current)
     return this.drawBehind {
-        drawCrystalMeshField(base, blobs, dark)
+        drawCrystalMeshField(base, blobs, dark, dilution = dilution)
         drawRect(tint.copy(alpha = tintAlpha))
     }
 }

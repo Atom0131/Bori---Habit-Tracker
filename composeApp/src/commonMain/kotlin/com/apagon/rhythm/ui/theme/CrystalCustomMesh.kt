@@ -153,12 +153,16 @@ private val COMBO_SLOTS = mapOf(
  * the colour's **hue**, with chroma also capped at the colour's own chroma, so a white or grey pick
  * becomes a quiet near-neutral band rather than a hue forced onto it.
  */
-private fun solveSlot(i: Int, colour: Color, chromaScale: Float, dark: Boolean): Color {
+private fun solveSlot(i: Int, colour: Color, chromaScale: Float, dark: Boolean, toneShift: Float = 0f): Color {
     val aurora = if (dark) AmbientBlobsDark else AmbientBlobsLight
     val base = (if (dark) AmbientBaseDark else AmbientBaseLight).rgbTriple()
-    val ref = aurora[i].rgbTriple()
-    val (targetL, capC, _) = lab(ref[0], ref[1], ref[2])
-    val refComposite = compositedTone(ref, i, base, dark)
+    val auroraRef = aurora[i].rgbTriple()
+    val (auroraL, capC, _) = lab(auroraRef[0], auroraRef[1], auroraRef[2])
+    // A tone shift (daytime Borikén) pins the slot to a deeper tone itself, so the composite-tone
+    // guard below, which holds a slot to Aurora's tone, is skipped for it; only gamut and the
+    // channel floor still apply. Without a shift this is exactly the Aurora solve, as before.
+    val targetL = auroraL + toneShift
+    val refComposite = compositedTone(auroraRef, i, base, dark)
     val c = colour.rgbTriple()
     val (_, ownChroma, ownHue) = lab(c[0], c[1], c[2])
     var lo = 0.0
@@ -168,7 +172,7 @@ private fun solveSlot(i: Int, colour: Color, chromaScale: Float, dark: Boolean):
         val (vals, inGamut) = lchToRgb(targetL, mid, ownHue)
         val ok = inGamut &&
             vals.min() >= CHANNEL_FLOOR - 0.5 &&
-            abs(compositedTone(vals, i, base, dark) - refComposite) <= COMPOSITE_MARGIN
+            (toneShift != 0f || abs(compositedTone(vals, i, base, dark) - refComposite) <= COMPOSITE_MARGIN)
         if (ok) lo = mid else hi = mid
     }
     val (vals, _) = lchToRgb(targetL, lo, ownHue)
@@ -192,16 +196,19 @@ fun crystalComboBlobs(
     /** Which colour each slot takes; null = the top-to-bottom layout in [COMBO_SLOTS]. */
     slots: IntArray? = null,
     /** Extra chroma per picked colour (same tone, so contrast is unchanged); null = 1 for all. */
-    colourChroma: FloatArray? = null
+    colourChroma: FloatArray? = null,
+    /** Tone shift per picked colour, in L* (negative = deeper); null = none. */
+    colourTone: FloatArray? = null
 ): List<Color> {
     if (colours.size <= 1) return crystalCustomBlobs(colours.firstOrNull(), chromaScale, dark)
     val picked = colours.take(4)
     val slotMap = slots ?: COMBO_SLOTS.getValue(picked.size)
-    val key = Triple(picked.map { it.toArgb() } + slotMap.toList().map { -it - 1 } + (colourChroma?.map { (it * 100).roundToInt() } ?: emptyList()), (chromaScale * 100).roundToInt(), dark)
+    val key = Triple(picked.map { it.toArgb() } + slotMap.toList().map { -it - 1 } + (colourChroma?.map { (it * 100).roundToInt() } ?: emptyList()) + (colourTone?.map { (it * 100).roundToInt() + 100_000 } ?: emptyList()), (chromaScale * 100).roundToInt(), dark)
     return comboCache.getOrPut(key) {
         (0 until 5).map { i ->
             val boost = colourChroma?.getOrNull(slotMap[i]) ?: 1f
-            solveSlot(i, picked[slotMap[i]], chromaScale * boost, dark)
+            val tone = colourTone?.getOrNull(slotMap[i]) ?: 0f
+            solveSlot(i, picked[slotMap[i]], chromaScale * boost, dark, tone)
         }
     }
 }
@@ -223,6 +230,34 @@ val BorikenSlots = intArrayOf(0, 1, 0, 0, 2)
  */
 val BorikenChroma = floatArrayOf(1f, 1f, 1.6f)
 
+/**
+ * Daytime only: how much deeper each Borikén colour sits. At the light field's usual tone the
+ * screen's most saturated red is a pale pink, so no chroma boost can make the corner read red in
+ * daylight (2026-10-14: "a little more red hue during the day"). Night is untouched.
+ */
+/**
+ * Daytime only: the soft white also takes the centre slot, so the middle of the screen stays light
+ * (2026-10-14: full-strength celeste in the centre was "too dark in the middle"); celeste keeps the
+ * left edge and red the bottom-right corner, as at night.
+ */
+val BorikenDaySlots = intArrayOf(0, 1, 1, 0, 2)
+
+val BorikenDayTone = floatArrayOf(-14f, 0f, -22f)
+
+/**
+ * Daytime only: the flag's colours with the white softened to a white with a hint of celeste, so the
+ * top-right band lightens the field without bleaching it.
+ */
+val BorikenDayCombo = listOf(
+    BorikenCombo[0],
+    Color(0xFFE3F0FA),
+    BorikenCombo[2]
+)
+
+/** Daytime only: colour strength per Borikén colour (celeste, white, red), in place of [BorikenChroma]. */
+val BorikenDayChroma = floatArrayOf(1.55f, 1f, 2.25f)
+
 /** The Borikén field's five colours — the one call the field and its swatch share. */
 fun borikenFieldBlobs(dark: Boolean): List<Color> =
-    crystalComboBlobs(BorikenCombo, 1f, dark, BorikenSlots, BorikenChroma)
+    if (dark) crystalComboBlobs(BorikenCombo, 1f, true, BorikenSlots, BorikenChroma)
+    else crystalComboBlobs(BorikenDayCombo, 1f, false, BorikenDaySlots, BorikenDayChroma, BorikenDayTone)
