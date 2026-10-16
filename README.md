@@ -178,6 +178,32 @@ and enter the other's address. The sync server
 only ever listens on the computer's Tailscale address (or `127.0.0.1` when Tailscale isn't
 running), never on your local network.
 
+### Battery use on the phone
+
+Sync over Tailscale barely touches the phone's battery. Measured on a Galaxy Z Fold8 with
+Android's own battery stats (October 2026), over almost 10 hours off the charger with
+**Sync automatically** set to every 15 minutes:
+
+| | Battery used | Share of the phone's total |
+|---|---|---|
+| Bori, everything (including using the app) | 4.9 mAh | about 0.2% |
+| Tailscale | 8.3 mAh | about 0.4% |
+| **Both together** | **about 13 mAh** | **well under 1%** |
+| The screen alone, for comparison | 339 mAh | about 16% |
+
+The 30 automatic syncs in that time took about 5 seconds each and kept the phone awake for
+36 seconds in total, using about 160 KB of data. While Bori is open on the phone it keeps a light
+connection to your computers so a computer's **Sync** button can reach it. That connection closes
+as soon as you leave the app, so it costs nothing in the background.
+
+Battery tips:
+- Leave Tailscale's battery use on *Unrestricted* (see step 1). Samsung's battery manager can
+  otherwise turn it off, and sync stops working until you open Tailscale again.
+- Bori itself doesn't need *Unrestricted*. Android may skip or cut short a background sync now and
+  then to save power, and the next run catches up.
+- Choose a longer interval under **Sync automatically** (every hour, or once a day) if you'd rather
+  it ran less often. Tapping **Sync** always works straight away.
+
 Two desktop instances can also sync with each other for local testing by launching each with its
 own data directory and port:
 
