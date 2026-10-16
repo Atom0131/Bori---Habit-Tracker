@@ -21,7 +21,12 @@ class SyncClient(
         val startedAt = System.currentTimeMillis()
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
             .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
-        val client = HttpClient(CIO) { install(WebSockets) }
+        // A computer that's switched off never answers the connect. Give up after 3 s instead of
+        // CIO's 5 s, as on Android, so automatic sync skips it quickly.
+        val client = HttpClient(CIO) {
+            engine { endpoint.connectTimeout = 3_000L }
+            install(WebSockets)
+        }
         val result = try {
             var applied: SyncResult? = null
             // Bounded, as on Android: a computer that accepts and never answers would hang "Syncing…".
