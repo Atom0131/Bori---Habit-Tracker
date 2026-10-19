@@ -74,7 +74,7 @@ with *What's new*, **Update now** and **Later**. Nothing is downloaded until you
 Bori then downloads the installer for your system, checks it against the release's signed checksums
 (it refuses anything that doesn't verify), installs it, deletes the download and reopens on the new
 version. On Linux your system asks for your password once, as for any package install; on Windows
-there's no prompt. You can also check any time from **Settings → Data Management → App updates → Check now**.
+there's no prompt. You can also check any time from **Settings → About → App updates → Check now**.
 
 Coming from 1.0.5 or older? Install the latest version by hand once (below); after that it updates itself.
 

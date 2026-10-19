@@ -141,13 +141,13 @@ private enum class SettingsSection(
     PROFILE("Profile", Icons.Default.Person, "Your name and picture, and sync at a glance"),
     APPEARANCE("Appearance", Icons.Default.Palette, "Theme, background, glass and layout"),
     CALENDAR("Calendar Integration", Icons.Default.CalendarMonth, "Show your computer's calendars in Bori"),
-    DATA("Data Management", Icons.Default.Storage, "Sync, backups, archives and updates"),
+    DATA("Data Management", Icons.Default.Storage, "Sync, backups and archives"),
     SYNC("Sync with Phone & Computers", Icons.Default.Sync,
         "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing.",
         inRail = false),
     RECENTLY_DELETED("Recently Deleted", Icons.Default.Delete, inRail = false),
     TUTORIALS("Tutorials", Icons.Default.School, "Guides and the welcome intro"),
-    ABOUT("About", Icons.Default.Info)
+    ABOUT("About", Icons.Default.Info, "Version, app updates and privacy")
 }
 
 // Desktop counterpart to androidMain's SettingsScreen.kt (Stage 11) — a
@@ -1009,11 +1009,6 @@ private fun DataSectionContent(
         )
     }
 
-    // Desktop only (the phone updates through the Play Store): Bori's own updates from GitHub.
-    SettingsGroup(header = "App updates") {
-        Box(Modifier.padding(16.dp)) { com.apagon.rhythm.ui.update.UpdateSettingsRows() }
-    }
-
     if (showExportDialog) {
         ExportBackupDialog(
             onDismiss = { showExportDialog = false },
@@ -1442,6 +1437,11 @@ private fun AboutSectionContent(onShowPrivacyPolicy: () -> Unit, themePreference
             onClick = onShowPrivacyPolicy,
             trailing = { SettingsChevron() }
         )
+    }
+    // Desktop only (the phone updates through the Play Store): Bori's own updates from GitHub.
+    // Lives in About, next to the version it changes (moved from Data Management, 2026-10-19).
+    SettingsGroup(header = "App updates") {
+        Box(Modifier.padding(16.dp)) { com.apagon.rhythm.ui.update.UpdateSettingsRows() }
     }
     // Diagnostics for slow drawing (a choppy tab switch on a Windows laptop, 2026-10-14).
     SettingsGroup(header = "Diagnostics") {
