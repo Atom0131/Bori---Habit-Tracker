@@ -31,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apagon.rhythm.data.sync.AutoSyncChoices
 import com.apagon.rhythm.data.sync.AutoSyncRunner
 import com.apagon.rhythm.data.sync.SyncCoordinator
 import com.apagon.rhythm.data.sync.SyncDevice
@@ -206,12 +207,19 @@ class QuickSyncViewModel(
                     _peerResult.value = _peerResult.value + (computer.key to message)
                 }
         }
+        val catchingUp = mutableListOf<String>()
         for (phone in phones) {
             val result = when (val outcome = syncCoordinator.requestPhoneSync(phone.key)) {
                 is PhoneSyncOutcome.Done -> { synced += nameOf(phone); "Synced just now" }
                 is PhoneSyncOutcome.Failed -> outcome.message.also { problems += "${nameOf(phone)}: $it" }
-                PhoneSyncOutcome.NotConnected ->
-                    "Open Bori on ${nameOf(phone)} to sync, or turn on Sync automatically there".also { problems += it }
+                // A closed phone can't be reached (Android only lets it call out). With its own
+                // automatic sync on that's normal, not a failure: it collects everything next time.
+                PhoneSyncOutcome.NotConnected -> when (val minutes = phone.autoSyncMinutes) {
+                    null, 0 -> "Open Bori on ${nameOf(phone)} to sync, or turn on Sync automatically there".also { problems += it }
+                    else -> "Catches up on its own (${AutoSyncChoices.label(minutes).lowercase()})".also {
+                        catchingUp += "${nameOf(phone)} will catch up on its own (${AutoSyncChoices.label(minutes).lowercase()})"
+                    }
+                }
                 PhoneSyncOutcome.TimedOut -> "${nameOf(phone)} didn't finish in time".also { problems += it }
             }
             _peerResult.value = _peerResult.value + (phone.key to result)
@@ -219,11 +227,14 @@ class QuickSyncViewModel(
         refresh()
         val head = when {
             synced.isEmpty() -> null
-            computers.isNotEmpty() && received == 0 && synced.size == computers.size + phones.size && phones.isEmpty() -> "Already up to date"
+            computers.isNotEmpty() && received == 0 && synced.size == computers.size && phones.isEmpty() -> "Already up to date"
             else -> "Synced: " + synced.joinToString(" · ")
         }
-        _status.value = if (head == null) QuickSyncStatus.Failed(problems.joinToString("\n"))
-        else QuickSyncStatus.Done((listOf(head) + problems).joinToString("\n"))
+        _status.value = when {
+            head != null -> QuickSyncStatus.Done((listOf(head) + catchingUp + problems).joinToString("\n"))
+            problems.isEmpty() && catchingUp.isNotEmpty() -> QuickSyncStatus.Done(catchingUp.joinToString("\n"))
+            else -> QuickSyncStatus.Failed((problems + catchingUp).joinToString("\n"))
+        }
     }
 
     fun clearResult() {

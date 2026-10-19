@@ -19,7 +19,11 @@ private data class SyncPrefsData(
     /** Null until first written; then the device list, replacing [peerAddress]. */
     val devices: List<SyncDevice>? = null,
     /** "Sync automatically", minutes; 0 = off. */
-    val autoSyncMinutes: Int = 0
+    val autoSyncMinutes: Int = 0,
+    /** Computer addresses the user removed; a phone's introduction never re-adds them. Lowercase. */
+    val dismissedComputers: Set<String> = emptySet(),
+    /** Set once the post-2026-10-19 full resync has been arranged (see resetWatermarksOnceForRelayFix). */
+    val relayFixResyncDone: Boolean = false
 )
 
 // Desktop has no DataStore plumbing at all today (nothing constructs a
@@ -54,6 +58,35 @@ class DesktopSyncPreferences : SyncPreferences {
 
     override suspend fun clearLastSyncedAt() = mutex.withLock {
         write(read().copy(lastSyncedAt = 0L, peerWatermarks = emptyMap()))
+    }
+
+    override suspend fun lowerOtherWatermarks(exceptPeer: String, oldestAppliedAt: Long) = mutex.withLock {
+        val except = exceptPeer.trim().lowercase()
+        val floor = (oldestAppliedAt - 1).coerceAtLeast(0L)
+        val data = read()
+        val lowered = data.peerWatermarks.mapValues { (peer, at) -> if (peer != except && at > floor) floor else at }
+        if (lowered != data.peerWatermarks) write(data.copy(peerWatermarks = lowered))
+    }
+
+    override suspend fun resetWatermarksOnceForRelayFix(): Boolean = mutex.withLock {
+        val data = read()
+        if (data.relayFixResyncDone) return@withLock false
+        write(data.copy(lastSyncedAt = 0L, peerWatermarks = emptyMap(), relayFixResyncDone = true))
+        true
+    }
+
+    override suspend fun addIntroducedComputer(address: String, name: String?, os: String?): Boolean {
+        val trimmed = address.trim()
+        if (trimmed.isEmpty() || trimmed.lowercase() in read().dismissedComputers) return false
+        if (devices().any { it.matches(trimmed, true) }) return false
+        editDevices { list -> list + SyncDevice(trimmed, outgoing = true, name = name?.takeIf { it.isNotBlank() }, os = os) }
+        return true
+    }
+
+    override suspend fun setPhoneAutoSyncMinutes(deviceId: String, minutes: Int) {
+        val current = devices().firstOrNull { it.matches(deviceId, false) } ?: return
+        if (current.autoSyncMinutes == minutes) return
+        editDevices { list -> list.map { if (it.matches(deviceId, false)) it.copy(autoSyncMinutes = minutes) else it } }
     }
 
     override suspend fun getPeerAddress(): String? = read().peerAddress
@@ -99,6 +132,8 @@ class DesktopSyncPreferences : SyncPreferences {
     override suspend fun addComputer(address: String) {
         val trimmed = address.trim()
         if (trimmed.isEmpty()) return
+        // Added by hand: the user wants it, so a past removal no longer applies.
+        mutex.withLock { read().let { write(it.copy(dismissedComputers = it.dismissedComputers - trimmed.lowercase())) } }
         editDevices { list ->
             if (list.any { it.matches(trimmed, true) }) list.map { if (it.matches(trimmed, true)) it.copy(enabled = true) else it }
             else list + SyncDevice(trimmed, outgoing = true)
@@ -118,8 +153,13 @@ class DesktopSyncPreferences : SyncPreferences {
     override suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) =
         editDevices { list -> list.map { if (it.matches(key, outgoing)) it.copy(enabled = enabled) else it } }
 
-    override suspend fun removeDevice(key: String, outgoing: Boolean) =
+    override suspend fun removeDevice(key: String, outgoing: Boolean) {
         editDevices { list -> list.filterNot { it.matches(key, outgoing) } }
+        // Remember a removed computer so the next phone sync doesn't introduce it straight back.
+        if (outgoing) mutex.withLock {
+            read().let { write(it.copy(dismissedComputers = it.dismissedComputers + key.trim().lowercase())) }
+        }
+    }
 
     override suspend fun getAutoSyncMinutes(): Int = read().autoSyncMinutes
 

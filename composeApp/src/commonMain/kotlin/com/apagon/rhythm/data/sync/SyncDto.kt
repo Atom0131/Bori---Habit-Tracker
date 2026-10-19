@@ -723,5 +723,21 @@ data class SyncBatch(
      * Set only on a reply that refuses the sync — this device has sync with the sender turned off.
      * A refused reply carries no data and nothing was applied. Same field as Android's.
      */
-    val refused: String? = null
+    val refused: String? = null,
+    /**
+     * Phone → computer: the other computers the phone syncs with (2026-10-19), so this computer can
+     * sync them directly instead of waiting for the phone to carry changes between them. Skips
+     * itself by [KnownComputerDto.deviceId] or address, and any the user removed. Same as Android's.
+     */
+    val knownComputers: List<KnownComputerDto> = emptyList(),
+    /** Phone → computer: the phone's own "Sync automatically" minutes; 0 = off, null = not said. */
+    val autoSyncMinutes: Int? = null
+)
+
+@Serializable
+data class KnownComputerDto(
+    val address: String,
+    val deviceId: String? = null,
+    val name: String? = null,
+    val os: String? = null
 )

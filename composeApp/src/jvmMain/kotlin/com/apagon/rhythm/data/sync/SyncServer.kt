@@ -25,8 +25,11 @@ class SyncServer(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private var server: EmbeddedServer<*, *>? = null
+    /** host:port this server listens on, so a phone's list of computers can't introduce us to ourselves. */
+    private var ownAddress: String = ""
 
     fun start(bindHost: String, port: Int) {
+        ownAddress = "$bindHost:$port"
         server = embeddedServer(CIO, host = bindHost, port = port) {
             // Pings keep the phones' presence sockets alive across idle minutes and notice a phone
             // that vanished (screen off, Tailscale dropped) within half a minute.
@@ -85,12 +88,22 @@ class SyncServer(
                         }
                         return@webSocket
                     }
+                    // Rows the old go-between rule stranded only go out in a full sync (once per install).
+                    syncPreferences.resetWatermarksOnceForRelayFix()
+                    incomingBatch.autoSyncMinutes?.let { syncPreferences.setPhoneAutoSyncMinutes(peer, it) }
+                    for (computer in incomingBatch.knownComputers) {
+                        if (computer.deviceId.equals(deviceId, ignoreCase = true)) continue
+                        if (computer.address.trim().equals(ownAddress, ignoreCase = true)) continue
+                        syncPreferences.addIntroducedComputer(computer.address, computer.name, computer.os)
+                    }
                     val startedAt = System.currentTimeMillis()
-                    syncEngine.applyIncomingBatch(incomingBatch)
+                    val applied = syncEngine.applyIncomingBatch(incomingBatch)
                     val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
                         .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                     syncEngine.markSynced(peer, startedAt)
+                    // Pass on to every other device what this one just sent.
+                    applied.oldestAppliedAt?.let { syncPreferences.lowerOtherWatermarks(peer, it) }
                 }
             }
         }.start(wait = false)

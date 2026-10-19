@@ -16,7 +16,9 @@ data class SyncDevice(
     val name: String? = null,
     val enabled: Boolean = true,
     /** "android", "windows", "linux", "macos"; null until the device has said (older versions). */
-    val os: String? = null
+    val os: String? = null,
+    /** A phone's own "Sync automatically" interval in minutes (0 = off), as it last said; null = unknown. */
+    val autoSyncMinutes: Int? = null
 ) {
     val isPhone: Boolean get() = !outgoing && key.startsWith("android-")
 }
@@ -47,6 +49,24 @@ interface SyncPreferences {
     suspend fun allLastSyncedAt(): Map<String, Long> = emptyMap()
     /** Forgets every peer's watermark, so the next sync with each one is a full exchange. */
     suspend fun clearLastSyncedAt()
+    /**
+     * **A computer can be the go-between too** (2026-10-19): what it receives from one device must go
+     * on to the others. Rows keep the `updatedAt` they were made with and a peer is sent only rows
+     * newer than its watermark, so a row that arrives after another peer's last sync, carrying an
+     * older time, was never sent to that peer. Pulls every watermark except [exceptPeer]'s back to
+     * just before [oldestAppliedAt], so the next sync with each re-sends it (newest still wins there).
+     */
+    suspend fun lowerOtherWatermarks(exceptPeer: String, oldestAppliedAt: Long) {}
+    /** Once per install after that fix: forget every watermark, so stranded rows go out. True when it ran. */
+    suspend fun resetWatermarksOnceForRelayFix(): Boolean = false
+    /**
+     * A phone told this computer about another computer it syncs with: list it (on) so the two can
+     * sync each other directly, unless it is already listed or the user removed it before.
+     * Returns true when it was added.
+     */
+    suspend fun addIntroducedComputer(address: String, name: String?, os: String?): Boolean = false
+    /** Records a phone's own automatic-sync interval (see [SyncDevice.autoSyncMinutes]). */
+    suspend fun setPhoneAutoSyncMinutes(deviceId: String, minutes: Int) {}
     /** Every listed device, incoming and outgoing. Keys match [getLastSyncedAt]'s. */
     suspend fun devices(): List<SyncDevice> = emptyList()
     /** A device just synced in: list it (on) if new, and keep its name current. */

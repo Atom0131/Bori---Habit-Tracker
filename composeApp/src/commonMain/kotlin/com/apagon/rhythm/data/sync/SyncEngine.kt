@@ -222,6 +222,10 @@ class SyncEngine(
         var habitsUpdated = 0
         var completionsInserted = 0
         var completionsUpdated = 0
+        // The oldest `updatedAt` among rows this batch actually changed here — the caller pulls every
+        // other peer's watermark back to it, so this computer passes them on (lowerOtherWatermarks).
+        var oldestApplied = Long.MAX_VALUE
+        fun noteApplied(updatedAt: Long) { if (updatedAt < oldestApplied) oldestApplied = updatedAt }
         var otherInserted = 0
         var otherUpdated = 0
 
@@ -233,13 +237,13 @@ class SyncEngine(
             when {
                 existing == null -> {
                     localHabitId = habitRepository.insertHabitFromSync(dto.toEntity())
-                    habitsInserted++
+                    habitsInserted++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     habitRepository.updateHabitFromSync(dto.toEntity().copy(id = existing.id))
                     localHabitId = existing.id
-                    habitsUpdated++
+                    habitsUpdated++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 else -> {
@@ -303,11 +307,11 @@ class SyncEngine(
                             deletedAt = dto.deletedAt
                         )
                     )
-                    completionsInserted++
+                    completionsInserted++; noteApplied(dto.updatedAt)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     habitRepository.updateCompletionFromSync(existing, existing.copy(updatedAt = dto.updatedAt, deletedAt = dto.deletedAt))
-                    completionsUpdated++
+                    completionsUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -333,7 +337,7 @@ class SyncEngine(
                             if (dto.updatedAt > twin.updatedAt) dto.toEntity(localParentId).copy(id = twin.id, firstSyncedAt = stamp)
                             else twin.copy(syncId = dto.syncId, firstSyncedAt = stamp)
                         )
-                        otherUpdated++
+                        otherUpdated++; noteApplied(dto.updatedAt)
                         continue
                     }
                     // First-merge dedup: before inserting a new notebook, check for a local one
@@ -352,7 +356,7 @@ class SyncEngine(
                             notesRepository.insertNotebookFromSync(
                                 dto.toEntity(localParentId).copy(firstSyncedAt = System.currentTimeMillis())
                             )
-                            otherInserted++
+                            otherInserted++; noteApplied(dto.updatedAt)
                         }
                         // Still last-write-wins for content — a first merge only decides identity
                         // (which row owns this syncId going forward), not which side's edits win.
@@ -360,7 +364,7 @@ class SyncEngine(
                             notesRepository.updateNotebookFromSync(
                                 dto.toEntity(localParentId).copy(id = unsyncedMatch.id, firstSyncedAt = System.currentTimeMillis())
                             )
-                            otherUpdated++
+                            otherUpdated++; noteApplied(dto.updatedAt)
                         }
                         else -> {
                             // Local copy is newer or tied — keep its content, but it must adopt
@@ -368,7 +372,7 @@ class SyncEngine(
                             notesRepository.updateNotebookFromSync(
                                 unsyncedMatch.copy(syncId = dto.syncId, firstSyncedAt = System.currentTimeMillis())
                             )
-                            otherUpdated++
+                            otherUpdated++; noteApplied(dto.updatedAt)
                         }
                     }
                 }
@@ -379,7 +383,7 @@ class SyncEngine(
                             firstSyncedAt = existing.firstSyncedAt ?: System.currentTimeMillis()
                         )
                     )
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -398,17 +402,17 @@ class SyncEngine(
             when {
                 existing == null -> {
                     val localNoteId = notesRepository.insertNoteFromSync(dto.toEntity(notebook.id))
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                     notesNeedingLinkReplace.add(dto to localNoteId)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     notesRepository.updateNoteFromSync(dto.toEntity(notebook.id).copy(id = existing.id))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                     notesNeedingLinkReplace.add(dto to existing.id)
                 }
                 existing.syncId != dto.syncId -> {
                     notesRepository.updateNoteFromSync(existing.copy(syncId = dto.syncId))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
                 // else: local copy is newer or tied — keep local note AND local links untouched.
             }
@@ -429,13 +433,13 @@ class SyncEngine(
             when {
                 existing == null -> {
                     localTodoId = todoRepository.insertTodoFromSync(dto.toEntity())
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     todoRepository.updateTodoFromSync(dto.toEntity().copy(id = existing.id))
                     localTodoId = existing.id
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 else -> {
@@ -485,13 +489,13 @@ class SyncEngine(
             when {
                 existing == null -> {
                     localEventId = calendarEventRepository.insertEventFromSync(dto.toEntity())
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     calendarEventRepository.updateEventFromSync(dto.toEntity().copy(id = existing.id))
                     localEventId = existing.id
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                     applied = true
                 }
                 else -> {
@@ -524,15 +528,15 @@ class SyncEngine(
             when {
                 existing == null -> {
                     alarmRepository.insertAlarmFromSync(dto.toEntity())
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     alarmRepository.updateAlarmFromSync(dto.toEntity().copy(id = existing.id))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
                 existing.syncId != dto.syncId -> {
                     alarmRepository.updateAlarmFromSync(existing.copy(syncId = dto.syncId))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -545,15 +549,15 @@ class SyncEngine(
             when {
                 existing == null -> {
                     timerRepository.insertTimerFromSync(dto.toEntity())
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     timerRepository.updateTimerFromSync(dto.toEntity().copy(id = existing.id))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
                 existing.syncId != dto.syncId -> {
                     timerRepository.updateTimerFromSync(existing.copy(syncId = dto.syncId))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -567,15 +571,15 @@ class SyncEngine(
             when {
                 existing == null -> {
                     reminderRepository.insertReminderFromSync(dto.toEntity(localNoteId))
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     reminderRepository.updateReminderFromSync(dto.toEntity(localNoteId).copy(id = existing.id))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
                 existing.syncId != dto.syncId -> {
                     reminderRepository.updateReminderFromSync(existing.copy(syncId = dto.syncId))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -589,15 +593,15 @@ class SyncEngine(
             when {
                 existing == null -> {
                     journalRepository.insertEntryFromSync(dto.toEntity(localHabitId))
-                    otherInserted++
+                    otherInserted++; noteApplied(dto.updatedAt)
                 }
                 dto.updatedAt > existing.updatedAt -> {
                     journalRepository.updateEntryFromSync(dto.toEntity(localHabitId).copy(id = existing.id))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
                 existing.syncId != dto.syncId -> {
                     journalRepository.updateEntryFromSync(existing.copy(syncId = dto.syncId))
-                    otherUpdated++
+                    otherUpdated++; noteApplied(dto.updatedAt)
                 }
             }
         }
@@ -610,7 +614,7 @@ class SyncEngine(
             incomingPreferences.profileImage?.let { profileImageStore.import(it) }
             themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values))
             themePreferences.setPreferencesUpdatedAtFromSync(incomingPreferences.updatedAt)
-            otherUpdated++
+            otherUpdated++; noteApplied(incomingPreferences.updatedAt)
         } else if (incomingPreferences != null && incomingPreferences.updatedAt == localPreferencesAt) {
             // Same settings generation: take only settings this device doesn't have at all (ones an
             // older version dropped), never overwrite one it has — so both sides converge.
@@ -629,7 +633,8 @@ class SyncEngine(
             completionsInserted = completionsInserted,
             completionsUpdated = completionsUpdated,
             otherInserted = otherInserted,
-            otherUpdated = otherUpdated
+            otherUpdated = otherUpdated,
+            oldestAppliedAt = oldestApplied.takeIf { it != Long.MAX_VALUE }
         )
     }
 

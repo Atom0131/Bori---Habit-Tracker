@@ -18,6 +18,7 @@ class SyncClient(
     /** One WebSocket round trip: send our outgoing batch, apply the peer's reply, then advance our own lastSyncedAt. */
     suspend fun syncWith(peerHost: String, port: Int): SyncResult {
         val peer = "$peerHost:$port"
+        syncPreferences.resetWatermarksOnceForRelayFix()
         val startedAt = System.currentTimeMillis()
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
             .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
@@ -44,6 +45,8 @@ class SyncClient(
             client.close()
         }
         syncEngine.markSynced(peer, startedAt)
+        // Pass on to every other device what that computer just sent.
+        result.oldestAppliedAt?.let { syncPreferences.lowerOtherWatermarks(peer, it) }
         return result
     }
 }

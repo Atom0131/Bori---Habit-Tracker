@@ -10,5 +10,7 @@ data class SyncResult(
      * alarms, timers, reminders, notebooks, notes, journal entries, and their full-replace
      * children) — not broken out per-entity, matching the plan's "don't over-engineer v1" steer. */
     val otherInserted: Int = 0,
-    val otherUpdated: Int = 0
+    val otherUpdated: Int = 0,
+    /** The oldest `updatedAt` among rows applied here, or null when nothing changed. */
+    val oldestAppliedAt: Long? = null
 )
