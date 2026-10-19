@@ -11,7 +11,8 @@ import kotlinx.serialization.json.Json
 class SyncClient(
     private val syncEngine: SyncEngine,
     private val deviceId: String,
-    private val syncPreferences: SyncPreferences
+    private val syncPreferences: SyncPreferences,
+    private val attachments: SyncAttachments
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -20,8 +21,9 @@ class SyncClient(
         val peer = "$peerHost:$port"
         syncPreferences.resetWatermarksOnceForRelayFix()
         val startedAt = System.currentTimeMillis()
+        val pictures = attachments.outgoingPictures(peer)
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-            .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
+            .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures)
         // A computer that's switched off never answers the connect. Give up after 3 s instead of
         // CIO's 5 s, as on Android, so automatic sync skips it quickly.
         val client = HttpClient(CIO) {
@@ -31,7 +33,7 @@ class SyncClient(
         val result = try {
             var applied: SyncResult? = null
             // Bounded, as on Android: a computer that accepts and never answers would hang "Syncing…".
-            kotlinx.coroutines.withTimeout(30_000L) { client.webSocket(host = peerHost, port = port, path = "/sync") {
+            kotlinx.coroutines.withTimeout(60_000L) { client.webSocket(host = peerHost, port = port, path = "/sync") {
                 send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                 val responseFrame = incoming.receive() as? Frame.Text
                     ?: throw IllegalStateException("The other computer closed the connection")
@@ -39,12 +41,14 @@ class SyncClient(
                 responseBatch.refused?.let { throw SyncRefusedException(it) }
                 syncPreferences.setDeviceName(peer, outgoing = true, name = responseBatch.deviceName, os = responseBatch.deviceOs)
                 applied = syncEngine.applyIncomingBatch(responseBatch)
+                attachments.receivePictures(peer, responseBatch.deviceId, responseBatch.pictures)
             } }
             applied ?: SyncResult(0, 0, 0, 0)
         } finally {
             client.close()
         }
         syncEngine.markSynced(peer, startedAt)
+        attachments.markSent(peer, pictures)
         // Pass on to every other device what that computer just sent.
         result.oldestAppliedAt?.let { syncPreferences.lowerOtherWatermarks(peer, it) }
         return result

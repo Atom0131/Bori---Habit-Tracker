@@ -55,6 +55,9 @@ class JSONObject {
 
     fun has(key: String): Boolean = map.containsKey(key)
 
+    /** Like org.json's keys(): every key, in insertion order. */
+    fun keys(): Iterator<String> = map.keys.toList().iterator()
+
     /** Like org.json's remove: drops [key], returning its old value (or null). */
     fun remove(key: String): Any? = map.remove(key)
 

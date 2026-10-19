@@ -21,7 +21,8 @@ class SyncServer(
     private val syncEngine: SyncEngine,
     private val deviceId: String,
     private val syncPreferences: SyncPreferences,
-    private val presence: PresenceRegistry
+    private val presence: PresenceRegistry,
+    private val attachments: SyncAttachments
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private var server: EmbeddedServer<*, *>? = null
@@ -98,10 +99,14 @@ class SyncServer(
                     }
                     val startedAt = System.currentTimeMillis()
                     val applied = syncEngine.applyIncomingBatch(incomingBatch)
+                    attachments.receivePictures(peer, peer, incomingBatch.pictures)
+                    incomingBatch.phoneBackup?.let { attachments.receivePhoneBackup(incomingBatch.deviceName, it) }
+                    val pictures = attachments.outgoingPictures(peer)
                     val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-                        .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs())
+                        .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures)
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                     syncEngine.markSynced(peer, startedAt)
+                    attachments.markSent(peer, pictures)
                     // Pass on to every other device what this one just sent.
                     applied.oldestAppliedAt?.let { syncPreferences.lowerOtherWatermarks(peer, it) }
                 }

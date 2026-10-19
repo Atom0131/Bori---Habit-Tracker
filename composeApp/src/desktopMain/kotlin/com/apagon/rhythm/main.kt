@@ -148,6 +148,9 @@ fun main() {
     // "Sync automatically" (Settings → Data Management → Sync with Phone & Computers).
     koinApp.koin.get<com.apagon.rhythm.data.sync.AutoSyncRunner>()
         .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    // The computer's own daily backup (Settings → Data Management → Backup & Restore).
+    koinApp.koin.get<com.apagon.rhythm.data.backup.DesktopAutoBackup>()
+        .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
     // Stage 6 billing shim: there's no desktop payment rail and no plan to
     // build one, so desktop is unconditionally Pro rather than wiring up a

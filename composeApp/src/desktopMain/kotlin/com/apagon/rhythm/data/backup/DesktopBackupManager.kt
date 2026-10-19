@@ -26,6 +26,8 @@ import com.apagon.rhythm.data.model.Timer
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.data.model.TodoSubtask
 import com.apagon.rhythm.data.preferences.ThemePreferences
+import com.apagon.rhythm.data.sync.PictureDto
+import com.apagon.rhythm.platform.PictureFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -111,14 +113,12 @@ class DesktopBackupManager(
         val noteLinks = noteLinkDao.getAllNoteLinksForBackup()
         val preferences = themePreferences.exportPreferences()
 
-        // Desktop has no note-image/profile-picture feature at all (re-confirmed this stage via
-        // grep across commonMain/desktopMain for "noteimage|profileimage|note_image|
-        // profile_image" — zero matches). Emitting an empty object rather than omitting the key
-        // entirely matches Android's own "absent means none" reading on import, and means
-        // re-exporting an Android backup from desktop doesn't silently misrepresent images that
-        // were never processed — they're preserved as "absent," not corrupted. profileImage is
-        // omitted outright, matching what every pre-image-feature Android backup looks like.
-        val noteImages = JSONObject()
+        // The pictures themselves, by file name, in the same keys and shape as the phone's backup
+        // (base64 per name), so either app restores the other's file (2026-10-19). Before this the
+        // desktop wrote an empty noteImages, so a computer's backup held no pictures at all. The
+        // profile picture is left out: it already travels with sync (ProfileImageStore).
+        val noteImages = embedPictures(notes.flatMap { PictureFiles.noteImagePaths(it.content) })
+        val journalImages = embedPictures(journalEntries.flatMap { PictureFiles.journalPhotoPaths(it.photoUris) })
 
         // Key order matches Android's BackupManager.kt exactly, for cross-platform diffability —
         // no functional effect since both sides read by key.
@@ -156,7 +156,7 @@ class DesktopBackupManager(
                 }
             })
             put("noteImages", noteImages)
-            // No profileImage key — see comment above.
+            put("journalImages", journalImages)
             put("preferences", preferences)
         }.toString(2)
     }
@@ -265,11 +265,11 @@ class DesktopBackupManager(
                 journalDao.insertAll(jsonToJournalEntries(root.getJSONArray("journalEntries")))
             }
 
-            // noteImages/profileImage: desktop has no image-embedding feature to restore into.
-            // Read tolerantly so importing a real Android backup with embedded images doesn't
-            // crash — it just no-ops on them, same as every key this importer doesn't recognize.
-            root.optJSONObject("noteImages")
-            root.optJSONObject("profileImage")
+            // Pictures go into this computer's own folders under their file names; a row's path
+            // from another device then finds them by name (PictureFiles.resolve). profileImage is
+            // not restored here; it comes with sync.
+            restorePictures(root.optJSONObject("noteImages"), PictureDto.NOTE)
+            restorePictures(root.optJSONObject("journalImages"), PictureDto.JOURNAL)
         }
         // Applied after the transaction, same reasoning as Android's BackupManager: no DataStore
         // emission can race with the Room transaction and trigger a recomposition mid-write.
@@ -291,6 +291,24 @@ class DesktopBackupManager(
     }
 
     // ── Serializers ───────────────────────────────────────────────────────────
+
+    private fun embedPictures(paths: List<String>): JSONObject {
+        val out = JSONObject()
+        for (path in paths) {
+            val name = PictureFiles.nameOf(path) ?: continue
+            if (out.has(name)) continue
+            val file = PictureFiles.resolve(path).takeIf { it.isFile } ?: continue
+            runCatching { out.put(name, java.util.Base64.getEncoder().encodeToString(PictureFiles.bytesForTransfer(file))) }
+        }
+        return out
+    }
+
+    private fun restorePictures(images: JSONObject?, kind: String) {
+        images ?: return
+        for (name in images.keys()) {
+            runCatching { PictureFiles.saveIncoming(name, kind, java.util.Base64.getDecoder().decode(images.getString(name))) }
+        }
+    }
 
     private fun habitsToJson(habits: List<Habit>) = JSONArray().also { arr ->
         habits.forEach { h ->

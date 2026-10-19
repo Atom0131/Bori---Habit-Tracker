@@ -985,6 +985,8 @@ private fun DataSectionContent(
         }
     }
 
+    DesktopAutoBackupRows()
+
     SettingsGroup(header = "Archive & Trash") {
         SettingsItem(
             title = "Archived habits",

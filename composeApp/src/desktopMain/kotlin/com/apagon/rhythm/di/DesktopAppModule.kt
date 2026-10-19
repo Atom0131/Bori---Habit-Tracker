@@ -121,9 +121,10 @@ val desktopAppModule = module {
     single<VaultFileSync> { DesktopVaultFileSync() }
     single<ProfileImageStore> { DesktopProfileImageStore(get()) }
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    single { SyncClient(get(), desktopDeviceId, get()) }
+    single<com.apagon.rhythm.data.sync.SyncAttachments> { com.apagon.rhythm.data.sync.DesktopSyncAttachments(get(), get()) }
+    single { SyncClient(get(), desktopDeviceId, get(), get()) }
     single { com.apagon.rhythm.data.sync.PresenceRegistry() }
-    single { SyncServer(get(), desktopDeviceId, get(), get()) }
+    single { SyncServer(get(), desktopDeviceId, get(), get(), get()) }
     // Where the sync server listens, re-checked while Bori runs (see SyncAddressMonitor). main.kt
     // starts it; Settings → Sync shows its state.
     single {
@@ -157,6 +158,8 @@ val desktopAppModule = module {
 
     // ── Stage 11: Settings ───────────────────────────────────────────────────
     single<BackupManaging> { DesktopBackupManager(get(), get()) }
+    single { com.apagon.rhythm.data.backup.DesktopAutoBackup(get<BackupManaging>() as DesktopBackupManager) }
+    single<com.apagon.rhythm.data.backup.AutoBackupControl> { get<com.apagon.rhythm.data.backup.DesktopAutoBackup>() }
     viewModel { DesktopSettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     // Custom accent/Crystal-room/Crystal-mesh colour pickers — ColorPickerViewModel itself was
     // already commonMain (ported alongside Stage 11) but never registered, since nothing called

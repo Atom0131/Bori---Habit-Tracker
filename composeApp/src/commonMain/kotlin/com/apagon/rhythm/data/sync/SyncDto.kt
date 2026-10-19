@@ -731,8 +731,29 @@ data class SyncBatch(
      */
     val knownComputers: List<KnownComputerDto> = emptyList(),
     /** Phone → computer: the phone's own "Sync automatically" minutes; 0 = off, null = not said. */
-    val autoSyncMinutes: Int? = null
+    val autoSyncMinutes: Int? = null,
+    /**
+     * The picture files themselves (2026-10-19). Rows only carry a picture's stored path, which
+     * means nothing on another device, so every picture used to exist only where it was added.
+     * Pictures are matched by file name (always `<uuid>.<ext>`) and each is sent once per peer.
+     */
+    val pictures: List<PictureDto> = emptyList(),
+    /** Phone → computer: the phone's newest automatic backup file, so a copy lives off the phone. */
+    val phoneBackup: BackupFileDto? = null
 )
+
+/** One picture: [kind] is [PictureDto.NOTE] or [PictureDto.JOURNAL]; [data] is base64. */
+@Serializable
+data class PictureDto(val name: String, val kind: String, val data: String) {
+    companion object {
+        const val NOTE = "note"
+        const val JOURNAL = "journal"
+    }
+}
+
+/** A backup file as written on the sender: [data] is its bytes, base64 (still encrypted if it was). */
+@Serializable
+data class BackupFileDto(val name: String, val data: String)
 
 @Serializable
 data class KnownComputerDto(

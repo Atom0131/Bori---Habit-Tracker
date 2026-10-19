@@ -41,8 +41,11 @@ class PresenceRegistry {
         message.requestId?.let { pending.remove(it)?.complete(message) }
     }
 
-    /** Sends a sync request and waits up to [timeoutMs] for the phone's sync to finish. */
-    suspend fun requestSync(deviceId: String, timeoutMs: Long = 60_000L): PhoneSyncOutcome {
+    /**
+     * Sends a sync request and waits up to [timeoutMs] for the phone's sync to finish. 90 s: the
+     * phone's own sync may take up to 60 s now that it carries pictures, and this must outlast it.
+     */
+    suspend fun requestSync(deviceId: String, timeoutMs: Long = 90_000L): PhoneSyncOutcome {
         val session = sessions[key(deviceId)] ?: return PhoneSyncOutcome.NotConnected
         val requestId = UUID.randomUUID().toString()
         val answer = CompletableDeferred<PresenceMessage>()
