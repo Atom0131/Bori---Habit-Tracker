@@ -1,5 +1,8 @@
 package com.apagon.rhythm.ui.calendar
 
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.Spring
@@ -55,6 +58,11 @@ import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.minutes
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import com.apagon.rhythm.ui.util.EditorSection
@@ -75,8 +83,11 @@ fun DesktopAddCalendarEventSheet(
     existing: CalendarEvent? = null,
     initialDate: LocalDate = LocalDate.now(),
     onDismiss: () -> Unit,
+    /** Shown as a delete button when editing (same as Android); null hides it. */
+    onDelete: (() -> Unit)? = null,
     onSave: (CalendarEvent) -> Unit
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
@@ -181,6 +192,22 @@ fun DesktopAddCalendarEventSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             val canSave = title.isNotBlank() && startDate != null && endDate != null
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+            ) {
+            if (existing != null && onDelete != null) {
+                androidx.compose.material3.IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.errorContainer, MaterialTheme.shapes.extraLarge)
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Default.Delete,
+                        contentDescription = "Delete Event",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
             MomentumButton(
                 text = if (existing == null) "Create Event" else "Update Event",
                 onClick = {
@@ -207,9 +234,27 @@ fun DesktopAddCalendarEventSheet(
                     )
                 },
                 enabled = canSave,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.weight(1f)
             )
+            }
         }
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        RhythmAlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Event?") },
+            text = { Text("Are you sure you want to delete this event? It can be recovered later from Recently Deleted.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteConfirm = false
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showStartDatePicker) {
@@ -221,8 +266,11 @@ fun DesktopAddCalendarEventSheet(
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { millis ->
                         val picked = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                        // Moving the start moves the whole event, keeping its length (same as Android).
+                        val span = startDate?.let { s -> endDate?.let { e -> s.daysUntil(e) } }
+                            ?.coerceAtLeast(0) ?: 0
                         startDate = picked
-                        if (endDate != null && endDate!! < picked) endDate = picked
+                        endDate = picked.plusDays(span.toLong())
                     }
                     showStartDatePicker = false
                 }) { Text("OK") }
@@ -255,12 +303,19 @@ fun DesktopAddCalendarEventSheet(
             confirmButton = {
                 TextButton(onClick = {
                     focusManager.clearFocus()
+                    // Keep the event's length; a new or zero-length event gets 30 minutes.
+                    val day = startDate ?: LocalDate.now()
+                    val utc = TimeZone.UTC
+                    val minutes = ((endDate ?: day).atTime(endHour, endMinute).toInstant(utc) -
+                        day.atTime(startHour, startMinute).toInstant(utc)).inWholeMinutes
+                        .takeIf { it > 0 } ?: 30
                     startHour = state.hour
                     startMinute = state.minute
-                    var totalMinutes = startHour * 60 + startMinute + 30
-                    endHour = (totalMinutes / 60) % 24
-                    endMinute = totalMinutes % 60
-                    if (totalMinutes >= 24 * 60 && endDate == startDate) endDate = endDate?.plusDays(1)
+                    val newEnd = (day.atTime(state.hour, state.minute).toInstant(utc) + minutes.minutes)
+                        .toLocalDateTime(utc)
+                    endDate = newEnd.date
+                    endHour = newEnd.hour
+                    endMinute = newEnd.minute
                     showStartTimePicker = false
                 }) { Text("OK") }
             },

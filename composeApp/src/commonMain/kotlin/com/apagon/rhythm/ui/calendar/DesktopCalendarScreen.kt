@@ -146,6 +146,10 @@ internal fun DesktopTodayCalendarContent(
         DesktopAddCalendarEventSheet(
             existing = event,
             onDismiss = { editingEvent = null },
+            onDelete = {
+                viewModel.deleteCalendarEvent(event)
+                editingEvent = null
+            },
             onSave = { updated ->
                 viewModel.updateCalendarEvent(updated)
                 editingEvent = null
