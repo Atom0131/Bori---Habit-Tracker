@@ -167,12 +167,15 @@ fun crystalFieldBlobs(mesh: CrystalMesh, dark: Boolean): List<Color> =
     } else crystalOwnFieldBlobs(mesh, dark)
 
 /**
- * Borikén in daytime paints at most of night's strength (0.82) over a celeste-tinted base. The light field's usual
- * recipe (blobs at 0.68 strength over near-white #EAF0F6) left ~42% white in every pixel, so the
- * flag's red never came through by day (2026-10-14: "the white washes it out"). Night is unchanged.
+ * Borikén in daytime: blobs at 0.74 strength over a lightly celeste base. 2026-10-14 had a deeper
+ * base (#D8E8F5) at 0.82 to stop "the white washes it out", but that left the screen ~14 L* darker
+ * than plain Crystal by day. 2026-10-22, tuned on the Fold: plain Crystal's strength was "too light
+ * now", so this sits in the middle (~71 L* vs Crystal's ~76 and the old ~62), with the white band
+ * lifted in [BorikenDayTone] so the centre reads white, not grey. Night is unchanged. Same values as
+ * the phone.
  */
-val BorikenDayBase = Color(0xFFD8E8F5)
-const val BorikenDayDilution = 0.82f
+val BorikenDayBase = Color(0xFFE0ECF6)
+const val BorikenDayDilution = 0.74f
 
 /** The field's base colour: Borikén's tinted daytime base, else the plain light/dark base. */
 @Composable

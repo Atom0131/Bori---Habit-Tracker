@@ -242,7 +242,13 @@ val BorikenChroma = floatArrayOf(1f, 1f, 1.6f)
  */
 val BorikenDaySlots = intArrayOf(0, 1, 1, 0, 2)
 
-val BorikenDayTone = floatArrayOf(-14f, 0f, -22f)
+/**
+ * Daytime only: tone shift per Borikén colour (celeste, white, red), in L*. Was -14/0/-22 (2026-10-14),
+ * which made day far darker than plain Crystal. 2026-10-22, tuned on the Fold: celeste a little deeper,
+ * the white lifted well above Aurora's tone so the middle is white rather than grey ("the middle is
+ * still grayish"), and the red deep enough to read red rather than pink.
+ */
+val BorikenDayTone = floatArrayOf(-7f, 14f, -21f)
 
 /**
  * Daytime only: the flag's colours with the white softened to a white with a hint of celeste, so the
@@ -254,8 +260,12 @@ val BorikenDayCombo = listOf(
     BorikenCombo[2]
 )
 
-/** Daytime only: colour strength per Borikén colour (celeste, white, red), in place of [BorikenChroma]. */
-val BorikenDayChroma = floatArrayOf(1.55f, 1f, 2.25f)
+/**
+ * Daytime only: colour strength per Borikén colour (celeste, white, red), in place of [BorikenChroma].
+ * Red raised 2.25 → 3.2 on 2026-10-22 ("can we up the red"); at this tone it is near the gamut edge,
+ * so more red now means a larger red area, not a higher number here.
+ */
+val BorikenDayChroma = floatArrayOf(1.55f, 1f, 3.2f)
 
 /** The Borikén field's five colours — the one call the field and its swatch share. */
 fun borikenFieldBlobs(dark: Boolean): List<Color> =
