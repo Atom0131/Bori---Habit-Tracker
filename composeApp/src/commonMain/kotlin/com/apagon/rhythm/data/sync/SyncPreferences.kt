@@ -79,6 +79,15 @@ interface SyncPreferences {
     /** "Sync automatically", in minutes; 0 = only when asked. See [AutoSyncRunner]. */
     suspend fun getAutoSyncMinutes(): Int = 0
     suspend fun setAutoSyncMinutes(minutes: Int) {}
+    /**
+     * **Whether this device's settings have joined the others' (2026-10-23)** — same rule as the
+     * phone's SyncPreferences. A brand-new device stamps its settings as it is set up, so under plain
+     * last-write-wins its defaults replaced the theme on every other device, Borikén unlock and all.
+     * Until it has joined, its settings never win against a device that has, and the first settings
+     * it receives wait for the user to choose (PreferencesJoin).
+     */
+    suspend fun isPreferencesJoined(): Boolean = true
+    suspend fun setPreferencesJoined() {}
     suspend fun getPeerAddress(): String?
     suspend fun setPeerAddress(address: String?)
 }

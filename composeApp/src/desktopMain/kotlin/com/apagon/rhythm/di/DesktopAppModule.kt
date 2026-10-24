@@ -120,7 +120,8 @@ val desktopAppModule = module {
     single { TimerRepository(get()) }
     single<VaultFileSync> { DesktopVaultFileSync() }
     single<ProfileImageStore> { DesktopProfileImageStore(get()) }
-    single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { com.apagon.rhythm.data.sync.PreferencesJoin(com.apagon.rhythm.data.sync.DesktopPendingPreferencesStore(), get(), get(), get()) }
+    single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single<com.apagon.rhythm.data.sync.SyncAttachments> { com.apagon.rhythm.data.sync.DesktopSyncAttachments(get(), get()) }
     single { SyncClient(get(), desktopDeviceId, get(), get()) }
     single { com.apagon.rhythm.data.sync.PresenceRegistry() }

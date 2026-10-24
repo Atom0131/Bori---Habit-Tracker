@@ -23,7 +23,9 @@ private data class SyncPrefsData(
     /** Computer addresses the user removed; a phone's introduction never re-adds them. Lowercase. */
     val dismissedComputers: Set<String> = emptySet(),
     /** Set once the post-2026-10-19 full resync has been arranged (see resetWatermarksOnceForRelayFix). */
-    val relayFixResyncDone: Boolean = false
+    val relayFixResyncDone: Boolean = false,
+    /** See SyncPreferences.isPreferencesJoined. Null only in a file written before 2026-10-23. */
+    val preferencesJoined: Boolean? = null
 )
 
 // Desktop has no DataStore plumbing at all today (nothing constructs a
@@ -36,6 +38,29 @@ class DesktopSyncPreferences : SyncPreferences {
     }
     private val json = Json { ignoreUnknownKeys = true }
     private val mutex = Mutex()
+
+    init {
+        // Settled once at start-up, before any sync can run: a phone is recorded in the device list
+        // *during* its first sync, so deciding later would let a brand-new computer count itself as
+        // joined. A computer that already syncs (has a device or a watermark) counts as joined.
+        runCatching {
+            if (file.exists()) {
+                val data = json.decodeFromString<SyncPrefsData>(file.readText())
+                if (data.preferencesJoined == null) {
+                    val joined = !data.devices.isNullOrEmpty() || data.peerWatermarks.isNotEmpty() ||
+                        data.lastSyncedAt > 0L || data.peerAddress != null
+                    file.writeText(json.encodeToString(SyncPrefsData.serializer(), data.copy(preferencesJoined = joined)))
+                }
+            }
+        }
+    }
+
+    override suspend fun isPreferencesJoined(): Boolean = read().preferencesJoined ?: false
+
+    override suspend fun setPreferencesJoined() = mutex.withLock {
+        val data = read()
+        if (data.preferencesJoined != true) write(data.copy(preferencesJoined = true))
+    }
 
     private suspend fun read(): SyncPrefsData = withContext(Dispatchers.IO) {
         if (!file.exists()) return@withContext SyncPrefsData()

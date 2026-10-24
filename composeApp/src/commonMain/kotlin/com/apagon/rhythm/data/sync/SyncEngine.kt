@@ -61,7 +61,8 @@ class SyncEngine(
     private val preferences: SyncPreferences,
     private val themePreferences: ThemePreferences,
     private val vaultFileSync: VaultFileSync,
-    private val profileImageStore: ProfileImageStore
+    private val profileImageStore: ProfileImageStore,
+    private val preferencesJoin: PreferencesJoin
 ) {
     /**
      * Always requeried fresh against [SyncPreferences.getLastSyncedAt] — never
@@ -158,7 +159,8 @@ class SyncEngine(
         val preferencesDto = if (preferencesUpdatedAt <= 0L) null else PreferencesDto(
             updatedAt = preferencesUpdatedAt,
             values = themePreferences.exportPreferencesForSync().toString(),
-            profileImage = if (preferencesUpdatedAt > since) profileImageStore.export() else null
+            profileImage = if (preferencesUpdatedAt > since) profileImageStore.export() else null,
+            joined = preferences.isPreferencesJoined()
         )
 
         // Vault file sync (Stage 3.5) — optional, default-OFF, independently opted into per device:
@@ -607,18 +609,34 @@ class SyncEngine(
         }
 
         // ── Theme/appearance preferences (whole-blob last-write-wins, not per-key merging) ───────
+        // **Except while a device is new (2026-10-23).** A device that has not joined yet stamps its
+        // settings as it is set up, so its defaults looked newest and replaced the theme on every
+        // other device. Now a joined device ignores a new device's settings, and a new device holds
+        // a joined device's settings for the user to choose (PreferencesJoin) instead of applying
+        // them. Two joined devices, or two new ones, keep plain last-write-wins.
         val incomingPreferences = batch.preferences
         val localPreferencesAt = themePreferences.preferencesUpdatedAt.first()
-        if (incomingPreferences != null && incomingPreferences.updatedAt > localPreferencesAt) {
-            // Picture first; the settings import below then takes the peer's timestamp.
-            incomingPreferences.profileImage?.let { profileImageStore.import(it) }
-            themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values))
-            themePreferences.setPreferencesUpdatedAtFromSync(incomingPreferences.updatedAt)
-            otherUpdated++; noteApplied(incomingPreferences.updatedAt)
-        } else if (incomingPreferences != null && incomingPreferences.updatedAt == localPreferencesAt) {
-            // Same settings generation: take only settings this device doesn't have at all (ones an
-            // older version dropped), never overwrite one it has — so both sides converge.
-            themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values), onlyMissing = true)
+        val localJoined = preferences.isPreferencesJoined()
+        if (incomingPreferences == null) {
+            // Nothing to apply.
+        } else if (!localJoined && incomingPreferences.joined && localPreferencesAt > 0L) {
+            preferencesJoin.hold(incomingPreferences, batch.deviceName)
+        } else if (localJoined && !incomingPreferences.joined) {
+            // A new device's settings never replace the shared ones — ours go back in the reply.
+        } else {
+            if (incomingPreferences.updatedAt > localPreferencesAt) {
+                // Picture first; the settings import below then takes the peer's timestamp.
+                incomingPreferences.profileImage?.let { profileImageStore.import(it) }
+                themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values))
+                themePreferences.setPreferencesUpdatedAtFromSync(incomingPreferences.updatedAt)
+                otherUpdated++; noteApplied(incomingPreferences.updatedAt)
+            } else if (incomingPreferences.updatedAt == localPreferencesAt) {
+                // Same settings generation: take only settings this device doesn't have at all (ones an
+                // older version dropped), never overwrite one it has — so both sides converge.
+                themePreferences.importPreferencesForSync(JSONObject(incomingPreferences.values), onlyMissing = true)
+            }
+            // An untouched new device (nothing stamped) simply took the settings above: nothing to ask.
+            if (!localJoined) preferences.setPreferencesJoined()
         }
 
         // ── Vault file sync (Stage 3.5) — BOTH ends must opt in, not just the sender ─────────────

@@ -266,6 +266,7 @@ fun main() {
                 }
                 com.apagon.rhythm.ui.util.FrameMeterOverlay()
                 com.apagon.rhythm.ui.onboarding.DesktopOnboardingHost(themePreferences)
+                com.apagon.rhythm.ui.sync.JoinSettingsHost(themePreferences)
             }
         }
 

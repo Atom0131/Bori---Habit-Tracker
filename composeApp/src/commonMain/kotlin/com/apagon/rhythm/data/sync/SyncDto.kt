@@ -661,7 +661,10 @@ data class PreferencesDto(
     val values: String,
     /** Profile picture, base64 JPEG — see ProfileImageStore. null = no information (older peer),
      * "" = no picture. Defaulted so either side can be the older version. */
-    val profileImage: String? = null
+    val profileImage: String? = null,
+    /** false = the sender is a new device whose settings have not joined yet (see
+     * SyncPreferences.isPreferencesJoined). An older peer never sends it and counts as joined. */
+    val joined: Boolean = true
 )
 
 // ── Vault file sync (Stage 3.5, optional, default-OFF) ──────────────────────────────────────────

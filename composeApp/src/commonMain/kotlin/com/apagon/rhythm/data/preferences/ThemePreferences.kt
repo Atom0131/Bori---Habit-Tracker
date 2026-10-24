@@ -861,8 +861,28 @@ class ThemePreferences(
      * [exportPreferencesForSync] at the call site, and so a future exclusion need only be added
      * here without touching the unmodified backup functions above.
      */
-    suspend fun importPreferencesForSync(json: JSONObject, onlyMissing: Boolean = false) =
-        importPreferences(json.apply { SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { remove(it) } }, onlyMissing)
+    suspend fun importPreferencesForSync(json: JSONObject, onlyMissing: Boolean = false) {
+        SYNC_DEVICE_LOCAL_JSON_KEYS.forEach { json.remove(it) }
+        // An unlock only ever turns on through sync (2026-10-23). A new device's blob says
+        // `borikenUnlocked: false` simply because nobody has unlocked it *there* yet, and applying
+        // that locked Borikén again on every other device. A missing key leaves the local value alone.
+        if (!json.optBoolean("borikenUnlocked", false)) json.remove("borikenUnlocked")
+        importPreferences(json, onlyMissing)
+    }
+
+    /** Takes a peer's Borikén unlock without taking anything else — see PreferencesJoin.keepThisDevice. */
+    suspend fun mergeUnlocksFromSync(json: JSONObject) {
+        if (json.optBoolean("borikenUnlocked", false)) touchPreferences { it[BORIKEN_UNLOCKED_KEY] = true }
+    }
+
+    /**
+     * Makes this device's settings the newest, so the next sync sends them to every other device.
+     * Only for the user's explicit "use this device's settings" choice — never automatic (see
+     * [touchPreferences] for why an automatic stamp is the bug this timestamp keeps having).
+     */
+    suspend fun restampForSync() {
+        touchPreferences(forceStamp = true) { }
+    }
 
     /** Device-local preference names: never sent, and ignored if a peer sends them anyway. */
     private val SYNC_DEVICE_LOCAL_JSON_KEYS = listOf(
