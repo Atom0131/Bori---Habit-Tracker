@@ -158,6 +158,7 @@ fun main() {
     // re-assert on every launch since it's a single DataStore write.
     kotlinx.coroutines.runBlocking {
         koinApp.koin.get<ThemePreferences>().setIsPro(true)
+        koinApp.koin.get<ThemePreferences>().keepRuledPaperForExistingUsers()
     }
 
     // Stage 12: the in-process scheduler must run session-wide, independent of

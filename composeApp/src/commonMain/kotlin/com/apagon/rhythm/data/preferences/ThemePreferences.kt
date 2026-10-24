@@ -96,7 +96,7 @@ class ThemePreferences(
          *  Desktop doesn't draw it yet, but stores, backs up and syncs it, so a sync from here never
          *  resets the phone's choice. */
         val NOTE_PAPER_KEY = stringPreferencesKey("note_paper")
-        const val NOTE_PAPER_DEFAULT = "wide"
+        const val NOTE_PAPER_DEFAULT = "none"
 
         /** Bumped by every setter whose key `exportPreferences()` includes (i.e. everything that
          * would cross devices in a sync blob) — see [touchPreferences]. Device-local-only setters
@@ -642,6 +642,26 @@ class ThemePreferences(
      * and replace the phone's theme (the 2026-10-09 bug [touchPreferences] describes).
      */
     suspend fun setHasSeenOnboarding(seen: Boolean) { dataStore.edit { it[HAS_SEEN_ONBOARDING_KEY] = seen } }
+
+    /**
+     * Mirrors Android: notes became Plain by default on 2026-10-24, for new users only. A computer
+     * that finished onboarding before that and never stored a paper has been carrying Ruled, so it
+     * writes `"wide"` down once at start-up — otherwise its next sync would hand a phone `"none"`.
+     * No timestamp: it changes nothing the user sees, so it mustn't win a sync.
+     */
+    suspend fun keepRuledPaperForExistingUsers() {
+        // Once only: a new install settles this before its onboarding is done, so finishing
+        // onboarding later doesn't turn its plain notes into ruled ones on the next launch.
+        // Not exported, so it never travels.
+        val settled = booleanPreferencesKey("note_paper_default_settled")
+        dataStore.edit { prefs ->
+            if (prefs[settled] == true) return@edit
+            if (prefs[NOTE_PAPER_KEY] == null && prefs[HAS_SEEN_ONBOARDING_KEY] == true) {
+                prefs[NOTE_PAPER_KEY] = "wide"
+            }
+            prefs[settled] = true
+        }
+    }
     suspend fun setHasCompletedInteractiveTutorial(completed: Boolean) { touchPreferences { it[HAS_COMPLETED_INTERACTIVE_TUTORIAL_KEY] = completed } }
     suspend fun setHasSeenHabitCreationTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_HABIT_CREATION_TUTORIAL_KEY] = seen } }
     suspend fun setHasSeenNotesTemplateTutorial(seen: Boolean) { touchPreferences { it[HAS_SEEN_NOTES_TEMPLATE_TUTORIAL_KEY] = seen } }
