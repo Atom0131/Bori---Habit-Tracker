@@ -1,5 +1,6 @@
 package com.apagon.rhythm.data.sync
 
+import kotlinx.coroutines.flow.first
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.WebSockets
@@ -12,7 +13,8 @@ class SyncClient(
     private val syncEngine: SyncEngine,
     private val deviceId: String,
     private val syncPreferences: SyncPreferences,
-    private val attachments: SyncAttachments
+    private val attachments: SyncAttachments,
+    private val themePreferences: com.apagon.rhythm.data.preferences.ThemePreferences
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -23,7 +25,8 @@ class SyncClient(
         val startedAt = System.currentTimeMillis()
         val pictures = attachments.outgoingPictures(peer)
         val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-            .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures)
+            .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures,
+                ringsAlarms = themePreferences.ringAlarmsHere.first())
         // A computer that's switched off never answers the connect. Give up after 3 s instead of
         // CIO's 5 s, as on Android, so automatic sync skips it quickly.
         val client = HttpClient(CIO) {
@@ -40,6 +43,7 @@ class SyncClient(
                 val responseBatch = json.decodeFromString(SyncBatch.serializer(), responseFrame.readText())
                 responseBatch.refused?.let { throw SyncRefusedException(it) }
                 syncPreferences.setDeviceName(peer, outgoing = true, name = responseBatch.deviceName, os = responseBatch.deviceOs)
+                syncPreferences.setDeviceRingsAlarms(peer, outgoing = true, ringsAlarms = responseBatch.ringsAlarms)
                 applied = syncEngine.applyIncomingBatch(responseBatch)
                 attachments.receivePictures(peer, responseBatch.deviceId, responseBatch.pictures)
             } }

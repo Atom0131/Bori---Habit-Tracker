@@ -123,9 +123,9 @@ val desktopAppModule = module {
     single { com.apagon.rhythm.data.sync.PreferencesJoin(com.apagon.rhythm.data.sync.DesktopPendingPreferencesStore(), get(), get(), get()) }
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single<com.apagon.rhythm.data.sync.SyncAttachments> { com.apagon.rhythm.data.sync.DesktopSyncAttachments(get(), get()) }
-    single { SyncClient(get(), desktopDeviceId, get(), get()) }
+    single { SyncClient(get(), desktopDeviceId, get(), get(), get()) }
     single { com.apagon.rhythm.data.sync.PresenceRegistry() }
-    single { SyncServer(get(), desktopDeviceId, get(), get(), get()) }
+    single { SyncServer(get(), desktopDeviceId, get(), get(), get(), get()) }
     // Where the sync server listens, re-checked while Bori runs (see SyncAddressMonitor). main.kt
     // starts it; Settings → Sync shows its state.
     single {
@@ -182,7 +182,7 @@ val desktopAppModule = module {
     single { get<DesktopHabitDatabase>().routineRunLogDao() }
     single<com.apagon.rhythm.data.routine.RoutinePlatform> { com.apagon.rhythm.platform.DesktopRoutinePlatform(get()) }
     single { com.apagon.rhythm.data.routine.RoutineRunner(get(), get(), get(), get()) }
-    single { DesktopAlarmClockService(get(), get(), get(), get(), get()) }
+    single { DesktopAlarmClockService(get(), get(), get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
     viewModel { ReminderViewModel(get(), get()) }
     viewModel { TimerViewModel(get(), get(), get(), get()) }

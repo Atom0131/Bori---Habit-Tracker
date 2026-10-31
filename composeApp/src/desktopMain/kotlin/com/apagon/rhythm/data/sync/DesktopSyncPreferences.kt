@@ -178,6 +178,13 @@ class DesktopSyncPreferences : SyncPreferences {
     override suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) =
         editDevices { list -> list.map { if (it.matches(key, outgoing)) it.copy(enabled = enabled) else it } }
 
+    override suspend fun setDeviceRingsAlarms(key: String, outgoing: Boolean, ringsAlarms: Boolean?) {
+        if (ringsAlarms == null) return
+        val current = devices().firstOrNull { it.matches(key, outgoing) } ?: return
+        if (current.ringsAlarms == ringsAlarms) return
+        editDevices { list -> list.map { if (it.matches(key, outgoing)) it.copy(ringsAlarms = ringsAlarms) else it } }
+    }
+
     override suspend fun removeDevice(key: String, outgoing: Boolean) {
         editDevices { list -> list.filterNot { it.matches(key, outgoing) } }
         // Remember a removed computer so the next phone sync doesn't introduce it straight back.

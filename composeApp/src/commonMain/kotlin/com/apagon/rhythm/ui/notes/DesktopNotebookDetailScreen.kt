@@ -138,6 +138,8 @@ fun DesktopNotebookDetailScreen(
                         IconButton(onClick = { showBulkTagSheet = true }) { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = "Tag selected") }
                         IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error) }
                     } else if (!searchExpanded) {
+                        // Same as the Notes home bar: sync without backing out to the notebook list.
+                        com.apagon.rhythm.ui.sync.QuickSyncIconButton()
                         CrystalIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = { searchExpanded = true })
                         IconButton(onClick = { showSortSheet = true }) { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort") }
                     }

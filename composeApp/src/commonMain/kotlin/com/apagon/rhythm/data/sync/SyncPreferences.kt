@@ -18,7 +18,9 @@ data class SyncDevice(
     /** "android", "windows", "linux", "macos"; null until the device has said (older versions). */
     val os: String? = null,
     /** A phone's own "Sync automatically" interval in minutes (0 = off), as it last said; null = unknown. */
-    val autoSyncMinutes: Int? = null
+    val autoSyncMinutes: Int? = null,
+    /** Whether the device rings alarms and timers ("Ring alarms & timers here"); null = it hasn't said. */
+    val ringsAlarms: Boolean? = null
 ) {
     val isPhone: Boolean get() = !outgoing && key.startsWith("android-")
 }
@@ -75,6 +77,8 @@ interface SyncPreferences {
     suspend fun addComputer(address: String) {}
     suspend fun setDeviceName(key: String, outgoing: Boolean, name: String?, os: String? = null) {}
     suspend fun setDeviceEnabled(key: String, outgoing: Boolean, enabled: Boolean) {}
+    /** Records whether a listed device rings alarms and timers, as it last said. Null changes nothing. */
+    suspend fun setDeviceRingsAlarms(key: String, outgoing: Boolean, ringsAlarms: Boolean?) {}
     suspend fun removeDevice(key: String, outgoing: Boolean) {}
     /** "Sync automatically", in minutes; 0 = only when asked. See [AutoSyncRunner]. */
     suspend fun getAutoSyncMinutes(): Int = 0

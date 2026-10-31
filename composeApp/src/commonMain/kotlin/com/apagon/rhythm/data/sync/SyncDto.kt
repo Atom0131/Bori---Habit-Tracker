@@ -722,6 +722,8 @@ data class SyncBatch(
     val deviceName: String? = null,
     /** The sender's OS — "android", "windows", "linux", "macos" — for the symbol in device lists. */
     val deviceOs: String? = null,
+    /** Whether the sender rings alarms and timers ("Ring alarms & timers here"); null = an older app. */
+    val ringsAlarms: Boolean? = null,
     /**
      * Set only on a reply that refuses the sync — this device has sync with the sender turned off.
      * A refused reply carries no data and nothing was applied. Same field as Android's.

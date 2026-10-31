@@ -130,6 +130,11 @@ class ThemePreferences(
         val SYNC_NOTES_ENABLED_KEY = booleanPreferencesKey("sync_notes_enabled")
         val SYNC_JOURNAL_ENABLED_KEY = booleanPreferencesKey("sync_journal_enabled")
         val SYNC_PREFERENCES_ENABLED_KEY = booleanPreferencesKey("sync_preferences_enabled")
+        /**
+         * "Ring alarms & timers here" (2026-10-31, same as the phone's): alarms and timers still sync,
+         * but a computer with this off never rings one. Device-local, never synced or backed up.
+         */
+        val RING_ALARMS_HERE_KEY = booleanPreferencesKey("ring_alarms_here")
 
         /** Never part of the synced settings, so changing one must not stamp the timestamp. */
         private val DEVICE_LOCAL_KEYS: Set<Preferences.Key<*>> by lazy {
@@ -137,7 +142,7 @@ class ThemePreferences(
                 VAULT_FILE_SYNC_ENABLED_KEY, PREFERENCES_UPDATED_AT_KEY,
                 SYNC_HABITS_ENABLED_KEY, SYNC_REMINDERS_ENABLED_KEY, SYNC_EVENTS_ENABLED_KEY,
                 SYNC_TODOS_ENABLED_KEY, SYNC_CLOCK_ENABLED_KEY, SYNC_NOTES_ENABLED_KEY,
-                SYNC_JOURNAL_ENABLED_KEY, SYNC_PREFERENCES_ENABLED_KEY)
+                SYNC_JOURNAL_ENABLED_KEY, SYNC_PREFERENCES_ENABLED_KEY, RING_ALARMS_HERE_KEY)
         }
 
         /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
@@ -266,6 +271,7 @@ class ThemePreferences(
     val syncNotesEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_NOTES_ENABLED_KEY] ?: true }
     val syncJournalEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_JOURNAL_ENABLED_KEY] ?: true }
     val syncPreferencesEnabled: Flow<Boolean> = dataStore.data.map { it[SYNC_PREFERENCES_ENABLED_KEY] ?: true }
+    val ringAlarmsHere: Flow<Boolean> = dataStore.data.map { it[RING_ALARMS_HERE_KEY] ?: true }
 
     // Device-local, so a plain edit: a switch here must not stamp the synced-settings timestamp.
     suspend fun setSyncHabitsEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_HABITS_ENABLED_KEY] = enabled } }
@@ -276,6 +282,7 @@ class ThemePreferences(
     suspend fun setSyncNotesEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_NOTES_ENABLED_KEY] = enabled } }
     suspend fun setSyncJournalEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_JOURNAL_ENABLED_KEY] = enabled } }
     suspend fun setSyncPreferencesEnabled(enabled: Boolean) { dataStore.edit { it[SYNC_PREFERENCES_ENABLED_KEY] = enabled } }
+    suspend fun setRingAlarmsHere(on: Boolean) { dataStore.edit { it[RING_ALARMS_HERE_KEY] = on } }
 
     val vaultFileSyncEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[VAULT_FILE_SYNC_ENABLED_KEY] ?: false

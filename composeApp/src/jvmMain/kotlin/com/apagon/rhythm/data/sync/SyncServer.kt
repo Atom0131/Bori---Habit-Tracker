@@ -1,5 +1,6 @@
 package com.apagon.rhythm.data.sync
 
+import kotlinx.coroutines.flow.first
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
@@ -22,7 +23,8 @@ class SyncServer(
     private val deviceId: String,
     private val syncPreferences: SyncPreferences,
     private val presence: PresenceRegistry,
-    private val attachments: SyncAttachments
+    private val attachments: SyncAttachments,
+    private val themePreferences: com.apagon.rhythm.data.preferences.ThemePreferences
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private var server: EmbeddedServer<*, *>? = null
@@ -46,6 +48,7 @@ class SyncServer(
                         ?: return@webSocket
                     val phone = hello.deviceId!!
                     syncPreferences.recordIncoming(phone, hello.deviceName, hello.deviceOs)
+                    syncPreferences.setDeviceRingsAlarms(phone, outgoing = false, ringsAlarms = hello.ringsAlarms)
                     if (syncPreferences.devices().any { !it.outgoing && it.key.equals(phone, ignoreCase = true) && !it.enabled }) {
                         send(Frame.Text(json.encodeToString(PresenceMessage.serializer(),
                             PresenceMessage(type = PRESENCE_REFUSED, error = "${localDeviceName()} has sync with this device turned off."))))
@@ -70,6 +73,7 @@ class SyncServer(
                     // SyncPreferences.getLastSyncedAt.
                     val peer = incomingBatch.deviceId
                     syncPreferences.recordIncoming(peer, incomingBatch.deviceName, incomingBatch.deviceOs)
+                    syncPreferences.setDeviceRingsAlarms(peer, outgoing = false, ringsAlarms = incomingBatch.ringsAlarms)
                     // Turned off in this computer's device list: refuse, applying nothing. A device
                     // that sends no name predates refusals and would read a refusal as an empty
                     // successful sync (and move its watermark past changes it never sent), so it
@@ -103,7 +107,8 @@ class SyncServer(
                     incomingBatch.phoneBackup?.let { attachments.receivePhoneBackup(incomingBatch.deviceName, it) }
                     val pictures = attachments.outgoingPictures(peer)
                     val outgoingBatch = syncEngine.buildOutgoingBatch(deviceId, peer)
-                        .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures)
+                        .copy(deviceName = localDeviceName(), deviceOs = localDeviceOs(), pictures = pictures,
+                            ringsAlarms = themePreferences.ringAlarmsHere.first())
                     send(Frame.Text(json.encodeToString(SyncBatch.serializer(), outgoingBatch)))
                     syncEngine.markSynced(peer, startedAt)
                     attachments.markSent(peer, pictures)

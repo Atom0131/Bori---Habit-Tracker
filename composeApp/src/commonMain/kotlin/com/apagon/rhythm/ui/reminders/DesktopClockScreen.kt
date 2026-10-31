@@ -134,7 +134,21 @@ fun DesktopClockScreen(
                 val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
                 // As Android's FocusList: a section appears only once it has something in it, and an
                 // empty screen gets one quiet message instead of three "No … yet" lines.
+                val ringsHere by koinInject<com.apagon.rhythm.data.preferences.ThemePreferences>().ringAlarmsHere.collectAsState(initial = true)
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // "Ring alarms & timers here" is off: say so, or a silent computer looks broken.
+                    if (!ringsHere) item(key = "rings_here_off") {
+                        Text(
+                            "Alarms and timers don't ring on this computer. Change it in Settings → Data Management → Sync.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(horizontal = DesktopLayout.screenPadding, vertical = 8.dp)
+                                .fillMaxWidth()
+                                .crystalCardSurface()
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                    }
                     if (alarms.isNotEmpty()) {
                         alarmsSection(
                             alarms = alarms,

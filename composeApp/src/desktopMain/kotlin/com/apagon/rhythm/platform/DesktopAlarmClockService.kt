@@ -28,7 +28,8 @@ class DesktopAlarmClockService(
     private val reminderDao: ReminderDao,
     private val timerDao: TimerDao,
     private val alertCenter: AlertCenter,
-    private val osNotifier: DesktopOsNotifier
+    private val osNotifier: DesktopOsNotifier,
+    private val themePreferences: com.apagon.rhythm.data.preferences.ThemePreferences
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -51,9 +52,11 @@ class DesktopAlarmClockService(
 
     private suspend fun tick() {
         val now = LocalDateTime.now()
-        checkAlarms(now)
+        // "Ring alarms & timers here" off: alarms stay silent and timers finish without an alert.
+        val ringsHere = themePreferences.ringAlarmsHere.first()
+        if (ringsHere) checkAlarms(now)
         checkReminders(now)
-        checkTimers()
+        checkTimers(ringsHere)
     }
 
     /** Every fire goes through here — raises the in-process alert (the always-on-top
@@ -106,11 +109,11 @@ class DesktopAlarmClockService(
         }
     }
 
-    private suspend fun checkTimers() {
+    private suspend fun checkTimers(ringsHere: Boolean) {
         val nowMs = com.apagon.rhythm.core.time.System.currentTimeMillis()
         timerDao.getAllTimers().first().forEach { timer ->
             if (timer.endTimeMillis <= 0 || timer.endTimeMillis > nowMs) return@forEach
-            fire(
+            if (ringsHere) fire(
                 FiredAlert(
                     kind = FiredAlertKind.TIMER,
                     sourceId = timer.id,

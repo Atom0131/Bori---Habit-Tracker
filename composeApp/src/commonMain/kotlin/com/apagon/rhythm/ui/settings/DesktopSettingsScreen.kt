@@ -1352,6 +1352,15 @@ private fun WhatToSyncSection(prefs: ThemePreferences) {
             row("Events", prefs.syncEventsEnabled, prefs::setSyncEventsEnabled)
             row("To-dos", prefs.syncTodosEnabled, prefs::setSyncTodosEnabled)
             row("Clock (alarms & timers)", prefs.syncClockEnabled, prefs::setSyncClockEnabled)
+            // Indented under Clock: it is about this computer's speaker, not about what syncs.
+            Column(Modifier.padding(start = 16.dp)) {
+                row("Ring alarms & timers here", prefs.ringAlarmsHere, prefs::setRingAlarmsHere)
+                Text(
+                    "Off: they still show up here, but only your other devices ring.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             row("Notes", prefs.syncNotesEnabled, prefs::setSyncNotesEnabled)
             row("Journal", prefs.syncJournalEnabled, prefs::setSyncJournalEnabled)
             row("Appearance", prefs.syncPreferencesEnabled, prefs::setSyncPreferencesEnabled)

@@ -17,6 +17,8 @@ data class PresenceMessage(
     val deviceId: String? = null,
     val deviceName: String? = null,
     val deviceOs: String? = null,
+    /** `hello` only: whether the phone rings alarms and timers; null = an older app. */
+    val ringsAlarms: Boolean? = null,
     val requestId: String? = null,
     val ok: Boolean? = null,
     /** Items the phone received from the computer in this sync. */
