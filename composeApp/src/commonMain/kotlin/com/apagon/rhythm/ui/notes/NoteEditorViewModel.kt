@@ -34,7 +34,8 @@ import kotlin.uuid.Uuid
 // this project still declares even though iosMain is empty) and a bare
 // System.currentTimeMillis() call that relied on androidMain's implicit
 // java.lang.System import. Both fixed below; no behavior change.
-enum class BlockType { TEXT, HEADER, CHECKLIST, BULLET_LIST, NUMBERED_LIST, QUOTE, CODE, DIVIDER, IMAGE }
+// INK (1.1.8): a handwriting page written on the phone or tablet, shown read-only (InkBlockView).
+enum class BlockType { TEXT, HEADER, CHECKLIST, BULLET_LIST, NUMBERED_LIST, QUOTE, CODE, DIVIDER, IMAGE, INK }
 
 data class NoteBlock(
     val id: String = Uuid.random().toString(),
@@ -75,7 +76,7 @@ class NoteEditorViewModel constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val wordCount: StateFlow<Int> = _blocks.map { blocks ->
-        blocks.filter { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER }
+        blocks.filter { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER && it.type != BlockType.INK }
             .joinToString(" ") { it.content }
             .trim()
             .split(Regex("\\s+"))
@@ -84,7 +85,7 @@ class NoteEditorViewModel constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val charCount: StateFlow<Int> = _blocks.map { blocks ->
-        blocks.filter { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER }
+        blocks.filter { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER && it.type != BlockType.INK }
             .sumOf { it.content.length }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -230,6 +231,12 @@ class NoteEditorViewModel constructor(
                     sb.appendLine("```")
                 }
                 BlockType.DIVIDER -> sb.appendLine("---")
+                BlockType.INK -> if (block.content.isNotBlank()) {
+                    // Same fence as the Android export, so the page survives a round trip.
+                    sb.appendLine("```bori-ink")
+                    sb.appendLine(block.content)
+                    sb.appendLine("```")
+                }
                 BlockType.IMAGE -> {
                     val filename = block.content.substringAfterLast('/').ifBlank { "image" }
                     sb.appendLine("![image]($filename)")
@@ -303,7 +310,7 @@ class NoteEditorViewModel constructor(
     }
 
     private fun Draft.isBlank() = title.isBlank() && tags.isEmpty() &&
-        blocks.all { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER && it.content.isBlank() }
+        blocks.all { it.type != BlockType.IMAGE && it.type != BlockType.DIVIDER && it.type != BlockType.INK && it.content.isBlank() }
 
     /** Write any pending change; a note created here and still completely empty is removed. Caller holds [saveMutex]. */
     private suspend fun finishCurrent() {

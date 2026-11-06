@@ -3,6 +3,7 @@ package com.apagon.rhythm.ui.settings
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
@@ -129,9 +130,8 @@ import androidx.compose.ui.layout.ContentScale
 /** Stage 15f: the section list a left rail drives — replacing the single scrolling LazyColumn of
  * every settings card stacked one after another. "Recently Deleted" moves here from the top-level
  * app sidebar (Stage 15a) per the confirmed decision that trash is secondary nav, not primary. */
-// 2026-10-13: names and grouping mirror the phone's Settings (Profile, Appearance, Calendar
-// Integration, Data Management, Tutorials, About). Sync and Recently Deleted live inside Data
-// Management as sub-pages, as on the phone, so they're off the rail ([inRail] false).
+// Names and grouping mirror the phone's Settings (regrouped in Android 1.93 / desktop 1.1.8).
+// Recently Deleted is a sub-page of Archive & trash, so it's off the rail ([inRail] false).
 private enum class SettingsSection(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -140,11 +140,15 @@ private enum class SettingsSection(
 ) {
     PROFILE("Profile", Icons.Default.Person, "Your name and picture, and sync at a glance"),
     APPEARANCE("Appearance", Icons.Default.Palette, "Theme, background, glass and layout"),
-    CALENDAR("Calendar Integration", Icons.Default.CalendarMonth, "Show your computer's calendars in Bori"),
-    DATA("Data Management", Icons.Default.Storage, "Sync, backups and archives"),
-    SYNC("Sync with Phone & Computers", Icons.Default.Sync,
-        "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing.",
-        inRail = false),
+    // Same order and names as the phone's Settings (Android 1.93). Data Management was split into
+    // Sync & devices, Backup & restore and Archive & trash, and the per-device alert switches moved
+    // out of the Sync page into Notifications & alerts.
+    ALERTS("Notifications & alerts", Icons.Default.NotificationsActive, "What rings on this computer"),
+    SYNC("Sync & devices", Icons.Default.Sync,
+        "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing."),
+    CALENDAR("Calendar", Icons.Default.CalendarMonth, "Show your computer's calendars in Bori"),
+    BACKUP("Backup & restore", Icons.Default.Storage, "Backup files and automatic backups"),
+    ARCHIVE("Archive & trash", Icons.Default.Inventory2, "Archived habits and to-dos, and recently deleted items"),
     RECENTLY_DELETED("Recently Deleted", Icons.Default.Delete, inRail = false),
     TUTORIALS("Tutorials", Icons.Default.School, "Guides and the welcome intro"),
     ABOUT("About", Icons.Default.Info, "Version, app updates and privacy")
@@ -213,9 +217,9 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                 modifier = Modifier.width(232.dp).fillMaxHeight().padding(vertical = 8.dp, horizontal = 8.dp)
             ) {
                 SettingsSection.entries.filter { it.inRail }.forEach { section ->
-                    // A Data Management sub-page keeps Data Management highlighted.
+                    // Recently deleted (a sub-page) keeps Archive & trash highlighted.
                     val isSelected = section == selectedSection ||
-                        (!selectedSection.inRail && section == SettingsSection.DATA)
+                        (!selectedSection.inRail && section == SettingsSection.ARCHIVE)
                     // Stage 17a: no pre-clip — see main.kt's SidebarItem for why (crystalTileSurface
                     // draws its own shadow with its own shape; a mismatched outer clip lets it escape
                     // on one edge).
@@ -256,7 +260,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
             Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopStart) {
                 when (selectedSection) {
                     SettingsSection.RECENTLY_DELETED -> Column(Modifier.fillMaxSize()) {
-                        SubPageBackRow { selectedSection = SettingsSection.DATA }
+                        SubPageBackRow { selectedSection = SettingsSection.ARCHIVE }
                         DesktopRecentlyDeletedScreen()
                     }
                     else -> Column(
@@ -264,7 +268,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                             .verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        if (!selectedSection.inRail) SubPageBackRow { selectedSection = SettingsSection.DATA }
+                        if (!selectedSection.inRail) SubPageBackRow { selectedSection = SettingsSection.ARCHIVE }
                         SettingsPageHeader(selectedSection.label, selectedSection.subtitle)
                         when (selectedSection) {
                             SettingsSection.PROFILE -> ProfileSectionContent(
@@ -309,15 +313,16 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 )
                             }
                             SettingsSection.CALENDAR -> CalendarSectionContent(viewModel, calendarIntegrationEnabled)
-                            SettingsSection.DATA -> DataSectionContent(
+                            SettingsSection.ALERTS -> AlertsSectionContent(viewModel.themePreferences)
+                            SettingsSection.BACKUP, SettingsSection.ARCHIVE -> DataSectionContent(
                                 viewModel = viewModel,
                                 backupState = backupState,
                                 archivedHabits = archivedHabits,
                                 archivedTodos = archivedTodos,
                                 onShowArchivedHabits = { showArchivedHabits = true },
                                 onShowArchivedTodos = { showArchivedTodos = true },
-                                onOpenSync = { selectedSection = SettingsSection.SYNC },
-                                onOpenRecentlyDeleted = { selectedSection = SettingsSection.RECENTLY_DELETED }
+                                onOpenRecentlyDeleted = { selectedSection = SettingsSection.RECENTLY_DELETED },
+                                archive = selectedSection == SettingsSection.ARCHIVE
                             )
                             SettingsSection.SYNC -> SyncPageContent(viewModel)
                             SettingsSection.TUTORIALS -> HelpSectionContent()
@@ -920,8 +925,9 @@ private fun DataSectionContent(
     archivedTodos: List<*>,
     onShowArchivedHabits: () -> Unit,
     onShowArchivedTodos: () -> Unit,
-    onOpenSync: () -> Unit,
-    onOpenRecentlyDeleted: () -> Unit
+    onOpenRecentlyDeleted: () -> Unit,
+    /** true = the Archive & trash page, false = Backup & restore (one function, two pages). */
+    archive: Boolean
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
     // True once an import attempt reports back that the chosen file is encrypted (or that the
@@ -929,28 +935,7 @@ private fun DataSectionContent(
     // rather than guessing whether a file needs a password before picking it.
     var showImportPasswordDialog by remember { mutableStateOf(false) }
 
-    // Same groups as the phone's Data Management page, as grouped rows (2026-10-15 redesign).
-    val listen by viewModel.syncListenState.collectAsState()
-    SettingsGroup(header = "Sync") {
-        com.apagon.rhythm.ui.sync.QuickSyncItem()
-        SettingsDivider()
-        SettingsItem(
-            title = "Sync with Phone & Computers",
-            description = when (val l = listen) {
-                is SyncListenState.Listening -> if (l.viaTailscale) "Ready for your phone · devices, pairing QR code, what to sync"
-                                                else "Tailscale isn't running · open for help"
-                is SyncListenState.Failed -> "Sync can't start · open for details"
-                SyncListenState.Starting -> "Starting…"
-            },
-            icon = Icons.Default.Devices,
-            onClick = onOpenSync,
-            trailing = { SettingsChevron() }
-        )
-        SettingsDivider()
-        // Lined up with the text of the rows above, which sits after a 22dp icon and 16dp gap.
-        Box(Modifier.padding(start = 54.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) { DesktopAutoSyncRow() }
-    }
-
+    if (!archive) {
     SettingsGroup(
         header = "Backup & Restore",
         footer = when (backupState) {
@@ -986,8 +971,9 @@ private fun DataSectionContent(
     }
 
     DesktopAutoBackupRows()
+    } else {
 
-    SettingsGroup(header = "Archive & Trash") {
+    SettingsGroup(header = null) {
         SettingsItem(
             title = "Archived habits",
             icon = Icons.Default.Inventory2,
@@ -1009,6 +995,7 @@ private fun DataSectionContent(
             onClick = onOpenRecentlyDeleted,
             trailing = { SettingsChevron() }
         )
+    }
     }
 
     if (showExportDialog) {
@@ -1045,7 +1032,7 @@ private fun DesktopAutoSyncRow() {
         com.apagon.rhythm.ui.sync.AutoSyncRow(
             minutes = m,
             onChange = quickSync::setAutoSyncMinutes,
-            note = "Your phone syncs with this computer on the schedule you pick on the phone (Settings → Data Management → Sync automatically)."
+            note = "Your phone syncs with this computer on the schedule you pick on the phone (Settings → Sync & devices)."
         )
     }
 }
@@ -1067,6 +1054,9 @@ private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
     SyncStatusCard(listen, onHowTo = { showGuide = true })
     SettingsGroup {
         com.apagon.rhythm.ui.sync.QuickSyncItem(quickSync)
+        SettingsDivider()
+        // From the old Data Management page (1.1.8).
+        Box(Modifier.padding(start = 54.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) { DesktopAutoSyncRow() }
         SettingsDivider()
         SettingsItem(
             title = "How to set up sync",
@@ -1174,6 +1164,28 @@ private fun SyncPageContent(viewModel: DesktopSettingsViewModel) {
 private fun SyncStatusCard(listen: SyncListenState, onHowTo: () -> Unit) {
     val qrCodeRenderer = koinInject<QrCodeRenderer>()
     val ready = listen is SyncListenState.Listening && listen.viaTailscale
+    // "Show larger" (1.1.8): a fixed-focus tablet camera couldn't read the 168dp code from its
+    // usual distance; filling most of the window lets it scan from arm's length.
+    var showLargeQr by remember { mutableStateOf(false) }
+    if (showLargeQr && ready) {
+        AlertDialog(
+            onDismissRequest = { showLargeQr = false },
+            title = { Text("Scan with your phone or tablet") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                        qrCodeRenderer.QrCodeImage(text = (listen as SyncListenState.Listening).address, modifier = Modifier.size(420.dp))
+                    }
+                    Text(
+                        "Or type ${(listen as SyncListenState.Listening).address}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { showLargeQr = false }) { Text("Done") } }
+        )
+    }
     Row(
         modifier = Modifier.fillMaxWidth().crystalCardSurface().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -1235,8 +1247,15 @@ private fun SyncStatusCard(listen: SyncListenState, onHowTo: () -> Unit) {
             }
         }
         if (ready) {
-            Box(Modifier.background(Color.White, RoundedCornerShape(12.dp)).padding(8.dp)) {
-                qrCodeRenderer.QrCodeImage(text = (listen as SyncListenState.Listening).address, modifier = Modifier.size(168.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.background(Color.White, RoundedCornerShape(12.dp))
+                        .clickable { showLargeQr = true }
+                        .padding(8.dp)
+                ) {
+                    qrCodeRenderer.QrCodeImage(text = (listen as SyncListenState.Listening).address, modifier = Modifier.size(168.dp))
+                }
+                TextButton(onClick = { showLargeQr = true }) { Text("Show larger") }
             }
         }
     }
@@ -1352,18 +1371,56 @@ private fun WhatToSyncSection(prefs: ThemePreferences) {
             row("Events", prefs.syncEventsEnabled, prefs::setSyncEventsEnabled)
             row("To-dos", prefs.syncTodosEnabled, prefs::setSyncTodosEnabled)
             row("Clock (alarms & timers)", prefs.syncClockEnabled, prefs::setSyncClockEnabled)
-            // Indented under Clock: it is about this computer's speaker, not about what syncs.
-            Column(Modifier.padding(start = 16.dp)) {
-                row("Ring alarms & timers here", prefs.ringAlarmsHere, prefs::setRingAlarmsHere)
-                Text(
-                    "Off: they still show up here, but only your other devices ring.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             row("Notes", prefs.syncNotesEnabled, prefs::setSyncNotesEnabled)
             row("Journal", prefs.syncJournalEnabled, prefs::setSyncJournalEnabled)
             row("Appearance", prefs.syncPreferencesEnabled, prefs::setSyncPreferencesEnabled)
+        }
+    }
+}
+
+/**
+ * Settings → Notifications & alerts (1.1.8, mirrors Android 1.93): what goes off on this computer.
+ * It used to sit on the Sync page, but it applies whether or not you sync. The phone also has
+ * per-type tones and snooze; the desktop has neither yet, so only the switches are here.
+ */
+@Composable
+private fun AlertsSectionContent(prefs: ThemePreferences) {
+    val scope = rememberCoroutineScope()
+    @Composable
+    fun row(label: String, flow: kotlinx.coroutines.flow.Flow<Boolean>, set: suspend (Boolean) -> Unit) {
+        val on by flow.collectAsState(initial = true)
+        SettingsRow(label) {
+            Switch(checked = on, onCheckedChange = { v -> scope.launch { set(v) } }, colors = crystalSwitchColors())
+        }
+    }
+    SettingsSection("Alerts on this computer") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Everything still syncs, edits and deletes on every device. Turn a kind off and it stops " +
+                    "ringing here; your other devices still go off.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            val master by prefs.ringAlertsMasterSwitch.collectAsState(initial = true)
+            row("Ring alerts here", prefs.ringAlertsMasterSwitch, prefs::setRingAlertsMaster)
+            if (master) {
+                Column(Modifier.padding(start = 16.dp)) {
+                    row("Alarms & timers", prefs.ringAlarmsSwitch, prefs::setRingAlarmsHere)
+                    row("Reminders", prefs.ringRemindersSwitch, prefs::setRingRemindersHere)
+                    Text(
+                        "Habits, to-dos and events only alert on your phone and tablet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text(
+                    "Nothing rings on this computer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
         }
     }
 }

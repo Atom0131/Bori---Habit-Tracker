@@ -52,10 +52,11 @@ class DesktopAlarmClockService(
 
     private suspend fun tick() {
         val now = LocalDateTime.now()
-        // "Ring alarms & timers here" off: alarms stay silent and timers finish without an alert.
+        // "Alerts on this computer": alarms off = alarms stay silent and timers finish without an
+        // alert; reminders off = due reminders are passed over quietly (still synced, still listed).
         val ringsHere = themePreferences.ringAlarmsHere.first()
         if (ringsHere) checkAlarms(now)
-        checkReminders(now)
+        checkReminders(now, themePreferences.ringRemindersHere.first())
         checkTimers(ringsHere)
     }
 
@@ -92,13 +93,15 @@ class DesktopAlarmClockService(
         }
     }
 
-    private suspend fun checkReminders(now: LocalDateTime) {
+    private suspend fun checkReminders(now: LocalDateTime, ringsHere: Boolean) {
         reminderDao.getAllActiveReminders().first().forEach { reminder ->
             if (reminder.isCompleted) return@forEach
             val due = runCatching { LocalDateTime.parse(reminder.dateTime, REMINDER_INPUT_FMT) }.getOrNull() ?: return@forEach
             if (due > now) return@forEach
+            // Marked as handled even when silent, so switching reminders back on doesn't fire a
+            // backlog of ones that came due while they were off.
             if (!firedReminderIds.add(reminder.id)) return@forEach
-            fire(
+            if (ringsHere) fire(
                 FiredAlert(
                     kind = FiredAlertKind.REMINDER,
                     sourceId = reminder.id,

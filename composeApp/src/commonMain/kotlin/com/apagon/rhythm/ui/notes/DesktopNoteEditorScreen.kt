@@ -363,6 +363,16 @@ private fun DesktopBlockItem(
                 }
             }
         }
+        BlockType.INK -> {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Surface(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceContainerHighest, shape = MaterialTheme.shapes.medium) {
+                    InkBlockView(block.content, Modifier.padding(8.dp))
+                }
+                DesktopBlockMenuButton(showMenu = showMenu, onToggle = { showMenu = !showMenu }) {
+                    DesktopBlockDropdownMenu(showMenu, { showMenu = false }, onAddAfter, pickAndAddImage, onDelete)
+                }
+            }
+        }
         BlockType.QUOTE -> {
             Surface(modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f), shape = MaterialTheme.shapes.small) {
                 Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {

@@ -483,8 +483,8 @@ private fun parseNoteContent(json: String): String {
             val obj = array.getJSONObject(i)
             if (obj.has("type") && obj.has("content")) {
                 val type = obj.getString("type").lowercase()
-                val content = obj.getString("content")
-                if (type in TEXT_BLOCK_TYPES && content.isNotBlank()) {
+                val content = obj.getString("content").let { if (type == "ink") DesktopInkPage.textOf(it) else it }
+                if ((type in TEXT_BLOCK_TYPES || type == "ink") && content.isNotBlank()) {
                     if (sb.isNotEmpty()) sb.append(" ")
                     sb.append(content)
                 }

@@ -145,8 +145,8 @@ private fun parseNotePreviewForSearch(json: String): String {
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
             val type = obj.optString("type", "text").lowercase()
-            val content = obj.optString("content", "")
-            if (type in textTypes && content.isNotBlank()) {
+            val content = obj.optString("content", "").let { if (type == "ink") DesktopInkPage.textOf(it) else it }
+            if ((type in textTypes || type == "ink") && content.isNotBlank()) {
                 if (sb.isNotEmpty()) sb.append(" ")
                 sb.append(content)
                 if (sb.length > 120) break
