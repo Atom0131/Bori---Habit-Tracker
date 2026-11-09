@@ -17,6 +17,14 @@ local-first with no backend.
 - **Repeats** for events, to-dos and reminders: daily, weekly on chosen days, monthly, yearly, every N,
   until a date or for N times. Edit or skip one date, or the whole series. Syncs with the phone (Android
   1.95.0 and later).
+- **Faster, steadier start on Windows.** About 4 seconds every time, where some launches (the first after
+  an update, or after Windows shut down with Bori running) used to take half a minute. A splash screen
+  now shows the moment you open Bori, on Windows and Linux.
+- **No lost alerts.** When a reminder and a timer go off together, both now show, one after the other
+  ("Reminder · 1 more"). The alert window also fits its text properly on Windows.
+- **Better on Windows:** *Run in background* now hides Bori to the notification-area icon, routine steps
+  are read aloud straight away instead of a few seconds late, and the local AI connection's key file is
+  readable only by your Windows account.
 
 ### Routines inside your habits
 
