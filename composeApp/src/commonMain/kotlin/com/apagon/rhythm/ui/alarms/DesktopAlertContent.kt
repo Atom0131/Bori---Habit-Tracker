@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.apagon.rhythm.platform.FiredAlert
 import com.apagon.rhythm.platform.FiredAlertKind
@@ -41,7 +42,9 @@ import com.apagon.rhythm.ui.components.crystalSheetColor
 fun DesktopAlertContent(
     alert: FiredAlert,
     onDismiss: () -> Unit,
-    onStartNextPhase: (() -> Unit)?
+    onStartNextPhase: (() -> Unit)?,
+    /** Other alerts queued behind this one (they show after Dismiss). */
+    moreWaiting: Int = 0
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = crystalSheetColor(fallback = MaterialTheme.colorScheme.surface)) {
         CrystalWindowContent {
@@ -55,13 +58,20 @@ fun DesktopAlertContent(
                         FiredAlertKind.ALARM -> "Alarm"
                         FiredAlertKind.REMINDER -> "Reminder"
                         FiredAlertKind.TIMER -> "Timer"
-                    },
+                    } + if (moreWaiting > 0) "  ·  $moreWaiting more" else "",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Text(alert.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                // Capped so a long title or note can't push the buttons out of the fixed-size window.
+                Text(
+                    alert.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
                 if (alert.subtitle.isNotBlank()) {
-                    Text(alert.subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        alert.subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 

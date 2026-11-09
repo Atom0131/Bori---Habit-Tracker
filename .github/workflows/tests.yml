@@ -1,0 +1,36 @@
+# Runs the desktop tests on both systems Bori ships for. Windows bugs (file permissions, paths, line
+# endings) don't show up on a Linux-only run: the agent token's owner-only check failed only on Windows.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  desktop-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run desktop tests
+        shell: bash # Git Bash on Windows, so ./gradlew runs the same on both
+        run: ./gradlew :composeApp:desktopTest --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-report-${{ matrix.os }}
+          path: composeApp/build/reports/tests/desktopTest

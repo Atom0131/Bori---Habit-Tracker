@@ -28,6 +28,7 @@ import com.apagon.rhythm.platform.AppHome
 import com.apagon.rhythm.ui.notes.BlockType
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.withCharset
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
@@ -60,6 +61,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.attribute.AclEntry
+import java.nio.file.attribute.AclEntryPermission
+import java.nio.file.attribute.AclEntryType
+import java.nio.file.attribute.AclFileAttributeView
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -99,6 +104,8 @@ class AgentApiServer(
 
     companion object {
         const val PORT = 47891
+        /** Say UTF-8 outright: clients like Windows PowerShell read a bare application/json as Latin-1. */
+        private val JSON_UTF8 = ContentType.Application.Json.withCharset(Charsets.UTF_8)
         private val DATE = Regex("^\\d{4}-\\d{2}-\\d{2}$")
         private val TIME = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
         /** Alarm.repeatDaysMask bit order: bit0 = Sunday … bit6 = Saturday. */
@@ -190,6 +197,31 @@ class AgentApiServer(
         tokenFile.writeText(t + "\n")
         tokenFile.setReadable(false, false); tokenFile.setReadable(true, true)
         tokenFile.setWritable(false, false); tokenFile.setWritable(true, true)
+        restrictToOwnerOnWindows(tokenFile)
+    }
+
+    /**
+     * Windows has no POSIX modes: the `rw-------` above is silently skipped and the file just inherits
+     * `%APPDATA%\Bori`'s ACL (the user, SYSTEM and Administrators). Replace it with a single entry for
+     * the file's owner, the Windows equivalent of `chmod 600`.
+     */
+    private fun restrictToOwnerOnWindows(file: File) {
+        if (!System.getProperty("os.name").orEmpty().lowercase().contains("windows")) return
+        runCatching {
+            val view = Files.getFileAttributeView(file.toPath(), AclFileAttributeView::class.java) ?: return
+            val entry = AclEntry.newBuilder()
+                .setType(AclEntryType.ALLOW)
+                .setPrincipal(view.owner)
+                .setPermissions(
+                    AclEntryPermission.READ_DATA, AclEntryPermission.WRITE_DATA, AclEntryPermission.APPEND_DATA,
+                    AclEntryPermission.READ_ATTRIBUTES, AclEntryPermission.WRITE_ATTRIBUTES,
+                    AclEntryPermission.READ_NAMED_ATTRS, AclEntryPermission.WRITE_NAMED_ATTRS,
+                    AclEntryPermission.READ_ACL, AclEntryPermission.WRITE_ACL,
+                    AclEntryPermission.DELETE, AclEntryPermission.SYNCHRONIZE
+                )
+                .build()
+            view.acl = listOf(entry)
+        }
     }
 
     private fun authorized(call: ApplicationCall): Boolean {
@@ -201,7 +233,7 @@ class AgentApiServer(
 
     private suspend fun handle(call: ApplicationCall, block: suspend () -> JsonElement) {
         if (!authorized(call)) {
-            call.respondText(err("Missing or wrong token. It is in ${tokenFile.path}."), ContentType.Application.Json, HttpStatusCode.Unauthorized)
+            call.respondText(err("Missing or wrong token. It is in ${tokenFile.path}."), JSON_UTF8, HttpStatusCode.Unauthorized)
             return
         }
         _state.value = _state.value.copy(lastRequestAt = System.currentTimeMillis())
@@ -214,7 +246,7 @@ class AgentApiServer(
         } catch (e: Exception) {
             HttpStatusCode.InternalServerError to err(e.message ?: e.javaClass.simpleName)
         }
-        call.respondText(body, ContentType.Application.Json, status)
+        call.respondText(body, JSON_UTF8, status)
     }
 
     private fun err(message: String) = buildJsonObject { put("error", message) }.toString()

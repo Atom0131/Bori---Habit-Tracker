@@ -155,13 +155,16 @@ compose.desktop {
         // Direct3D/Metal paths; a single-GPU machine just uses what it has. Windows stuttered on tab
         // switches (2026-10-14) and Java apps are often handed the integrated chip by default.
         jvmArgs += listOf("-Dskiko.gpu.priority=discrete")
-        // Windows: Java 21 records the app's class-data cache on first launch and reuses it after
-        // (startup measured 1.9 s to 1.0 s on Linux with such a cache). The per-user install folder
-        // is the user's own, so the cache can live next to the app; it's rebuilt by itself after an
-        // update changes the jars. Needs the Java 21+ runtime the Windows workflow builds with.
-        if (System.getProperty("os.name").orEmpty().lowercase().contains("windows")) {
-            jvmArgs += listOf("-XX:+AutoCreateSharedArchive", "-XX:SharedArchiveFile=\$APPDIR/bori.jsa")
-        }
+        // Splash: drawn natively by the JVM the moment it starts, before any app class loads, and closed
+        // by AWT when the main window first shows (0.6 s after launch on Windows, measured), so a slow
+        // start never looks like nothing happened. splash@2x.png beside it is picked on HiDPI screens.
+        // Lives in resources/common, which jpackage copies to $APPDIR/resources.
+        jvmArgs += listOf("-splash:\$APPDIR/resources/splash.png")
+        // No app class-data cache (-XX:+AutoCreateSharedArchive) on Windows any more (removed 2026-11-09).
+        // Measured on a Windows 11 laptop: 2.5 s with the cache, but 27-32 s on every launch that had to
+        // build it (after each update, and after any exit that didn't run JVM shutdown, such as Windows
+        // shutting down with Bori in the background, which happened often). Without it: a steady 4.2 s.
+        // The runtime's own base CDS archive (the jlink step below) is kept and still applies.
 
         // First public release's installer packaging — no auto-versioning scheme exists yet,
         // bump packageVersion by hand for future releases. Bundles its own JRE via jpackage, so
@@ -179,6 +182,9 @@ compose.desktop {
             // and risking the same class of gap elsewhere (Ktor networking, locale formatting),
             // bundle the full JDK instead of a jlink-trimmed one.
             includeAllModules = true
+
+            // The splash images (see the -splash jvmArg above).
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 
             packageName = "bori"
             packageVersion = boriVersion
@@ -209,8 +215,8 @@ compose.desktop {
 
 // Startup speed (2026-10-15, "almost seconds to load" on Windows): give the bundled Java runtime its
 // base class-data cache. jlink normally leaves it out, and without it the JVM verifies and parses
-// every JDK class on each launch; it is also what Java 21's auto-created app cache builds on (see
-// the Windows jvmArgs above). Measured on Linux: an app cache halves startup (1.88 s to 0.97 s).
+// every JDK class on each launch. (The Windows app cache that used to build on it was dropped; see
+// the note by the jvmArgs above.)
 // Compose always adds --strip-native-commands, which removes the `java` launcher jlink's
 // --generate-cds-archive needs, so the runtime is linked a second time here with Compose's own
 // arguments, minus that flag, plus the archive.
