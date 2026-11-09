@@ -1,5 +1,7 @@
 package com.apagon.rhythm.ui.calendar
 
+import com.apagon.rhythm.ui.components.SeriesScopeDialog
+import com.apagon.rhythm.ui.components.RepeatRow
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -83,11 +85,19 @@ fun DesktopAddCalendarEventSheet(
     existing: CalendarEvent? = null,
     initialDate: LocalDate = LocalDate.now(),
     onDismiss: () -> Unit,
-    /** Shown as a delete button when editing (same as Android); null hides it. */
-    onDelete: (() -> Unit)? = null,
-    onSave: (CalendarEvent) -> Unit
+    /**
+     * Shown as a delete button when editing (same as Android); null hides it. The flag is "only this
+     * date" when [existing] is one date of a repeating series (asked first), otherwise false.
+     */
+    onDelete: ((onlyThis: Boolean) -> Unit)? = null,
+    /** The flag is "only this date", as for [onDelete]. */
+    onSave: (CalendarEvent, Boolean) -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // Repeats (same as Android). Editing one date of a series asks "Only this event / All events".
+    var recurrence by remember { mutableStateOf(existing?.recurrence ?: "") }
+    val isOccurrence = existing?.occurrenceDate != null && existing.recurrence.isNotBlank()
+    var pendingSave by remember { mutableStateOf<CalendarEvent?>(null) }
     val focusManager = LocalFocusManager.current
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
@@ -179,6 +189,7 @@ fun DesktopAddCalendarEventSheet(
                 }
             }
 
+            RepeatRow(rule = recurrence, start = startDate ?: LocalDate.now(), onChange = { recurrence = it })
             } // end EditorSection("WHEN")
 
             Text("Color", style = MaterialTheme.typography.labelLarge)
@@ -213,7 +224,7 @@ fun DesktopAddCalendarEventSheet(
                 onClick = {
                     val sd = startDate!!
                     val ed = if (endDate!! < sd) sd else endDate!!
-                    onSave(
+                    val built = (
                         CalendarEvent(
                             id = existing?.id ?: 0,
                             title = title.trim(),
@@ -229,9 +240,12 @@ fun DesktopAddCalendarEventSheet(
                             // defaults and an edit mints a brand-new syncId, which the sync engine
                             // then treats as a duplicate new event on a peer instead of an update.
                             syncId = existing?.syncId ?: Uuid.random().toString(),
-                            createdAt = existing?.createdAt ?: System.currentTimeMillis()
+                            createdAt = existing?.createdAt ?: System.currentTimeMillis(),
+                            recurrence = recurrence,
+                            occurrenceDate = existing?.occurrenceDate
                         )
                     )
+                    if (isOccurrence) pendingSave = built else onSave(built, false)
                 },
                 enabled = canSave,
                 modifier = Modifier.weight(1f)
@@ -240,14 +254,27 @@ fun DesktopAddCalendarEventSheet(
         }
     }
 
-    if (showDeleteConfirm && onDelete != null) {
+    pendingSave?.let { event ->
+        SeriesScopeDialog(
+            deleting = false,
+            onChoose = { onlyThis -> pendingSave = null; onSave(event, onlyThis) },
+            onDismiss = { pendingSave = null }
+        )
+    }
+    if (showDeleteConfirm && onDelete != null && isOccurrence) {
+        SeriesScopeDialog(
+            deleting = true,
+            onChoose = { onlyThis -> showDeleteConfirm = false; onDelete(onlyThis) },
+            onDismiss = { showDeleteConfirm = false }
+        )
+    } else if (showDeleteConfirm && onDelete != null) {
         RhythmAlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete Event?") },
             text = { Text("Are you sure you want to delete this event? It can be recovered later from Recently Deleted.") },
             confirmButton = {
                 TextButton(onClick = {
-                    onDelete()
+                    onDelete(false)
                     showDeleteConfirm = false
                 }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             },

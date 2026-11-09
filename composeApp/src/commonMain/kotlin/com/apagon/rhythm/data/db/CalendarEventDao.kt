@@ -24,7 +24,7 @@ interface CalendarEventDao {
         WHERE isActive = 1
           AND deletedAt IS NULL
           AND startDate <= :windowEnd
-          AND endDate   >= :windowStart
+          AND (endDate >= :windowStart OR recurrence != '')
         ORDER BY startDate ASC, startTime ASC
     """)
     fun getEventsInRange(windowStart: String, windowEnd: String): Flow<List<CalendarEvent>>
@@ -60,4 +60,7 @@ interface CalendarEventDao {
 
     @Query("DELETE FROM calendar_events")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM calendar_events WHERE id = :id")
+    suspend fun getEventByIdRaw(id: Long): CalendarEvent?
 }

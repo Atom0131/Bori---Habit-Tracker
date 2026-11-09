@@ -6,6 +6,12 @@ import com.apagon.rhythm.data.db.TodoDao
 import com.apagon.rhythm.data.db.TodoSubtaskDao
 import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.data.model.TodoSubtask
+import com.apagon.rhythm.data.model.isRepeating
+import com.apagon.rhythm.data.model.nextRepeat
+import com.apagon.rhythm.core.time.now
+import kotlinx.datetime.LocalDate
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 class TodoRepository constructor(
@@ -34,13 +40,32 @@ class TodoRepository constructor(
 
     suspend fun markComplete(todoId: Long) {
         val now = System.currentTimeMillis()
+        if (dao.getTodoByIdRaw(todoId)?.let { rollIfRepeating(it, now) } == true) return
         dao.markCompleteById(todoId, now, now)
+    }
+
+    /**
+     * **A repeating to-do never finishes; it moves to its next date** (Todoist-style). A completed copy
+     * is saved so the check-off still shows in today's done list, and the to-do itself comes back open
+     * on its next date with its steps unticked. Returns false (do a normal completion) when it doesn't
+     * repeat or its series has ended. Android's TodoRepository does the same.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private suspend fun rollIfRepeating(todo: Todo, now: Long): Boolean {
+        if (!todo.isRepeating) return false
+        val next = todo.nextRepeat(LocalDate.now()) ?: return false
+        dao.insert(todo.copy(id = 0, syncId = Uuid.random().toString(), recurrence = "", isCompleted = true,
+            completedAt = now, createdAt = now, updatedAt = now))
+        dao.update(next.copy(updatedAt = now))
+        subtaskDao.setAllSubtasksDone(todo.id, false, now)
+        return true
     }
 
     /** Android's `setCompleted`: the to-do's own check carries its steps both ways (completing
      * ticks them all, reopening clears them, or the row would sit "open with every step done"). */
     suspend fun setCompleted(todo: Todo, completed: Boolean) {
         val now = System.currentTimeMillis()
+        if (completed && rollIfRepeating(todo, now)) return
         dao.update(todo.copy(isCompleted = completed, completedAt = if (completed) now else null, updatedAt = now))
         subtaskDao.setAllSubtasksDone(todo.id, completed, now)
     }
@@ -49,13 +74,20 @@ class TodoRepository constructor(
 
     suspend fun getSubtasksForTodo(todoId: Long): List<TodoSubtask> = subtaskDao.getSubtasksForTodoOnce(todoId)
 
-    suspend fun toggleSubtask(subtask: TodoSubtask): Boolean = subtaskDao.toggleSubtask(subtask, System.currentTimeMillis())
+    /** True if ticking this step completed the to-do (a repeating one has moved on to its next date instead). */
+    suspend fun toggleSubtask(subtask: TodoSubtask): Boolean {
+        val now = System.currentTimeMillis()
+        val completedTodo = subtaskDao.toggleSubtask(subtask, now)
+        if (completedTodo) dao.getTodoByIdRaw(subtask.todoId)?.let { rollIfRepeating(it, now) }
+        return completedTodo
+    }
 
     suspend fun replaceSubtasks(todoId: Long, drafts: List<TodoSubtask>) =
         subtaskDao.replaceSubtasks(todoId, drafts, System.currentTimeMillis())
 
     suspend fun markTodoComplete(todo: Todo) {
         val now = System.currentTimeMillis()
+        if (rollIfRepeating(todo, now)) return
         dao.update(todo.copy(isCompleted = true, completedAt = now, updatedAt = now))
     }
 

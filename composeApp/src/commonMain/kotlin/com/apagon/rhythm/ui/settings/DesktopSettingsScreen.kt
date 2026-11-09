@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Info
@@ -147,6 +148,7 @@ private enum class SettingsSection(
     SYNC("Sync & devices", Icons.Default.Sync,
         "Sync directly with Bori on your phone and your other computers, over Tailscale. Switch a device off to stop syncing with it without unpairing."),
     CALENDAR("Calendar", Icons.Default.CalendarMonth, "Show your computer's calendars in Bori"),
+    INTEGRATIONS("Obsidian & AI", Icons.Default.AutoAwesome, "Share notes with Obsidian and let a local AI agent use Bori"),
     BACKUP("Backup & restore", Icons.Default.Storage, "Backup files and automatic backups"),
     ARCHIVE("Archive & trash", Icons.Default.Inventory2, "Archived habits and to-dos, and recently deleted items"),
     RECENTLY_DELETED("Recently Deleted", Icons.Default.Delete, inRail = false),
@@ -325,6 +327,7 @@ fun DesktopSettingsScreen(viewModel: DesktopSettingsViewModel = koinViewModel())
                                 archive = selectedSection == SettingsSection.ARCHIVE
                             )
                             SettingsSection.SYNC -> SyncPageContent(viewModel)
+                            SettingsSection.INTEGRATIONS -> IntegrationsSectionContent()
                             SettingsSection.TUTORIALS -> HelpSectionContent()
                             SettingsSection.ABOUT -> AboutSectionContent(
                                 onShowPrivacyPolicy = { showPrivacyPolicy = true },

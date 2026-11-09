@@ -135,7 +135,7 @@ internal fun DesktopTodayCalendarContent(
         DesktopAddCalendarEventSheet(
             initialDate = selectedDay ?: LocalDate.now(),
             onDismiss = { showAddEventSheet = false },
-            onSave = { event ->
+            onSave = { event, _ ->
                 viewModel.addCalendarEvent(event)
                 showAddEventSheet = false
             }
@@ -146,12 +146,12 @@ internal fun DesktopTodayCalendarContent(
         DesktopAddCalendarEventSheet(
             existing = event,
             onDismiss = { editingEvent = null },
-            onDelete = {
-                viewModel.deleteCalendarEvent(event)
+            onDelete = { onlyThis ->
+                viewModel.deleteCalendarEvent(event, onlyThis)
                 editingEvent = null
             },
-            onSave = { updated ->
-                viewModel.updateCalendarEvent(updated)
+            onSave = { updated, onlyThis ->
+                viewModel.updateCalendarEvent(updated, onlyThis)
                 editingEvent = null
             }
         )
@@ -160,8 +160,8 @@ internal fun DesktopTodayCalendarContent(
     if (showAddReminder) {
         DesktopAddReminderSheet(
             onDismiss = { showAddReminder = false },
-            onSave = { title, note, dateTime ->
-                reminderViewModel.addReminder(title, note, dateTime)
+            onSave = { title, note, dateTime, recurrence ->
+                reminderViewModel.addReminder(title, note, dateTime, recurrence = recurrence)
                 showAddReminder = false
             }
         )
@@ -331,7 +331,7 @@ private fun DayDetail(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(events, key = { "event_${it.id}" }) { event ->
+                items(events, key = { "event_${it.id}_${it.occurrenceDate.orEmpty()}" }) { event ->
                     CalendarEventRow(event = event, onEdit = { onEditEvent(event) }, onDelete = { onDeleteEvent(event) })
                 }
                 items(reminders, key = { "reminder_${it.id}" }) { reminder ->
@@ -356,6 +356,7 @@ internal fun DesktopReminderRow(reminder: Reminder, onToggle: () -> Unit, onDele
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(reminder.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(reminder.dateTime, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                com.apagon.rhythm.ui.components.RepeatLine(reminder.recurrence, reminder.dateTime)
                 if (reminder.note.isNotBlank()) {
                     Text(reminder.note, style = MaterialTheme.typography.bodySmall)
                 }
@@ -375,7 +376,15 @@ internal fun CalendarEventRow(event: CalendarEvent, onEdit: () -> Unit, onDelete
     EventCard(modifier = Modifier.clickable(onClick = onEdit)) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(event.title) },
+            headlineContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(event.title)
+                    if (event.recurrence.isNotBlank()) {
+                        Spacer(Modifier.width(6.dp))
+                        com.apagon.rhythm.ui.components.RepeatBadge()
+                    }
+                }
+            },
             supportingContent = {
                 Column {
                     if (event.note.isNotBlank()) Text(event.note)

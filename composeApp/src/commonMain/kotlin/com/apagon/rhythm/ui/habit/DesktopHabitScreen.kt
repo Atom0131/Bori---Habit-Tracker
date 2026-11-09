@@ -138,6 +138,7 @@ internal fun DesktopTodayListContent(
     // The selected day's to-dos, bucketed exactly as Android's Today does.
     val dueTodayTodos by habitListViewModel.selectedDateTodos.collectAsState()
     val overdueTodos by habitListViewModel.selectedDateOverdueTodos.collectAsState()
+    val upcomingTodos by habitListViewModel.selectedDateUpcomingTodos.collectAsState()
     val completedTodos by habitListViewModel.selectedDateCompletedTodos.collectAsState()
     var todosOverdueExpanded by remember { mutableStateOf(false) }
     var todosCompletedExpanded by remember { mutableStateOf(false) }
@@ -210,6 +211,7 @@ internal fun DesktopTodayListContent(
                     todoSection(
                         dueToday = dueTodayTodos,
                         overdue = overdueTodos,
+                        upcoming = upcomingTodos,
                         completed = completedTodos,
                         expanded = todosExpanded,
                         onToggleExpanded = { todosExpanded = !todosExpanded },
@@ -250,8 +252,8 @@ internal fun DesktopTodayListContent(
                 existing = todo,
                 existingSubtasks = subtasksByTodo[todo.id].orEmpty(),
                 onDelete = { todoViewModel.deleteTodo(todo); editingTodo = null },
-                onSave = { title, note, dueDate, priority, iconIndex, subtasks ->
-                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex, subtasks = subtasks)
+                onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence ->
+                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex, subtasks = subtasks, recurrence = recurrence)
                     editingTodo = null
                 }
             )

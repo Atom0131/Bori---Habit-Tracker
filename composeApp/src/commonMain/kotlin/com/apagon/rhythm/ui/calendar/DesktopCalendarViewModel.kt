@@ -108,11 +108,12 @@ class DesktopCalendarViewModel(
         viewModelScope.launch { calendarEventRepository.addEvent(event) }
     }
 
-    fun updateCalendarEvent(event: CalendarEvent) {
-        viewModelScope.launch { calendarEventRepository.updateEvent(event) }
+    /** [onlyThis]: one date of a repeating series becomes its own event (see saveEdit). */
+    fun updateCalendarEvent(event: CalendarEvent, onlyThis: Boolean = false) {
+        viewModelScope.launch { calendarEventRepository.saveEdit(event, onlyThis) }
     }
 
-    fun deleteCalendarEvent(event: CalendarEvent) {
-        viewModelScope.launch { calendarEventRepository.deleteEvent(event) }
+    fun deleteCalendarEvent(event: CalendarEvent, onlyThis: Boolean = false) {
+        viewModelScope.launch { calendarEventRepository.deleteFromEditor(event, onlyThis) }
     }
 }

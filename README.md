@@ -7,6 +7,17 @@ Android habit tracker, journal, and planner. It covers habits (with a built-in r
 to-dos, calendar events, alarms, timers, reminders, notes and notebooks, and journaling, and it's
 local-first with no backend.
 
+**New in 1.1.9** (on `main` now; the packaged release follows shortly):
+
+- **Works with local AI.** Hook up an assistant that runs on your own computer, such as Hermes with a
+  local model via Ollama or LM Studio, or Claude Desktop, Claude Code and other MCP apps, and run your day
+  by chat. See [Connect an AI assistant](#connect-an-ai-assistant-optional).
+- **Notes as a Markdown vault.** Keep a notebook in sync, both ways, with an Obsidian vault or any folder
+  of `.md` files. See [Markdown / Obsidian vault](#markdown--obsidian-vault-optional).
+- **Repeats** for events, to-dos and reminders: daily, weekly on chosen days, monthly, yearly, every N,
+  until a date or for N times. Edit or skip one date, or the whole series. Syncs with the phone (Android
+  1.95.0 and later).
+
 ### Routines inside your habits
 
 Any habit can be broken into steps, and giving a step a time turns the habit into a **timed
@@ -209,8 +220,54 @@ own data directory and port:
 
 ```bash
 java -Dbori.home=/path/to/device-a -Dbori.syncPort=47890 -jar ...
-java -Dbori.home=/path/to/device-b -Dbori.syncPort=47891 -jar ...
+java -Dbori.home=/path/to/device-b -Dbori.syncPort=47892 -jar ...
 ```
+
+## Markdown / Obsidian vault (optional)
+
+Bori can keep your notes as plain Markdown files, so they open in [Obsidian](https://obsidian.md) or any
+editor and can be read by tools on your computer.
+
+1. Open **Settings → Obsidian & AI → Markdown vault** and turn on **Sync a Markdown folder**.
+2. Choose your Obsidian vault, or any folder of `.md` files.
+
+- **Folder = notebook.** The folder becomes a notebook in Bori, each subfolder a notebook inside it, and
+  each file a note named after the file. Checklists, tables and tags (frontmatter) carry over, and lines you
+  didn't touch stay exactly as they were.
+- **Both ways, automatically.** Edit in Obsidian and Bori updates within seconds; edit in Bori (or on your
+  phone, then sync) and the file updates. If both sides changed, the newer one wins and the other version
+  is kept in `vault_conflicts` in your Bori data folder.
+- **Deletes are safe.** A note deleted in Bori goes to the vault's `.trash/` folder; a file deleted outside
+  Bori sends the note to Recently Deleted for 30 days. If the folder looks empty (for example a drive that
+  isn't mounted), Bori stops and changes nothing.
+- **Locked notebooks stay private.** A locked notebook is never written to the vault, and locking one
+  removes its files.
+- The first sync only imports; it doesn't rewrite any of your files.
+
+## Connect an AI assistant (optional)
+
+Bori can work with an AI assistant on the same computer, such as [Hermes](https://github.com/NousResearch/hermes-agent),
+Claude Desktop, Claude Code, Cursor, or anything else that supports [MCP](https://modelcontextprotocol.io).
+**It works fully offline with a local model:** run Hermes (or another MCP client) on top of
+[Ollama](https://ollama.com) or LM Studio and nothing leaves your computer.
+The assistant can read your agenda and add or change events, to-dos, reminders, habit check-ins, notes,
+timers and alarms ("remind me every day at 8 to take meds", "what's on this week?"). Changes show up in
+Bori straight away and sync to your phone like anything else.
+
+1. In Bori, open **Settings → Obsidian & AI** and turn on **Allow local AI agents**.
+2. Tap **Connect an AI app**, pick your assistant, and press **Copy**.
+3. Paste it where the dialog says (for Hermes, `~/.hermes/config.yaml`; for Claude Code, run the command in a
+   terminal), then restart the assistant.
+
+That's all. Nothing else needs installing: the assistant runs Bori itself with `--mcp`, for example
+`/usr/bin/bori --mcp`. If you use Hermes with Telegram or Discord, Bori works from those chats too.
+
+- **Private to this computer.** Bori only accepts these requests from programs on the same machine
+  (`127.0.0.1`), and only with a secret token kept in your Bori data folder. **New token** in the same
+  settings page cuts off anything that had the old one.
+- **Asks before deleting.** The assistant is told to get your explicit yes first, and Bori refuses a
+  delete that isn't confirmed. Deleted items go to Recently Deleted for 30 days.
+- **Bori has to be open** (it can run in the background) for the assistant to reach it.
 
 ## License
 

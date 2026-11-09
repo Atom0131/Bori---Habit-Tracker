@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.reminders
 
+import com.apagon.rhythm.ui.components.RepeatRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,8 +65,10 @@ import com.apagon.rhythm.ui.util.EditorialTitle
 fun DesktopAddReminderSheet(
     existing: Reminder? = null,
     onDismiss: () -> Unit,
-    onSave: (title: String, note: String, dateTime: String) -> Unit
+    onSave: (title: String, note: String, dateTime: String, recurrence: String) -> Unit
 ) {
+    // A repeating reminder moves to its next date once it rings or is ticked (ReminderRepository).
+    var recurrence by remember { mutableStateOf(existing?.recurrence ?: "") }
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
     val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
@@ -123,13 +126,14 @@ fun DesktopAddReminderSheet(
                     }
                 }
             }
+            RepeatRow(rule = recurrence, start = date, onChange = { recurrence = it })
             MomentumButton(
                 text = if (existing != null) "Update Reminder" else "Create Reminder",
                 enabled = title.isNotBlank() && timeSet,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val dateTime = "${date.format(ISO_LOCAL_DATE)} " + "%02d:%02d".format(hour, minute)
-                    onSave(title.trim(), note.trim(), dateTime)
+                    onSave(title.trim(), note.trim(), dateTime, recurrence)
                 }
             )
         }

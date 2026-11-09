@@ -119,6 +119,8 @@ val desktopAppModule = module {
     single { ReminderRepository(get()) }
     single { TimerRepository(get()) }
     single<VaultFileSync> { DesktopVaultFileSync() }
+    single { com.apagon.rhythm.data.vault.DesktopNoteVault(get()) } bind com.apagon.rhythm.data.vault.MarkdownVaultControl::class
+    single { com.apagon.rhythm.data.agent.AgentApiServer(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) } bind com.apagon.rhythm.data.agent.AgentApiControl::class
     single<ProfileImageStore> { DesktopProfileImageStore(get()) }
     single { com.apagon.rhythm.data.sync.PreferencesJoin(com.apagon.rhythm.data.sync.DesktopPendingPreferencesStore(), get(), get(), get()) }
     single { SyncEngine(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }

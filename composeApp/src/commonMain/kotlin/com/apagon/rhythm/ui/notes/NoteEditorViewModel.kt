@@ -118,6 +118,7 @@ class NoteEditorViewModel constructor(
                     createdHere = false
                     savedDraft = currentDraft()
                 }
+                followExternalEdits(_note.value?.id ?: 0L)
             }
         }
     }
@@ -307,6 +308,35 @@ class NoteEditorViewModel constructor(
             _note.value = updatedNote
         }
         savedDraft = draft
+    }
+
+    private var externalJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * The note can change under the open editor: the Markdown vault imports an edit made in
+     * Obsidian or by an AI agent, or sync brings one from the phone. When nothing typed here is
+     * waiting to be saved, show the new version; otherwise the editor's next save wins, as before.
+     */
+    private fun followExternalEdits(noteId: Long) {
+        externalJob?.cancel()
+        if (noteId == 0L) return
+        externalJob = viewModelScope.launch {
+            repository.observeNoteById(noteId).collect { n ->
+                if (n == null || n.deletedAt != null) return@collect
+                saveMutex.withLock {
+                    val shown = _note.value ?: return@withLock
+                    if (shown.id != n.id || currentDraft() != savedDraft) return@withLock
+                    // A late emission of our own earlier autosave is older than what's shown: ignore it.
+                    if (n.updatedAt <= shown.updatedAt) return@withLock
+                    if (n.title == shown.title && n.content == shown.content && n.tags == shown.tags) return@withLock
+                    _note.value = n
+                    _title.value = n.title
+                    _blocks.value = deserializeBlocks(n.content)
+                    _tags.value = parseTags(n.tags)
+                    savedDraft = currentDraft()
+                }
+            }
+        }
     }
 
     private fun Draft.isBlank() = title.isBlank() && tags.isEmpty() &&

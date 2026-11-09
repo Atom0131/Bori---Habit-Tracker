@@ -378,6 +378,8 @@ class DesktopBackupManager(
             arr.put(JSONObject().apply {
                 put("id", e.id)
                 put("title", e.title)
+                put("recurrence", e.recurrence)
+                put("recurrenceExceptions", e.recurrenceExceptions)
                 put("note", e.note)
                 put("startDate", e.startDate)
                 put("endDate", e.endDate)
@@ -411,6 +413,7 @@ class DesktopBackupManager(
             arr.put(JSONObject().apply {
                 put("id", t.id)
                 put("title", t.title)
+                put("recurrence", t.recurrence)
                 put("note", t.note)
                 put("dueDate", t.dueDate)
                 put("priority", t.priority)
@@ -539,6 +542,7 @@ class DesktopBackupManager(
             arr.put(JSONObject().apply {
                 put("id", r.id)
                 put("title", r.title)
+                put("recurrence", r.recurrence)
                 put("note", r.note)
                 put("dateTime", r.dateTime)
                 put("isCompleted", r.isCompleted)
@@ -649,6 +653,8 @@ class DesktopBackupManager(
         CalendarEvent(
             id = o.getLong("id"),
             title = o.getString("title"),
+            recurrence = o.optString("recurrence", ""),
+            recurrenceExceptions = o.optString("recurrenceExceptions", ""),
             note = o.optString("note", ""),
             startDate = o.getString("startDate"),
             endDate = o.getString("endDate"),
@@ -680,6 +686,7 @@ class DesktopBackupManager(
         Todo(
             id = o.getLong("id"),
             title = o.getString("title"),
+            recurrence = o.optString("recurrence", ""),
             note = o.optString("note", ""),
             dueDate = o.optString("dueDate", ""),
             priority = normalizePriority(o.optString("priority", "")),
@@ -810,6 +817,7 @@ class DesktopBackupManager(
         Reminder(
             id = o.getLong("id"),
             title = o.getString("title"),
+            recurrence = o.optString("recurrence", ""),
             note = o.optString("note", ""),
             dateTime = o.getString("dateTime"),
             isCompleted = o.optBoolean("isCompleted", false),

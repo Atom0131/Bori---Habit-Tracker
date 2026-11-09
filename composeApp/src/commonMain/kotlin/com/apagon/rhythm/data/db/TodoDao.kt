@@ -39,6 +39,9 @@ interface TodoDao {
     @Update
     suspend fun update(todo: Todo)
 
+    @Query("SELECT * FROM todos WHERE id = :id")
+    suspend fun getTodoByIdRaw(id: Long): Todo?
+
     @Query("UPDATE todos SET isCompleted = 1, completedAt = :completedAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun markCompleteById(id: Long, completedAt: Long, updatedAt: Long)
 

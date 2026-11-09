@@ -124,7 +124,7 @@ fun DesktopTodayScreen(
             options = listOf(
                 AddOption("habit", "Habit", Icons.Default.Add, "Set goals and build routines"),
                 AddOption("todo", "To-Do", Icons.Default.CheckCircle, "Quick tasks and lists"),
-                AddOption("reminder", "Reminder", Icons.Default.AccessTime, "One-time alerts"),
+                AddOption("reminder", "Reminder", Icons.Default.AccessTime, "Alerts, once or repeating"),
                 AddOption("event", "Event", Icons.Default.Event, "Calendar appointments")
             ),
             onOptionSelected = { id ->
@@ -164,8 +164,8 @@ fun DesktopTodayScreen(
     if (showAddTodoDialog) {
         DesktopAddTodoSheet(
             onDismiss = { showAddTodoDialog = false },
-            onSave = { title, note, dueDate, priority, iconIndex, subtasks ->
-                todoViewModel.addTodo(title = title, note = note, dueDate = dueDate, priority = priority, iconIndex = iconIndex, subtasks = subtasks)
+            onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence ->
+                todoViewModel.addTodo(title = title, note = note, dueDate = dueDate, priority = priority, iconIndex = iconIndex, subtasks = subtasks, recurrence = recurrence)
                 showAddTodoDialog = false
             }
         )
@@ -174,8 +174,8 @@ fun DesktopTodayScreen(
     if (showAddReminder) {
         DesktopAddReminderSheet(
             onDismiss = { showAddReminder = false },
-            onSave = { title, note, dateTime ->
-                reminderViewModel.addReminder(title, note, dateTime)
+            onSave = { title, note, dateTime, recurrence ->
+                reminderViewModel.addReminder(title, note, dateTime, recurrence = recurrence)
                 showAddReminder = false
             }
         )
@@ -184,7 +184,7 @@ fun DesktopTodayScreen(
     if (showAddEventSheet) {
         DesktopAddCalendarEventSheet(
             onDismiss = { showAddEventSheet = false },
-            onSave = { event ->
+            onSave = { event, _ ->
                 calendarViewModel.addCalendarEvent(event)
                 showAddEventSheet = false
             }

@@ -30,6 +30,9 @@ interface ReminderDao {
     @Update
     suspend fun update(reminder: Reminder)
 
+    @Query("SELECT * FROM reminders WHERE id = :id")
+    suspend fun getReminderByIdRaw(id: Long): Reminder?
+
     @Delete
     suspend fun delete(reminder: Reminder)
 

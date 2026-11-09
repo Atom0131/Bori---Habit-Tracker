@@ -5,6 +5,7 @@ import com.apagon.rhythm.core.time.parse
 import com.apagon.rhythm.data.db.AlarmDao
 import com.apagon.rhythm.data.db.ReminderDao
 import com.apagon.rhythm.data.db.TimerDao
+import com.apagon.rhythm.data.model.caughtUp
 import com.apagon.rhythm.ui.util.REMINDER_INPUT_FMT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,8 @@ class DesktopAlarmClockService(
     // restarting the app is the only way to "miss" a re-fire suppression,
     // which matches the no-boot-persistence limitation above.
     private val firedAlarmMinutes = mutableSetOf<String>()
-    private val firedReminderIds = mutableSetOf<Long>()
+    // Keyed by id@dateTime, so a repeating reminder that moved on to its next date can ring again.
+    private val firedReminderIds = mutableSetOf<String>()
 
     fun start() {
         scope.launch {
@@ -94,13 +96,17 @@ class DesktopAlarmClockService(
     }
 
     private suspend fun checkReminders(now: LocalDateTime, ringsHere: Boolean) {
-        reminderDao.getAllActiveReminders().first().forEach { reminder ->
-            if (reminder.isCompleted) return@forEach
+        reminderDao.getAllActiveReminders().first().forEach { stored ->
+            if (stored.isCompleted) return@forEach
+            // A repeating reminder left unticked moves on once its next date comes due, and rings for that.
+            val reminder = stored.caughtUp(now)?.also {
+                reminderDao.update(it.copy(updatedAt = com.apagon.rhythm.core.time.System.currentTimeMillis()))
+            } ?: stored
             val due = runCatching { LocalDateTime.parse(reminder.dateTime, REMINDER_INPUT_FMT) }.getOrNull() ?: return@forEach
             if (due > now) return@forEach
             // Marked as handled even when silent, so switching reminders back on doesn't fire a
             // backlog of ones that came due while they were off.
-            if (!firedReminderIds.add(reminder.id)) return@forEach
+            if (!firedReminderIds.add("${reminder.id}@${reminder.dateTime}")) return@forEach
             if (ringsHere) fire(
                 FiredAlert(
                     kind = FiredAlertKind.REMINDER,

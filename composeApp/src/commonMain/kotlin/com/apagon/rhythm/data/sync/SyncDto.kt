@@ -201,7 +201,8 @@ data class TodoDto(
     val soundUri: String,
     val vibrationPatternId: String,
     val updatedAt: Long,
-    val subtasks: List<TodoSubtaskDto> = emptyList()
+    val subtasks: List<TodoSubtaskDto> = emptyList(),
+    val recurrence: String = ""
 )
 
 fun Todo.toDto(subtasks: List<TodoSubtaskDto> = emptyList()) = TodoDto(
@@ -219,7 +220,8 @@ fun Todo.toDto(subtasks: List<TodoSubtaskDto> = emptyList()) = TodoDto(
     soundUri = soundUri,
     vibrationPatternId = vibrationPatternId,
     updatedAt = updatedAt,
-    subtasks = subtasks
+    subtasks = subtasks,
+    recurrence = recurrence
 )
 
 fun TodoDto.toEntity() = Todo(
@@ -236,7 +238,8 @@ fun TodoDto.toEntity() = Todo(
     soundUri = soundUri,
     vibrationPatternId = vibrationPatternId,
     syncId = syncId,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    recurrence = recurrence
 )
 
 // ── CalendarEvent / EventReminder — reminders nested under CalendarEventDto, full-replace ──────
@@ -277,7 +280,9 @@ data class CalendarEventDto(
     val createdAt: Long,
     val deletedAt: Long?,
     val updatedAt: Long,
-    val reminders: List<EventReminderDto> = emptyList()
+    val reminders: List<EventReminderDto> = emptyList(),
+    val recurrence: String = "",
+    val recurrenceExceptions: String = ""
 )
 
 fun CalendarEvent.toDto(reminders: List<EventReminderDto> = emptyList()) = CalendarEventDto(
@@ -294,7 +299,9 @@ fun CalendarEvent.toDto(reminders: List<EventReminderDto> = emptyList()) = Calen
     createdAt = createdAt,
     deletedAt = deletedAt,
     updatedAt = updatedAt,
-    reminders = reminders
+    reminders = reminders,
+    recurrence = recurrence,
+    recurrenceExceptions = recurrenceExceptions
 )
 
 fun CalendarEventDto.toEntity() = CalendarEvent(
@@ -310,7 +317,9 @@ fun CalendarEventDto.toEntity() = CalendarEvent(
     createdAt = createdAt,
     deletedAt = deletedAt,
     syncId = syncId,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    recurrence = recurrence,
+    recurrenceExceptions = recurrenceExceptions
 )
 
 // ── Alarm ────────────────────────────────────────────────────────────────────────────────────
@@ -443,7 +452,8 @@ data class ReminderDto(
     val deletedAt: Long?,
     /** The attached note's syncId, or null — NOT its local Room id (see this file's own KDoc). */
     val noteSyncId: String?,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val recurrence: String = ""
 )
 
 fun Reminder.toDto(noteSyncId: String?) = ReminderDto(
@@ -458,7 +468,8 @@ fun Reminder.toDto(noteSyncId: String?) = ReminderDto(
     soundUri = soundUri,
     deletedAt = deletedAt,
     noteSyncId = noteSyncId,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    recurrence = recurrence
 )
 
 /** [localNoteId] is resolved by the caller from [ReminderDto.noteSyncId] (null if unresolvable — the attached note hasn't arrived on this device yet). */
@@ -474,7 +485,8 @@ fun ReminderDto.toEntity(localNoteId: Long?) = Reminder(
     deletedAt = deletedAt,
     noteId = localNoteId,
     syncId = syncId,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    recurrence = recurrence
 )
 
 // ── Notebook / Note / NoteLink ──────────────────────────────────────────────────────────────────

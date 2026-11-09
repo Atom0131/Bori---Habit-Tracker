@@ -41,7 +41,7 @@ internal fun LazyListScope.eventsSection(
     if (events.isEmpty()) {
         item(key = "events_empty") { SectionEmptyCard("No events for this day.", horizontalPadding = DesktopLayout.screenPadding) }
     } else {
-        items(events, key = { "today_event_${it.id}" }) { event ->
+        items(events, key = { "today_event_${it.id}_${it.occurrenceDate.orEmpty()}" }) { event ->
             Box(Modifier.fillMaxWidth().padding(horizontal = DesktopLayout.screenPadding, vertical = 4.dp)) {
                 CalendarEventRow(event, onEdit = { onEdit(event) }, onDelete = { onDelete(event) })
             }

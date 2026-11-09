@@ -1,5 +1,8 @@
 package com.apagon.rhythm.ui.todos
 
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,6 +80,7 @@ import com.apagon.rhythm.data.model.TodoSubtask
 internal fun LazyListScope.todoSection(
     dueToday: List<Todo>,
     overdue: List<Todo>,
+    upcoming: List<Todo>,
     completed: List<Todo>,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
@@ -99,7 +103,7 @@ internal fun LazyListScope.todoSection(
     }
     if (!expanded) return
 
-    if (dueToday.isEmpty() && overdue.isEmpty() && completed.isEmpty()) {
+    if (dueToday.isEmpty() && overdue.isEmpty() && upcoming.isEmpty() && completed.isEmpty()) {
         item(key = "todos_empty") { SectionEmptyCard("Nothing to do here", horizontalPadding = DesktopLayout.screenPadding) }
     } else {
         items(dueToday, key = { "todo_${it.id}" }) { todo ->
@@ -107,12 +111,25 @@ internal fun LazyListScope.todoSection(
         }
     }
 
-    if (overdue.isNotEmpty()) {
+    // One fold for everything not due on this day: "2 overdue · 3 upcoming", overdue in red. Inside,
+    // overdue rows come first (their "Overdue Nov 3" line is red), then upcoming ones soonest first.
+    if (overdue.isNotEmpty() || upcoming.isNotEmpty()) {
         item(key = "todos_overdue_header") {
-            SectionFoldToggle("${overdue.size} overdue", overdueExpanded, onToggleOverdueExpanded)
+            val error = MaterialTheme.colorScheme.error
+            val label = buildAnnotatedString {
+                if (overdue.isNotEmpty()) withStyle(SpanStyle(color = error)) { append("${overdue.size} overdue") }
+                if (overdue.isNotEmpty() && upcoming.isNotEmpty()) append(" · ")
+                if (upcoming.isNotEmpty()) append("${upcoming.size} upcoming")
+            }
+            SectionFoldToggle(label, overdueExpanded, onToggleOverdueExpanded)
         }
-        if (overdueExpanded) items(overdue, key = { "todo_overdue_${it.id}" }) { todo ->
-            DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
+        if (overdueExpanded) {
+            items(overdue, key = { "todo_overdue_${it.id}" }) { todo ->
+                DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
+            }
+            items(upcoming, key = { "todo_upcoming_${it.id}" }) { todo ->
+                DesktopTodoRow(todo, onToggle = { onToggle(todo) }, onEdit = { onEdit(todo) }, subtasks = subtasksByTodo[todo.id].orEmpty(), onToggleSubtask = onToggleSubtask)
+            }
         }
     }
 
@@ -196,6 +213,7 @@ internal fun DesktopTodoRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            com.apagon.rhythm.ui.components.RepeatLine(todo.recurrence, todo.dueDate)
             if (todo.note.isNotBlank()) {
                 Text(
                     todo.note,

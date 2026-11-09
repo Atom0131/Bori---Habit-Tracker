@@ -112,7 +112,14 @@ private fun ensureEmojiFontInstalled() {
     }
 }
 
-fun main() {
+fun main(args: Array<String>) {
+    // `bori --mcp`: an AI app on this computer talking to Bori over stdin/stdout (Settings → Obsidian &
+    // AI → Connect an AI app). Must come first: no window, no AWT, no database, no single-instance lock.
+    if (args.firstOrNull() == "--mcp") {
+        com.apagon.rhythm.data.agent.BoriMcpServer.run()
+        return
+    }
+
     // Window class "bori", so KDE/GNOME match the window to bori.desktop (StartupWMClass=bori) and
     // show its icon in the taskbar instead of Java's Duke. AWT derives the class from the main
     // class name otherwise. Must run before the first window exists; needs
@@ -151,6 +158,11 @@ fun main() {
     // The computer's own daily backup (Settings → Data Management → Backup & Restore).
     koinApp.koin.get<com.apagon.rhythm.data.backup.DesktopAutoBackup>()
         .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    // The Markdown (Obsidian) vault folder, kept in two-way sync with a notebook (Settings → Obsidian & AI).
+    koinApp.koin.get<com.apagon.rhythm.data.vault.DesktopNoteVault>()
+        .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    // Local AI agent API (127.0.0.1 only, token, off by default; Settings → Obsidian & AI).
+    koinApp.koin.get<com.apagon.rhythm.data.agent.AgentApiServer>().start()
 
     // Stage 6 billing shim: there's no desktop payment rail and no plan to
     // build one, so desktop is unconditionally Pro rather than wiring up a

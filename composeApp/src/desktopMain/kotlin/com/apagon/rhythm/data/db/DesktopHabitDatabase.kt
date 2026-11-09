@@ -42,7 +42,7 @@ import java.io.File
 // they don't need to match Android's schema version.
 @Database(
     entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class, ActiveDay::class, RoutineRunLog::class],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -549,6 +549,36 @@ val DESKTOP_HABIT_MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+// Repeating events, to-dos and reminders (Recurrence), the same columns as Android's MIGRATION_50_51.
+// DEFAULT '' matches the entities' @ColumnInfo(defaultValue = ""), so Room's identity check passes.
+val DESKTOP_HABIT_MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `calendar_events` ADD COLUMN `recurrence` TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE `calendar_events` ADD COLUMN `recurrenceExceptions` TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE `todos` ADD COLUMN `recurrence` TEXT NOT NULL DEFAULT ''")
+        connection.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrence` TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+/** Every migration, oldest first — also used by the migration test. */
+val DESKTOP_HABIT_MIGRATIONS = arrayOf(
+    DESKTOP_HABIT_MIGRATION_1_2,
+    DESKTOP_HABIT_MIGRATION_2_3,
+    DESKTOP_HABIT_MIGRATION_3_4,
+    DESKTOP_HABIT_MIGRATION_4_5,
+    DESKTOP_HABIT_MIGRATION_5_6,
+    DESKTOP_HABIT_MIGRATION_6_7,
+    DESKTOP_HABIT_MIGRATION_7_8,
+    DESKTOP_HABIT_MIGRATION_8_9,
+    DESKTOP_HABIT_MIGRATION_9_10,
+    DESKTOP_HABIT_MIGRATION_10_11,
+    DESKTOP_HABIT_MIGRATION_11_12,
+    DESKTOP_HABIT_MIGRATION_12_13,
+    DESKTOP_HABIT_MIGRATION_13_14,
+    DESKTOP_HABIT_MIGRATION_14_15,
+    DESKTOP_HABIT_MIGRATION_15_16
+)
+
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     // -Dbori.home=<dir> overrides ~/.bori (see AppHome) — lets Stage 4b's local loopback
     // sync test run two independent "devices" as separate JVM processes on
@@ -558,7 +588,7 @@ fun buildDesktopHabitDatabase(): DesktopHabitDatabase {
     return Room.databaseBuilder<DesktopHabitDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(DESKTOP_HABIT_MIGRATION_1_2, DESKTOP_HABIT_MIGRATION_2_3, DESKTOP_HABIT_MIGRATION_3_4, DESKTOP_HABIT_MIGRATION_4_5, DESKTOP_HABIT_MIGRATION_5_6, DESKTOP_HABIT_MIGRATION_6_7, DESKTOP_HABIT_MIGRATION_7_8, DESKTOP_HABIT_MIGRATION_8_9, DESKTOP_HABIT_MIGRATION_9_10, DESKTOP_HABIT_MIGRATION_10_11, DESKTOP_HABIT_MIGRATION_11_12, DESKTOP_HABIT_MIGRATION_12_13, DESKTOP_HABIT_MIGRATION_13_14, DESKTOP_HABIT_MIGRATION_14_15)
+        .addMigrations(*DESKTOP_HABIT_MIGRATIONS)
         .addCallback(object : RoomDatabase.Callback() {
             // Every open, fresh or migrated: the active-days triggers (IF NOT EXISTS).
             override fun onOpen(connection: SQLiteConnection) = ActiveDayTriggers.install(connection)

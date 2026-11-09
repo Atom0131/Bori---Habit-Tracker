@@ -9,7 +9,7 @@ plugins {
 }
 
 /** The one place the desktop version is set: the installers, PKGBUILD-independent, and About. */
-val boriVersion = "1.1.8"
+val boriVersion = "1.1.9"
 
 // AppInfo.VERSION is generated from boriVersion, so Settings → About can't drift from the
 // installer again (it said 1.0.0 through the 1.0.1 and 1.0.2 releases).
@@ -120,7 +120,22 @@ kotlin {
             // a flat-tint-only fallback permanently.
             implementation(libs.haze)
         }
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
     }
+}
+
+// The vault round-trip test can also run over a real folder: -PvaultFixtures=/path (read only).
+tasks.withType<Test>().configureEach {
+    // Tests must never touch the real ~/.bori: give every test JVM a throwaway data folder.
+    val testHome = layout.buildDirectory.dir("test-bori-home").get().asFile
+    doFirst { testHome.deleteRecursively(); testHome.mkdirs() }
+    systemProperty("bori.home", testHome.path)
+    (project.findProperty("vaultFixtures") as String?)?.let { systemProperty("vaultFixtures", it) }
+    (project.findProperty("migrationDb") as String?)?.let { systemProperty("migrationDb", it) }
 }
 
 dependencies {

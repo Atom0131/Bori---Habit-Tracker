@@ -9,6 +9,7 @@ import com.apagon.rhythm.core.time.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.apagon.rhythm.data.model.CalendarEvent
+import com.apagon.rhythm.data.model.expandForRange
 import com.apagon.rhythm.data.model.ChecklistItem
 import com.apagon.rhythm.data.model.ChecklistProgress
 import com.apagon.rhythm.data.model.Habit
@@ -207,6 +208,15 @@ class HabitListViewModel constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Pending to-dos due after the selected day, soonest first: the "upcoming" half of the overdue/upcoming fold. */
+    val selectedDateUpcomingTodos: StateFlow<List<Todo>> = combine(
+        _selectedDate,
+        todoRepository.getPendingTodos()
+    ) { date, todos ->
+        todos.filter { todo -> todo.getDueDateAsLocalDate()?.isAfter(date) == true }
+            .sortedWith(compareBy({ it.getDueDateAsLocalDate() }, { it.dueDate }))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val todayHabits: StateFlow<List<Habit>> = combine(habits, todayDate) { all, currentToday ->
         all.filter { it.isScheduledForDate(currentToday) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -307,7 +317,8 @@ class HabitListViewModel constructor(
         val rangeStart = sources.displayMonth.minusMonths(1).atDay(1)
         val rangeEnd = sources.displayMonth.plusMonths(1).atEndOfMonth()
 
-        sources.events.forEach { event ->
+        // Repeating events: one copy per date in the window (expandForRange).
+        sources.events.expandForRange(rangeStart.toString(), rangeEnd.toString()).forEach { event ->
             try {
                 val start = maxOf(LocalDate.parse(event.startDate), rangeStart)
                 val end = minOf(LocalDate.parse(event.endDate), rangeEnd)
@@ -368,7 +379,7 @@ class HabitListViewModel constructor(
         val rangeStart = LocalDate.now().minusMonths(1)
         val rangeEnd = LocalDate.now().plusMonths(2)
 
-        events.forEach { event ->
+        events.expandForRange(rangeStart.toString(), rangeEnd.toString()).forEach { event ->
             try {
                 val start = maxOf(LocalDate.parse(event.startDate), rangeStart)
                 val end = minOf(LocalDate.parse(event.endDate), rangeEnd)

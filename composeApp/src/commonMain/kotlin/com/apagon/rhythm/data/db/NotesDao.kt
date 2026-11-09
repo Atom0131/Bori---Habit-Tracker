@@ -101,6 +101,22 @@ interface NotesDao {
     """)
     suspend fun getNonPrivateNotesUpdatedSince(since: Long): List<Note>
 
+    // ── Markdown vault (desktop) ─────────────────────────────────────────────
+    // A number that changes whenever any note row is added, removed or touched (any updatedAt), so
+    // the vault can follow edits from the editor, sync and the agent API without polling.
+    @Query("SELECT COALESCE(SUM(updatedAt), 0) + COUNT(*) FROM notes")
+    fun observeNotesFingerprint(): Flow<Long>
+
+    @Query("SELECT COALESCE(SUM(updatedAt), 0) + COUNT(*) FROM notebooks")
+    fun observeNotebooksFingerprint(): Flow<Long>
+
+    /** Including soft-deleted rows: the vault turns a deletion into a move to its `.trash`. */
+    @Query("SELECT * FROM notes WHERE notebookId IN (:notebookIds)")
+    suspend fun getNotesInNotebooksIncludingDeleted(notebookIds: List<Long>): List<Note>
+
+    @Query("SELECT * FROM notes WHERE id = :id")
+    fun observeNoteById(id: Long): Flow<Note?>
+
     // Backup/restore
     @Query("SELECT * FROM notebooks")
     suspend fun getAllNotebooksForBackup(): List<Notebook>

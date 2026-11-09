@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.todos
 
+import com.apagon.rhythm.ui.components.RepeatRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -95,9 +96,12 @@ fun DesktopAddTodoSheet(
         dueDate: String,
         priority: TodoPriority,
         iconIndex: Int,
-        subtasks: List<TodoSubtask>
+        subtasks: List<TodoSubtask>,
+        recurrence: String
     ) -> Unit
 ) {
+    // A repeating to-do moves to its next date when checked off (TodoRepository.rollIfRepeating).
+    var recurrence by remember { mutableStateOf(existing?.recurrence ?: "") }
     val localeFormatting = koinInject<LocaleFormatting>()
     val is24Hour = remember(localeFormatting) { localeFormatting.is24HourFormat() }
     val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
@@ -225,6 +229,8 @@ fun DesktopAddTodoSheet(
                 }
             }
 
+            RepeatRow(rule = recurrence, start = date, onChange = { recurrence = it })
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -244,7 +250,7 @@ fun DesktopAddTodoSheet(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val dueDate = date.format(ISO_LOCAL_DATE) + if (hasTime) " %02d:%02d".format(hour, minute) else ""
-                        onSave(title, note, dueDate, priority, iconIndex, subtaskDrafts.cleanedForSave())
+                        onSave(title, note, dueDate, priority, iconIndex, subtaskDrafts.cleanedForSave(), recurrence)
                     }
                 )
             }

@@ -28,6 +28,7 @@ class NotesRepository constructor(
     // Notes
     fun getNotesByNotebook(notebookId: Long): Flow<List<Note>> = notesDao.getNotesByNotebook(notebookId)
     suspend fun getNoteById(id: Long): Note? = notesDao.getNoteById(id)
+    fun observeNoteById(id: Long): Flow<Note?> = notesDao.observeNoteById(id)
     suspend fun insertNote(note: Note): Long = notesDao.insertNote(note)
     suspend fun updateNote(note: Note) = notesDao.updateNote(note.copy(updatedAt = System.currentTimeMillis()))
     suspend fun deleteNote(note: Note) {

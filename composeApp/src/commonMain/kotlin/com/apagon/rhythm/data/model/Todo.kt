@@ -2,6 +2,7 @@ package com.apagon.rhythm.data.model
 
 import com.apagon.rhythm.core.time.System
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -38,5 +39,7 @@ data class Todo(
     /** Stable cross-device id for the Tailscale sync engine. Minted once, never overwritten. */
     val syncId: String = Uuid.random().toString(),
     /** Bumped on every local mutation; sync's last-write-wins conflict signal. */
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    /** How it repeats, as a [Recurrence] rule ("" = doesn't repeat). Same string on Android. */
+    @ColumnInfo(defaultValue = "") val recurrence: String = "",
 )

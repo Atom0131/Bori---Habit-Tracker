@@ -194,7 +194,12 @@ private fun DesktopHabitRow(
  * Android app uses so a finished habit doesn't get the same visual weight as an active one.
  */
 @Composable
-internal fun SectionFoldToggle(label: String, expanded: Boolean, onToggle: () -> Unit) {
+internal fun SectionFoldToggle(label: String, expanded: Boolean, onToggle: () -> Unit) =
+    SectionFoldToggle(androidx.compose.ui.text.AnnotatedString(label), expanded, onToggle)
+
+/** Same quiet fold line with styled spans, e.g. the to-do list's red "2 overdue" next to a plain "3 upcoming". */
+@Composable
+internal fun SectionFoldToggle(label: androidx.compose.ui.text.AnnotatedString, expanded: Boolean, onToggle: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

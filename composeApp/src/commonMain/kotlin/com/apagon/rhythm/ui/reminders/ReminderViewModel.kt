@@ -38,10 +38,10 @@ class ReminderViewModel constructor(
             .sortedByDescending { it.dateTime }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addReminder(title: String, note: String, dateTime: String, soundUri: String = "") {
+    fun addReminder(title: String, note: String, dateTime: String, soundUri: String = "", recurrence: String = "") {
         viewModelScope.launch {
-            val id = repository.addReminder(Reminder(title = title, note = note, dateTime = dateTime, soundUri = soundUri))
-            val reminder = Reminder(id = id, title = title, note = note, dateTime = dateTime, soundUri = soundUri)
+            val id = repository.addReminder(Reminder(title = title, note = note, dateTime = dateTime, soundUri = soundUri, recurrence = recurrence))
+            val reminder = Reminder(id = id, title = title, note = note, dateTime = dateTime, soundUri = soundUri, recurrence = recurrence)
             scheduler.scheduleOneShot(reminder)
         }
     }
