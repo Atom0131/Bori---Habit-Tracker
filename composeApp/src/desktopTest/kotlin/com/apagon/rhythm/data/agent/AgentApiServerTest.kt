@@ -252,6 +252,30 @@ class AgentApiServerTest {
         assertEquals(-32601, rpc(6, "bogus")["error"]!!.jsonObject["code"]!!.jsonPrimitive.content.toInt())
     }
 
+    /** 11-09: "due 16:00 with a reminder at 15:30" — the early alert is stored, not silently dropped. */
+    @Test
+    fun todoEarlyAlertIsKeptAndIgnoredArgumentsAreReported() {
+        val day = LocalDate.now().plusDays(2).toString()
+        val (c, td) = call("POST", "/todos", """{"title":"Trash out","due":"$day 16:00","remind_minutes_before":"30"}""")
+        assertEquals(200, c, td)
+        val todo = obj(td)
+        assertEquals("30", todo.s("remind_minutes_before"))
+        val stored = runBlocking { db.todoDao().getPendingTodos().first() }.single { it.title == "Trash out" }
+        assertEquals(30, stored.earlyAlertMinutes)
+        // No due time: nothing to be early for.
+        assertEquals(400, call("POST", "/todos", """{"title":"x","due":"$day","remind_minutes_before":30}""").first)
+        // Removing the time drops the early alert; setting 0 clears it.
+        val moved = obj(call("PATCH", "/todos/${todo.s("id")}", """{"due":"$day"}""").second)
+        assertEquals(null, moved["remind_minutes_before"])
+
+        BoriMcpServer.url = "http://127.0.0.1:$port"
+        val res = BoriMcpServer.handle(obj("""{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"bori_add_reminder",
+            "arguments":{"title":"Call","at":"$day 09:00","remind_minutes_before":10}}}"""))!!["result"]!!.jsonObject
+        val text = res["content"]!!.jsonArray[0].jsonObject.s("text")
+        assertTrue(text.contains("NOT done: Bori ignored remind_minutes_before"), text)
+        assertEquals(emptyList(), BoriMcpServer.ignoredArguments("bori_add_todo", obj("""{"title":"a","remind_minutes_before":5}""")))
+    }
+
     @Test
     fun connectSetupEscapesWindowsPaths() {
         val win = com.apagon.rhythm.ui.settings.aiAppSetups("C:\\Users\\Ana Lee\\AppData\\Local\\Bori\\Bori.exe", true)

@@ -516,13 +516,22 @@ class AgentApiServer(
         runCatching { TodoPriority.valueOf(it.trim().uppercase()).name }.getOrElse { throw BadRequest("priority is high, medium, low or none") }
     }
 
+    /** A to-do's `remind_minutes_before` (one number; "30" works too). Null = not given. */
+    private fun earlyAlert(b: JsonObject, dueDate: String): Int? {
+        val m = alerts(b)?.let { it.firstOrNull() ?: 0 } ?: return null
+        if (m > 0 && !(dueDate.length >= 16 && dueDate[10] == ' '))
+            throw BadRequest("remind_minutes_before needs a due time: pass due as 'yyyy-MM-dd HH:mm'")
+        return m
+    }
+
     private suspend fun addTodo(b: JsonObject): Todo {
         val title = b.str("title")?.trim().takeUnless { it.isNullOrEmpty() } ?: throw BadRequest("title is required")
         val rule = repeatRule(b["repeat"]) ?: ""
         // A repeating to-do needs a date to move forward from: today when none was given.
         val dueDate = due(b.str("due"))?.ifEmpty { null } ?: if (rule.isNotEmpty()) LocalDate.now().toString() else ""
         val t = Todo(title = title, note = b.str("note").orEmpty(), dueDate = dueDate,
-            priority = priority(b.str("priority")) ?: TodoPriority.NONE.name, recurrence = rule)
+            priority = priority(b.str("priority")) ?: TodoPriority.NONE.name, recurrence = rule,
+            earlyAlertMinutes = earlyAlert(b, dueDate) ?: 0)
         val id = todos.addTodo(t)
         b["subtasks"]?.let { s ->
             val labels = (s as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull?.trim()?.ifEmpty { null } }
@@ -539,12 +548,16 @@ class AgentApiServer(
         val rule = (repeatRule(b["repeat"]) ?: t.recurrence).let { r ->
             if (newDue != t.dueDate) Recurrence.parse(r)?.copy(anchor = null)?.format() ?: r else r
         }
+        val finalDue = if (rule.isNotEmpty() && newDue.isEmpty()) LocalDate.now().toString() else newDue
+        // A due time removed takes the early alert with it.
+        val early = earlyAlert(b, finalDue) ?: if (finalDue.length >= 16) t.earlyAlertMinutes else 0
         todos.updateTodo(t.copy(
             title = b.str("title")?.trim()?.ifEmpty { null } ?: t.title,
             note = b.str("note") ?: t.note,
-            dueDate = if (rule.isNotEmpty() && newDue.isEmpty()) LocalDate.now().toString() else newDue,
+            dueDate = finalDue,
             priority = priority(b.str("priority")) ?: t.priority,
-            recurrence = rule
+            recurrence = rule,
+            earlyAlertMinutes = early
         ))
         return todo(id)
     }
@@ -552,6 +565,7 @@ class AgentApiServer(
     private suspend fun todoJson(t: Todo) = buildJsonObject {
         put("id", t.syncId); put("title", t.title)
         if (t.dueDate.isNotBlank()) put("due", t.dueDate)
+        if (t.earlyAlertMinutes > 0) put("remind_minutes_before", t.earlyAlertMinutes)
         if (t.priority != TodoPriority.NONE.name) put("priority", t.priority.lowercase())
         if (t.note.isNotBlank()) put("note", t.note)
         repeatText(t.recurrence, t.dueDate)?.let { put("repeat", it) }

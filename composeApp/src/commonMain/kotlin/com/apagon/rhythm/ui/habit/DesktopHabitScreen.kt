@@ -252,8 +252,8 @@ internal fun DesktopTodayListContent(
                 existing = todo,
                 existingSubtasks = subtasksByTodo[todo.id].orEmpty(),
                 onDelete = { todoViewModel.deleteTodo(todo); editingTodo = null },
-                onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence ->
-                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex, subtasks = subtasks, recurrence = recurrence)
+                onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence, earlyAlertMinutes ->
+                    todoViewModel.updateTodo(todo, title, note, dueDate, priority, iconIndex, subtasks = subtasks, recurrence = recurrence, earlyAlertMinutes = earlyAlertMinutes)
                     editingTodo = null
                 }
             )

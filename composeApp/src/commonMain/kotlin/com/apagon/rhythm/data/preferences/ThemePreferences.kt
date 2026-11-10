@@ -138,6 +138,8 @@ class ThemePreferences(
         /** "Alerts on this computer" master switch and the reminders switch (1.1.8, Android 1.93). */
         val RING_ALERTS_HERE_KEY = booleanPreferencesKey("ring_alerts_here")
         val RING_REMINDERS_HERE_KEY = booleanPreferencesKey("ring_reminders_here")
+        /** To-dos ring at their due time (and early alert) on this computer (1.1.9, like Android's ring_todos). */
+        val RING_TODOS_HERE_KEY = booleanPreferencesKey("ring_todos_here")
 
         /** Never part of the synced settings, so changing one must not stamp the timestamp. */
         private val DEVICE_LOCAL_KEYS: Set<Preferences.Key<*>> by lazy {
@@ -146,7 +148,7 @@ class ThemePreferences(
                 SYNC_HABITS_ENABLED_KEY, SYNC_REMINDERS_ENABLED_KEY, SYNC_EVENTS_ENABLED_KEY,
                 SYNC_TODOS_ENABLED_KEY, SYNC_CLOCK_ENABLED_KEY, SYNC_NOTES_ENABLED_KEY,
                 SYNC_JOURNAL_ENABLED_KEY, SYNC_PREFERENCES_ENABLED_KEY, RING_ALARMS_HERE_KEY,
-                RING_ALERTS_HERE_KEY, RING_REMINDERS_HERE_KEY)
+                RING_ALERTS_HERE_KEY, RING_REMINDERS_HERE_KEY, RING_TODOS_HERE_KEY)
         }
 
         /** Index meaning "no colour — the cool neutral room". Distinct from 0, a real palette entry. */
@@ -285,6 +287,10 @@ class ThemePreferences(
     val ringAlertsMasterSwitch: Flow<Boolean> = dataStore.data.map { it[RING_ALERTS_HERE_KEY] ?: true }
     val ringAlarmsSwitch: Flow<Boolean> = dataStore.data.map { it[RING_ALARMS_HERE_KEY] ?: true }
     val ringRemindersSwitch: Flow<Boolean> = dataStore.data.map { it[RING_REMINDERS_HERE_KEY] ?: true }
+    val ringTodosSwitch: Flow<Boolean> = dataStore.data.map { it[RING_TODOS_HERE_KEY] ?: true }
+    val ringTodosHere: Flow<Boolean> = dataStore.data.map {
+        (it[RING_ALERTS_HERE_KEY] ?: true) && (it[RING_TODOS_HERE_KEY] ?: true)
+    }
     val ringAlarmsHere: Flow<Boolean> = dataStore.data.map {
         (it[RING_ALERTS_HERE_KEY] ?: true) && (it[RING_ALARMS_HERE_KEY] ?: true)
     }
@@ -304,6 +310,7 @@ class ThemePreferences(
     suspend fun setRingAlarmsHere(on: Boolean) { dataStore.edit { it[RING_ALARMS_HERE_KEY] = on } }
     suspend fun setRingAlertsMaster(on: Boolean) { dataStore.edit { it[RING_ALERTS_HERE_KEY] = on } }
     suspend fun setRingRemindersHere(on: Boolean) { dataStore.edit { it[RING_REMINDERS_HERE_KEY] = on } }
+    suspend fun setRingTodosHere(on: Boolean) { dataStore.edit { it[RING_TODOS_HERE_KEY] = on } }
 
     val vaultFileSyncEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[VAULT_FILE_SYNC_ENABLED_KEY] ?: false

@@ -35,7 +35,7 @@ class DesktopOsNotifier {
             return
         }
         runCatching {
-            val urgency = if (alert.kind == FiredAlertKind.REMINDER) "normal" else "critical"
+            val urgency = if (alert.kind == FiredAlertKind.REMINDER || alert.kind == FiredAlertKind.TODO) "normal" else "critical"
             ProcessBuilder(
                 "notify-send",
                 "--app-name=Bori",

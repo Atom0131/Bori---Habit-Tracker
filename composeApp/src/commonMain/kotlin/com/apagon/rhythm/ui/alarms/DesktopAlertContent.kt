@@ -55,6 +55,7 @@ fun DesktopAlertContent(
                         FiredAlertKind.ALARM -> "Alarm"
                         FiredAlertKind.REMINDER -> "Reminder"
                         FiredAlertKind.TIMER -> "Timer"
+                        FiredAlertKind.TODO -> "To-do"
                     },
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary

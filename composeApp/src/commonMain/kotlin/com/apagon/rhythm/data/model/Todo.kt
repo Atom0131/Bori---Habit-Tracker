@@ -42,4 +42,6 @@ data class Todo(
     val updatedAt: Long = System.currentTimeMillis(),
     /** How it repeats, as a [Recurrence] rule ("" = doesn't repeat). Same string on Android. */
     @ColumnInfo(defaultValue = "") val recurrence: String = "",
+    /** Also ring this many minutes before the due time (0 = only at the due time). Needs a time. */
+    @ColumnInfo(defaultValue = "0") val earlyAlertMinutes: Int = 0,
 )

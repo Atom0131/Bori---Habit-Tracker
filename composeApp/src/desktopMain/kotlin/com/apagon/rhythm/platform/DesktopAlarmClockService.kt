@@ -5,6 +5,8 @@ import com.apagon.rhythm.core.time.parse
 import com.apagon.rhythm.data.db.AlarmDao
 import com.apagon.rhythm.data.db.ReminderDao
 import com.apagon.rhythm.data.db.TimerDao
+import com.apagon.rhythm.data.db.TodoDao
+import com.apagon.rhythm.data.model.Todo
 import com.apagon.rhythm.data.model.caughtUp
 import com.apagon.rhythm.ui.util.REMINDER_INPUT_FMT
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +32,8 @@ class DesktopAlarmClockService(
     private val timerDao: TimerDao,
     private val alertCenter: AlertCenter,
     private val osNotifier: DesktopOsNotifier,
-    private val themePreferences: com.apagon.rhythm.data.preferences.ThemePreferences
+    private val themePreferences: com.apagon.rhythm.data.preferences.ThemePreferences,
+    private val todoDao: TodoDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -42,6 +45,8 @@ class DesktopAlarmClockService(
     private val firedAlarmMinutes = mutableSetOf<String>()
     // Keyed by id@dateTime, so a repeating reminder that moved on to its next date can ring again.
     private val firedReminderIds = mutableSetOf<String>()
+    // Keyed by id@dueDate@early|due, so a moved or repeating to-do can ring again for its new time.
+    private val firedTodoKeys = mutableSetOf<String>()
 
     fun start() {
         scope.launch {
@@ -59,6 +64,7 @@ class DesktopAlarmClockService(
         val ringsHere = themePreferences.ringAlarmsHere.first()
         if (ringsHere) checkAlarms(now)
         checkReminders(now, themePreferences.ringRemindersHere.first())
+        checkTodos(java.time.LocalDateTime.now(), themePreferences.ringTodosHere.first())
         checkTimers(ringsHere)
     }
 
@@ -115,6 +121,46 @@ class DesktopAlarmClockService(
                     subtitle = reminder.note
                 )
             )
+        }
+    }
+
+    /**
+     * A to-do with a time rings at that time, and also [Todo.earlyAlertMinutes] before it (like the
+     * phone's ReminderScheduler.scheduleTodo). Only within [TODO_GRACE_MINUTES] of the moment, so
+     * launching Bori doesn't ring every overdue to-do; marked handled even while silent, so turning
+     * the switch on doesn't ring a backlog.
+     */
+    private suspend fun checkTodos(now: java.time.LocalDateTime, ringsHere: Boolean) {
+        todoDao.getAllActiveTodos().first().forEach { todo ->
+            if (todo.isCompleted || todo.deletedAt != null) return@forEach
+            val due = todoDueTime(todo) ?: return@forEach
+            val moments = buildList {
+                if (todo.earlyAlertMinutes > 0) add("early" to due.minusMinutes(todo.earlyAlertMinutes.toLong()))
+                add("due" to due)
+            }
+            for ((label, at) in moments) {
+                if (at > now || at < now.minusMinutes(TODO_GRACE_MINUTES)) continue
+                if (!firedTodoKeys.add("${todo.id}@${todo.dueDate}@$label")) continue
+                if (ringsHere) fire(
+                    FiredAlert(
+                        kind = FiredAlertKind.TODO,
+                        sourceId = todo.id,
+                        title = todo.title,
+                        subtitle = if (label == "early") "Due at %02d:%02d".format(due.hour, due.minute) else todo.note
+                    )
+                )
+            }
+        }
+    }
+
+    private companion object {
+        const val TODO_GRACE_MINUTES = 15L
+
+        /** "yyyy-MM-dd HH:mm" (a date-only to-do has no alert). */
+        fun todoDueTime(todo: Todo): java.time.LocalDateTime? {
+            val d = todo.dueDate.trim()
+            if (d.length < 16 || d[10] != ' ') return null
+            return runCatching { java.time.LocalDateTime.parse(d.take(16).replace(' ', 'T')) }.getOrNull()
         }
     }
 

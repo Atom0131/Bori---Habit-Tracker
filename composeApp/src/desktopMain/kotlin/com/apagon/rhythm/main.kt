@@ -308,7 +308,7 @@ fun main(args: Array<String>) {
             val osNotifier = koinInject<DesktopOsNotifier>()
             LaunchedEffect(trayState) {
                 osNotifier.trayAlerts.collect { alert ->
-                    val type = if (alert.kind == FiredAlertKind.REMINDER) Notification.Type.Info else Notification.Type.Warning
+                    val type = if (alert.kind == FiredAlertKind.REMINDER || alert.kind == FiredAlertKind.TODO) Notification.Type.Info else Notification.Type.Warning
                     trayState.sendNotification(Notification(alert.title, alert.subtitle, type))
                 }
             }

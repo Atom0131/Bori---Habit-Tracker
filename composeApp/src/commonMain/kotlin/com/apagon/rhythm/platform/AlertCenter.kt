@@ -3,7 +3,7 @@ package com.apagon.rhythm.platform
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
-enum class FiredAlertKind { ALARM, REMINDER, TIMER }
+enum class FiredAlertKind { ALARM, REMINDER, TIMER, TODO }
 
 data class FiredAlert(
     val kind: FiredAlertKind,

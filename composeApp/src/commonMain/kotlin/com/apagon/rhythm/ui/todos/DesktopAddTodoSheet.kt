@@ -1,5 +1,6 @@
 package com.apagon.rhythm.ui.todos
 
+import com.apagon.rhythm.ui.components.EarlyAlertRow
 import com.apagon.rhythm.ui.components.RepeatRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -97,7 +98,8 @@ fun DesktopAddTodoSheet(
         priority: TodoPriority,
         iconIndex: Int,
         subtasks: List<TodoSubtask>,
-        recurrence: String
+        recurrence: String,
+        earlyAlertMinutes: Int
     ) -> Unit
 ) {
     // A repeating to-do moves to its next date when checked off (TodoRepository.rollIfRepeating).
@@ -122,6 +124,7 @@ fun DesktopAddTodoSheet(
 
     var date by remember { mutableStateOf(existingDate ?: LocalDate.now()) }
     var hasTime by remember { mutableStateOf(existingTime != null) }
+    var earlyAlertMinutes by remember { mutableStateOf(existing?.earlyAlertMinutes ?: 0) }
     var hour by remember { mutableIntStateOf(existingTime?.first ?: 9) }
     var minute by remember { mutableIntStateOf(existingTime?.second ?: 0) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -230,6 +233,7 @@ fun DesktopAddTodoSheet(
             }
 
             RepeatRow(rule = recurrence, start = date, onChange = { recurrence = it })
+            if (hasTime) EarlyAlertRow(minutes = earlyAlertMinutes, onChange = { earlyAlertMinutes = it })
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -250,7 +254,7 @@ fun DesktopAddTodoSheet(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val dueDate = date.format(ISO_LOCAL_DATE) + if (hasTime) " %02d:%02d".format(hour, minute) else ""
-                        onSave(title, note, dueDate, priority, iconIndex, subtaskDrafts.cleanedForSave(), recurrence)
+                        onSave(title, note, dueDate, priority, iconIndex, subtaskDrafts.cleanedForSave(), recurrence, if (hasTime) earlyAlertMinutes else 0)
                     }
                 )
             }

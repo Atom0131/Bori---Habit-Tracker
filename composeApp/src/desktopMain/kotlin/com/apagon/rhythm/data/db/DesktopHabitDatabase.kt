@@ -42,7 +42,7 @@ import java.io.File
 // they don't need to match Android's schema version.
 @Database(
     entities = [Habit::class, HabitCompletion::class, ChecklistItem::class, ChecklistItemCompletion::class, Todo::class, CalendarEvent::class, JournalEntry::class, Notebook::class, Note::class, Alarm::class, Reminder::class, Timer::class, EventReminder::class, NoteLink::class, TodoSubtask::class, ActiveDay::class, RoutineRunLog::class],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(HabitFrequencyConverter::class)
@@ -560,6 +560,13 @@ val DESKTOP_HABIT_MIGRATION_15_16 = object : Migration(15, 16) {
     }
 }
 
+// A to-do's early alert (minutes before its due time), the same column as Android's MIGRATION_51_52.
+val DESKTOP_HABIT_MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `todos` ADD COLUMN `earlyAlertMinutes` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 /** Every migration, oldest first — also used by the migration test. */
 val DESKTOP_HABIT_MIGRATIONS = arrayOf(
     DESKTOP_HABIT_MIGRATION_1_2,
@@ -576,7 +583,8 @@ val DESKTOP_HABIT_MIGRATIONS = arrayOf(
     DESKTOP_HABIT_MIGRATION_12_13,
     DESKTOP_HABIT_MIGRATION_13_14,
     DESKTOP_HABIT_MIGRATION_14_15,
-    DESKTOP_HABIT_MIGRATION_15_16
+    DESKTOP_HABIT_MIGRATION_15_16,
+    DESKTOP_HABIT_MIGRATION_16_17
 )
 
 fun buildDesktopHabitDatabase(): DesktopHabitDatabase {

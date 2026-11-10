@@ -202,7 +202,9 @@ data class TodoDto(
     val vibrationPatternId: String,
     val updatedAt: Long,
     val subtasks: List<TodoSubtaskDto> = emptyList(),
-    val recurrence: String = ""
+    val recurrence: String = "",
+    /** Minutes before the due time for the early alert (0 = none). Older peers omit it. */
+    val earlyAlertMinutes: Int = 0
 )
 
 fun Todo.toDto(subtasks: List<TodoSubtaskDto> = emptyList()) = TodoDto(
@@ -221,7 +223,8 @@ fun Todo.toDto(subtasks: List<TodoSubtaskDto> = emptyList()) = TodoDto(
     vibrationPatternId = vibrationPatternId,
     updatedAt = updatedAt,
     subtasks = subtasks,
-    recurrence = recurrence
+    recurrence = recurrence,
+    earlyAlertMinutes = earlyAlertMinutes
 )
 
 fun TodoDto.toEntity() = Todo(
@@ -239,7 +242,8 @@ fun TodoDto.toEntity() = Todo(
     vibrationPatternId = vibrationPatternId,
     syncId = syncId,
     updatedAt = updatedAt,
-    recurrence = recurrence
+    recurrence = recurrence,
+    earlyAlertMinutes = earlyAlertMinutes
 )
 
 // ── CalendarEvent / EventReminder — reminders nested under CalendarEventDto, full-replace ──────

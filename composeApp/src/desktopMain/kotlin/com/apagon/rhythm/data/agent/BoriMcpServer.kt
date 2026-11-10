@@ -119,13 +119,18 @@ object BoriMcpServer {
                 "end_date" to DATE, "note" to str(), "remind_minutes_before" to INT, "repeat" to repeat(),
                 "only_date" to str("yyyy-MM-dd: change only this date of a repeating event")),
             listOf("id")),
-        tool("bori_add_todo", "Add a to-do to Bori, optionally with a due date/time, priority and sub-steps.",
+        tool("bori_add_todo",
+            "Add a to-do to Bori, optionally with a due date/time, priority and sub-steps. A to-do with a due time " +
+                "rings at that time on the user's computer and phone; remind_minutes_before adds an earlier alert too.",
             mapOf("title" to str(), "due" to str("yyyy-MM-dd or 'yyyy-MM-dd HH:mm'"), "priority" to PRIORITY,
                 "note" to str(), "subtasks" to STRINGS,
+                "remind_minutes_before" to withDescription(INT, "Also alert this many minutes before the due time, " +
+                    "e.g. 30 (needs a due time; 0 = only at the due time)"),
                 "repeat" to repeat(" A repeating to-do moves to its next date when completed.")),
             listOf("title")),
         tool("bori_update_todo", "Change an existing Bori to-do (only the fields you pass).",
-            mapOf("id" to str(), "title" to str(), "due" to str(), "priority" to PRIORITY, "note" to str(), "repeat" to repeat()),
+            mapOf("id" to str(), "title" to str(), "due" to str(), "priority" to PRIORITY, "note" to str(), "repeat" to repeat(),
+                "remind_minutes_before" to withDescription(INT, "Early alert, minutes before the due time (0 = none)")),
             listOf("id")),
         tool("bori_complete_todo", "Mark a Bori to-do done (or not done with done=false).",
             mapOf("id" to str(), "done" to BOOL), listOf("id")),
@@ -221,8 +226,8 @@ object BoriMcpServer {
         "bori_agenda" -> request("GET", "/agenda", query = mapOf("from" to a.s("from"), "to" to a.s("to")))
         "bori_add_event" -> request("POST", "/events", a.pick("title", "date", "start_time", "end_time", "end_date", "note", "remind_minutes_before", "repeat"))
         "bori_update_event" -> request("PATCH", "/events/${enc(a.id())}", a.pick("title", "date", "start_time", "end_time", "end_date", "note", "remind_minutes_before", "repeat", "only_date"))
-        "bori_add_todo" -> request("POST", "/todos", a.pick("title", "due", "priority", "note", "subtasks", "repeat"))
-        "bori_update_todo" -> request("PATCH", "/todos/${enc(a.id())}", a.pick("title", "due", "priority", "note", "repeat"))
+        "bori_add_todo" -> request("POST", "/todos", a.pick("title", "due", "priority", "note", "subtasks", "repeat", "remind_minutes_before"))
+        "bori_update_todo" -> request("PATCH", "/todos/${enc(a.id())}", a.pick("title", "due", "priority", "note", "repeat", "remind_minutes_before"))
         "bori_complete_todo" -> request("POST", "/todos/${enc(a.id())}/complete", a.pick("done"))
         "bori_add_reminder" -> request("POST", "/reminders", a.pick("title", "at", "note", "repeat"))
         "bori_update_reminder" -> request("PATCH", "/reminders/${enc(a.id())}", a.pick("title", "at", "note", "done", "repeat"))
@@ -269,9 +274,15 @@ object BoriMcpServer {
                 val name = params.s("name")
                 val (text, isError) = try {
                     val out = pretty.encodeToString(JsonElement.serializer(), callTool(name, args))
+                    // Arguments this tool doesn't take were dropped. Say so, so the model can't tell the user
+                    // something happened that didn't (11-09: a to-do's "remind 30 min before" vanished and
+                    // Coqui confirmed a 15:30 alert anyway).
+                    val ignored = ignoredArguments(name, args)
+                    val note = if (ignored.isEmpty()) "" else "\nNOT done: Bori ignored ${ignored.joinToString()} " +
+                        "(this tool doesn't support it). Tell the user that part wasn't set."
                     // Small local models follow the tool result more reliably than the instructions.
-                    (if (name in READ_ONLY) out else "Saved. Start your reply with \"✅ Updated in Bori Habit Tracker:\" " +
-                        "and say what changed.\n$out") to false
+                    (if (name in READ_ONLY) out + note else "Saved. Start your reply with \"✅ Updated in Bori Habit Tracker:\" " +
+                        "and say what changed.$note\n$out") to false
                 } catch (e: BoriError) {
                     e.message.orEmpty() to true
                 } catch (e: NoSuchElementException) {
@@ -290,6 +301,13 @@ object BoriMcpServer {
             }
         }
         return buildJsonObject { put("jsonrpc", "2.0"); put("id", id); put("result", result) }
+    }
+
+    /** The argument names [args] passes that tool [name]'s schema doesn't list (they are dropped). */
+    internal fun ignoredArguments(name: String?, args: JsonObject): List<String> {
+        val tool = TOOLS.firstOrNull { it["name"]?.jsonPrimitive?.contentOrNull == name } ?: return emptyList()
+        val known = ((tool["inputSchema"] as? JsonObject)?.get("properties") as? JsonObject)?.keys ?: return emptyList()
+        return args.filter { (k, v) -> k !in known && v !is JsonNull }.keys.sorted()
     }
 
     /** [handle], but an unexpected failure becomes a JSON-RPC error instead of ending the process. */

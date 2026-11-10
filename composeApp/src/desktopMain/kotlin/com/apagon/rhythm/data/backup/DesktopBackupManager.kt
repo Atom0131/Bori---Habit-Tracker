@@ -414,6 +414,7 @@ class DesktopBackupManager(
                 put("id", t.id)
                 put("title", t.title)
                 put("recurrence", t.recurrence)
+                put("earlyAlertMinutes", t.earlyAlertMinutes)
                 put("note", t.note)
                 put("dueDate", t.dueDate)
                 put("priority", t.priority)
@@ -687,6 +688,7 @@ class DesktopBackupManager(
             id = o.getLong("id"),
             title = o.getString("title"),
             recurrence = o.optString("recurrence", ""),
+            earlyAlertMinutes = o.optInt("earlyAlertMinutes", 0),
             note = o.optString("note", ""),
             dueDate = o.optString("dueDate", ""),
             priority = normalizePriority(o.optString("priority", "")),

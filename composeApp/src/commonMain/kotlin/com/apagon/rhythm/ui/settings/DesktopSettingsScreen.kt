@@ -1410,8 +1410,9 @@ private fun AlertsSectionContent(prefs: ThemePreferences) {
                 Column(Modifier.padding(start = 16.dp)) {
                     row("Alarms & timers", prefs.ringAlarmsSwitch, prefs::setRingAlarmsHere)
                     row("Reminders", prefs.ringRemindersSwitch, prefs::setRingRemindersHere)
+                    row("To-dos", prefs.ringTodosSwitch, prefs::setRingTodosHere)
                     Text(
-                        "Habits, to-dos and events only alert on your phone and tablet.",
+                        "Habits and events only alert on your phone and tablet.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

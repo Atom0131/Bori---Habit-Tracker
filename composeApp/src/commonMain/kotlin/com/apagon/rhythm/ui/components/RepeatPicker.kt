@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -294,5 +295,58 @@ fun RepeatLine(rule: String, date: String) {
         RepeatBadge()
         Spacer(Modifier.width(4.dp))
         Text(r.describe(start), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** The early-alert choices for a to-do, in minutes before its due time (0 = none). Same list on Android. */
+val EARLY_ALERT_CHOICES = listOf(0, 5, 10, 15, 30, 60, 120, 1440)
+
+fun earlyAlertLabel(minutes: Int): String = when {
+    minutes <= 0 -> "None"
+    minutes % 1440 == 0 -> if (minutes == 1440) "1 day before" else "${minutes / 1440} days before"
+    minutes % 60 == 0 -> if (minutes == 60) "1 hour before" else "${minutes / 60} hours before"
+    else -> "$minutes min before"
+}
+
+/**
+ * **"Remind me early: 30 min before ▸"** — a to-do's extra alert before its due time. It still
+ * rings at the due time; this adds one more. Shown only once the to-do has a time. Android has the same.
+ */
+@Composable
+fun EarlyAlertRow(minutes: Int, onChange: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var showChooser by remember { mutableStateOf(false) }
+    Surface(
+        onClick = { showChooser = true },
+        shape = MaterialTheme.shapes.small,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.fillMaxWidth().crystalControlSurface()
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Remind me early", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+            Text(
+                earlyAlertLabel(minutes),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (minutes > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+    }
+    if (showChooser) {
+        val choices = if (minutes in EARLY_ALERT_CHOICES) EARLY_ALERT_CHOICES else (EARLY_ALERT_CHOICES + minutes).sorted()
+        RhythmAlertDialog(
+            onDismissRequest = { showChooser = false },
+            title = { Text("Remind me early") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    choices.forEach { m ->
+                        ChoiceRow(earlyAlertLabel(m), selected = m == minutes) { onChange(m); showChooser = false }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showChooser = false }) { Text("Cancel") } }
+        )
     }
 }

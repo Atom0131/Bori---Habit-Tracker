@@ -95,10 +95,11 @@ class TodoViewModel constructor(
         }
     }
 
-    fun addTodo(title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = 0, soundUri: String = "", vibrationPatternId: String = "default", subtasks: List<TodoSubtask> = emptyList(), recurrence: String = "") {
+    fun addTodo(title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = 0, soundUri: String = "", vibrationPatternId: String = "default", subtasks: List<TodoSubtask> = emptyList(), recurrence: String = "", earlyAlertMinutes: Int = 0) {
         viewModelScope.launch {
             val todo = Todo(
                 recurrence = recurrence,
+                earlyAlertMinutes = earlyAlertMinutes,
                 title = title.trim(),
                 note = note.trim(),
                 dueDate = dueDate,
@@ -133,9 +134,10 @@ class TodoViewModel constructor(
         }
     }
 
-    fun updateTodo(todo: Todo, title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = todo.iconIndex, soundUri: String = todo.soundUri, vibrationPatternId: String = todo.vibrationPatternId, subtasks: List<TodoSubtask>? = null, recurrence: String = todo.recurrence) {
+    fun updateTodo(todo: Todo, title: String, note: String, dueDate: String, priority: TodoPriority, iconIndex: Int = todo.iconIndex, soundUri: String = todo.soundUri, vibrationPatternId: String = todo.vibrationPatternId, subtasks: List<TodoSubtask>? = null, recurrence: String = todo.recurrence, earlyAlertMinutes: Int = todo.earlyAlertMinutes) {
         viewModelScope.launch {
             val updated = todo.copy(
+                earlyAlertMinutes = earlyAlertMinutes,
                 // A due date moved by hand restarts the series there (drops the roll-forward anchor).
                 recurrence = com.apagon.rhythm.data.model.Recurrence.parse(recurrence)
                     ?.let { if (dueDate != todo.dueDate) it.copy(anchor = null).format() else recurrence } ?: "",

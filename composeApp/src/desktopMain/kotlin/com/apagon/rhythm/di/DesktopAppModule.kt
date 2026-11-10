@@ -184,7 +184,7 @@ val desktopAppModule = module {
     single { get<DesktopHabitDatabase>().routineRunLogDao() }
     single<com.apagon.rhythm.data.routine.RoutinePlatform> { com.apagon.rhythm.platform.DesktopRoutinePlatform(get()) }
     single { com.apagon.rhythm.data.routine.RoutineRunner(get(), get(), get(), get()) }
-    single { DesktopAlarmClockService(get(), get(), get(), get(), get(), get()) }
+    single { DesktopAlarmClockService(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { AlarmViewModel(get(), get(), get(), get()) }
     viewModel { ReminderViewModel(get(), get()) }
     viewModel { TimerViewModel(get(), get(), get(), get()) }

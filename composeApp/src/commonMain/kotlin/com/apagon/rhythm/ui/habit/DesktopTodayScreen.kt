@@ -164,8 +164,8 @@ fun DesktopTodayScreen(
     if (showAddTodoDialog) {
         DesktopAddTodoSheet(
             onDismiss = { showAddTodoDialog = false },
-            onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence ->
-                todoViewModel.addTodo(title = title, note = note, dueDate = dueDate, priority = priority, iconIndex = iconIndex, subtasks = subtasks, recurrence = recurrence)
+            onSave = { title, note, dueDate, priority, iconIndex, subtasks, recurrence, earlyAlertMinutes ->
+                todoViewModel.addTodo(title = title, note = note, dueDate = dueDate, priority = priority, iconIndex = iconIndex, subtasks = subtasks, recurrence = recurrence, earlyAlertMinutes = earlyAlertMinutes)
                 showAddTodoDialog = false
             }
         )
