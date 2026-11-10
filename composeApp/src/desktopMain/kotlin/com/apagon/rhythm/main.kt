@@ -98,6 +98,8 @@ import rhythm.composeapp.generated.resources.tray_icon
  * — skipped once present) so every target machine self-heals the same way this one was fixed
  * manually, without requiring the user to install a font themselves.
  */
+private val IS_WINDOWS = System.getProperty("os.name").orEmpty().lowercase().contains("windows")
+
 @OptIn(ExperimentalResourceApi::class)
 private fun ensureEmojiFontInstalled() {
     if (System.getProperty("os.name")?.lowercase()?.contains("linux") != true) return
@@ -240,7 +242,14 @@ fun main(args: Array<String>) {
                 // call stack, is the fix actually being tested here.
                 if (runInBackground) {
                     val w = mainWindowRef.value
-                    java.awt.EventQueue.invokeLater { w?.extendedState = java.awt.Frame.ICONIFIED }
+                    // Windows: hide to the notification-area icon like other Windows tray apps (Discord,
+                    // Teams, OneDrive) instead of leaving a minimised button on the taskbar. The X11
+                    // iconify/hide race described above doesn't exist there, and the AWT tray is reliable.
+                    if (IS_WINDOWS && isTraySupported) {
+                        java.awt.EventQueue.invokeLater { w?.isVisible = false }
+                    } else {
+                        java.awt.EventQueue.invokeLater { w?.extendedState = java.awt.Frame.ICONIFIED }
+                    }
                 } else {
                     exitApplication()
                 }
@@ -341,29 +350,46 @@ private fun ApplicationScope.DesktopAlertWindowHost() {
     val alertCenter = koinInject<AlertCenter>()
     val timerRepository = koinInject<TimerRepository>()
     val scope = rememberCoroutineScope()
-    var activeAlert by remember { mutableStateOf<FiredAlert?>(null) }
+    // A queue, not a single slot: a reminder and a timer coming due in the same 10-second tick used to
+    // overwrite each other, so only the last one was ever shown. Dismiss shows the next one.
+    var pending by remember { mutableStateOf(listOf<FiredAlert>()) }
 
     LaunchedEffect(Unit) {
-        alertCenter.alerts.collect { alert -> activeAlert = alert }
+        alertCenter.alerts.collect { alert -> pending = pending + alert }
     }
 
-    activeAlert?.let { alert ->
+    pending.firstOrNull()?.let { alert ->
+        val dismiss = { pending = pending.drop(1) }
         Window(
-            onCloseRequest = { activeAlert = null },
+            onCloseRequest = dismiss,
             title = "Bori Alert",
             icon = painterResource(Res.drawable.app_icon),
             alwaysOnTop = true,
-            state = rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), width = 380.dp, height = 220.dp)
+            // Not resizable (no maximize button), and tall enough that the content still fits once
+            // Windows' ~31px title bar comes out of it (at 220 the Dismiss button touched the text).
+            resizable = false,
+            state = rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), width = 400.dp, height = 260.dp)
         ) {
             val themePreferences = koinInject<ThemePreferences>()
             RhythmThemedRoot(themePreferences = themePreferences) {
+                // Same coloured title bar as the main window (a no-op off Windows).
+                val titleBar = com.apagon.rhythm.ui.components.crystalWindowTopColor()
+                val dark = titleBar.luminance() < 0.45f
+                LaunchedEffect(titleBar) {
+                    com.apagon.rhythm.platform.WindowsTitleBar.apply(
+                        window, titleBar,
+                        if (dark) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color(0xFF1B1B1F),
+                        dark = dark
+                    )
+                }
                 DesktopAlertContent(
                     alert = alert,
-                    onDismiss = { activeAlert = null },
+                    moreWaiting = pending.size - 1,
+                    onDismiss = dismiss,
                     onStartNextPhase = if (alert.kind == FiredAlertKind.TIMER && alert.isPomo) {
                         {
                             scope.launch { timerRepository.advancePomoPhase(alert.sourceId) }
-                            activeAlert = null
+                            dismiss()
                         }
                     } else null
                 )

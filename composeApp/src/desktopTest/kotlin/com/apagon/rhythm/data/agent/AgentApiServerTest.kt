@@ -90,8 +90,15 @@ class AgentApiServerTest {
     fun tokenIsRequiredAndPrivate() {
         assertEquals(401, call("GET", "/health", auth = false).first)
         assertEquals(200, call("GET", "/health").first)
-        val perms = Files.getPosixFilePermissions(File(home, "agent_token").toPath()).map { it.name }.toSet()
-        assertEquals(setOf("OWNER_READ", "OWNER_WRITE"), perms)
+        val path = File(home, "agent_token").toPath()
+        val acl = Files.getFileAttributeView(path, java.nio.file.attribute.AclFileAttributeView::class.java)
+        if (acl != null) {
+            // Windows: one entry, for the owner only.
+            assertEquals(listOf(acl.owner), acl.acl.map { it.principal() })
+        } else {
+            val perms = Files.getPosixFilePermissions(path).map { it.name }.toSet()
+            assertEquals(setOf("OWNER_READ", "OWNER_WRITE"), perms)
+        }
     }
 
     @Test

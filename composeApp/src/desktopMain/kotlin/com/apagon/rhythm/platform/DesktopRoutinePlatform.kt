@@ -62,13 +62,45 @@ class DesktopRoutinePlatform(private val notifier: DesktopOsNotifier) : RoutineP
         return out
     }
 
+    /**
+     * Windows: one PowerShell kept open with System.Speech loaded, fed a line per step on stdin. Starting a
+     * fresh PowerShell per step (the old way) took ~4.5 s before the first word, so the voice lagged well
+     * behind the chime, and quick steps talked over each other. Now each line cancels whatever is still
+     * being said, like spd-say does. The process ends by itself when Bori exits and its stdin closes.
+     */
+    private var windowsVoice: Process? = null
+    private var windowsVoiceIn: java.io.Writer? = null
+
+    @Synchronized
+    private fun speakWindows(text: String) {
+        runCatching {
+            if (windowsVoice?.isAlive != true) {
+                val script = "[Console]::InputEncoding = [Text.Encoding]::UTF8; " +
+                    "Add-Type -AssemblyName System.Speech; " +
+                    "\$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
+                    "while ((\$l = [Console]::In.ReadLine()) -ne \$null) { " +
+                    "\$s.SpeakAsyncCancelAll(); if (\$l) { [void]\$s.SpeakAsync(\$l) } }"
+                val p = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+                windowsVoice = p
+                windowsVoiceIn = p.outputStream.bufferedWriter(Charsets.UTF_8)
+            }
+            windowsVoiceIn!!.apply {
+                write(text.replace('\r', ' ').replace('\n', ' '))
+                write("\n")
+                flush()
+            }
+        }.onFailure { windowsVoice = null; windowsVoiceIn = null }
+    }
+
     override fun speak(text: String) {
+        if (isWindows) {
+            speakWindows(text)
+            return
+        }
         val cmd = when {
-            isWindows -> listOf(
-                "powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
-                "Add-Type -AssemblyName System.Speech; " +
-                    "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('${text.replace("'", "''")}')"
-            )
             onPath("spd-say") -> listOf("spd-say", "--", text)
             onPath("espeak-ng") -> listOf("espeak-ng", "--", text)
             onPath("espeak") -> listOf("espeak", "--", text)
