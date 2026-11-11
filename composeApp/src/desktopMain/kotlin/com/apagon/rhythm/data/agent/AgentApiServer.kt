@@ -110,6 +110,8 @@ class AgentApiServer(
         private val TIME = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
         /** Alarm.repeatDaysMask bit order: bit0 = Sunday … bit6 = Saturday. */
         private val DAYS = listOf("sun", "mon", "tue", "wed", "thu", "fri", "sat")
+        /** Wake-up puzzle ids, as stored in Alarm.dismissMission (the phone's WakeUpCheck ids). */
+        private val PUZZLES = listOf("none", "math", "shake", "memory", "typing", "pairs")
     }
 
     /**
@@ -780,10 +782,36 @@ class AgentApiServer(
         }
     }
 
+    /** `puzzle`: a wake-up check the phone asks for before the alarm stops (none, math, shake, memory, typing, pairs). */
+    private fun puzzle(b: JsonObject): String? {
+        val v = b.str("puzzle")?.trim()?.lowercase() ?: return null
+        return when (v) {
+            "", "off", "no", "false" -> "none"
+            "maths", "arithmetic" -> "math"
+            "sequence" -> "memory"
+            "type" -> "typing"
+            "match", "matching" -> "pairs"
+            in PUZZLES -> v
+            else -> throw BadRequest("Unknown puzzle '$v' (use ${PUZZLES.joinToString()})")
+        }
+    }
+
+    /** `difficulty`: 1-3 or easy/medium/hard. */
+    private fun difficulty(b: JsonObject): Int? {
+        val v = b.str("difficulty")?.trim()?.lowercase() ?: return null
+        return when (v) {
+            "easy" -> 1
+            "medium" -> 2
+            "hard" -> 3
+            else -> v.toDoubleOrNull()?.takeIf { it == Math.floor(it) && it in 1.0..3.0 }?.toInt()
+                ?: throw BadRequest("difficulty must be 1, 2 or 3 (easy, medium, hard)")
+        }
+    }
+
     private suspend fun addAlarm(b: JsonObject): Alarm {
         val t = time(b.str("time") ?: throw BadRequest("time is required (HH:mm, 24-hour)"))
         val a = Alarm(label = b.str("label")?.trim().orEmpty(), hour = t.take(2).toInt(), minute = t.substring(3).toInt(),
-            repeatDaysMask = daysMask(b["days"]) ?: 0)
+            repeatDaysMask = daysMask(b["days"]) ?: 0, dismissMission = puzzle(b) ?: "none", missionDifficulty = difficulty(b) ?: 1)
         alarms.addAlarm(a)
         return alarm(a.syncId)
     }
@@ -796,6 +824,8 @@ class AgentApiServer(
             hour = t?.take(2)?.toInt() ?: a.hour,
             minute = t?.substring(3)?.toInt() ?: a.minute,
             repeatDaysMask = daysMask(b["days"]) ?: a.repeatDaysMask,
+            dismissMission = puzzle(b) ?: a.dismissMission,
+            missionDifficulty = difficulty(b) ?: a.missionDifficulty,
             isEnabled = b.bool("enabled") ?: if (t != null) true else a.isEnabled
         ))
         return alarm(id)
@@ -811,6 +841,7 @@ class AgentApiServer(
             else -> JsonArray(DAYS.indices.filter { a.repeatDaysMask and (1 shl it) != 0 }.map { JsonPrimitive(DAYS[it]) })
         })
         put("enabled", a.isEnabled)
+        put("puzzle", a.dismissMission.takeIf { it in PUZZLES } ?: "none"); put("difficulty", a.missionDifficulty)
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────────────

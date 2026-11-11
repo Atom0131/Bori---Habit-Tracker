@@ -83,6 +83,13 @@ object BoriMcpServer {
         put("type", "string"); putJsonArray("enum") { values.forEach { add(JsonPrimitive(it)) } }
     }
     private val PRIORITY = enumOf("high", "medium", "low", "none")
+    private val PUZZLE = withDescription(enumOf("none", "math", "shake", "memory", "typing", "pairs"),
+        "Wake-up puzzle the phone asks for before the alarm stops: math (solve sums), shake (shake the phone), " +
+            "memory (repeat a digit sequence), typing (type a phrase), pairs (match circles); 'none' turns it off. " +
+            "On the computer the alarm still stops with a plain Dismiss.")
+    private val DIFFICULTY = withDescription(INT,
+        "Puzzle difficulty 1-3 (easy, medium, hard), default 1. math: 1 single-digit problem / 2 two-digit / 3 multiplication; " +
+            "shake: 10/20/30 shakes; memory: 3/4/5 digits; typing: short/medium/long phrase; pairs: 3/4/6 pairs.")
     private fun days(description: String? = null) = buildJsonObject {
         description?.let { put("description", it) }
         putJsonArray("anyOf") { add(buildJsonObject { put("type", "string") }); add(STRINGS) }
@@ -165,11 +172,15 @@ object BoriMcpServer {
             mapOf("id" to str()), listOf("id")),
         tool("bori_add_alarm",
             "Set an alarm clock in Bori. days: 'once' (default, next time that clock time comes), 'daily', 'weekdays', " +
-                "'weekends', or a list like ['mon','thu']. Use a repeating alarm for things like 'every morning at 8'.",
-            mapOf("time" to TIME, "label" to str(), "days" to days("'once', 'daily', 'weekdays', 'weekends' or a list of mon..sun")),
+                "'weekends', or a list like ['mon','thu']. Use a repeating alarm for things like 'every morning at 8'. " +
+                "For 'wake me with a puzzle / maths / shake', set puzzle (and difficulty if the user says how hard).",
+            mapOf("time" to TIME, "label" to str(), "days" to days("'once', 'daily', 'weekdays', 'weekends' or a list of mon..sun"),
+                "puzzle" to PUZZLE, "difficulty" to DIFFICULTY),
             listOf("time")),
-        tool("bori_update_alarm", "Change a Bori alarm (only the fields you pass); enabled=false turns it off without deleting.",
-            mapOf("id" to str(), "time" to TIME, "label" to str(), "days" to days(), "enabled" to BOOL),
+        tool("bori_update_alarm", "Change a Bori alarm (only the fields you pass); enabled=false turns it off without deleting. " +
+                "puzzle adds or changes its wake-up puzzle ('none' removes it).",
+            mapOf("id" to str(), "time" to TIME, "label" to str(), "days" to days(), "enabled" to BOOL,
+                "puzzle" to PUZZLE, "difficulty" to DIFFICULTY),
             listOf("id")),
         tool("bori_list_alarms_and_timers", "List the user's Bori alarms and timers with their ids.", emptyMap()),
         tool("bori_delete",
@@ -239,8 +250,8 @@ object BoriMcpServer {
         "bori_edit_note" -> request("PATCH", "/notes/${enc(a.id())}", a.pick("append", "markdown", "title", "tags"))
         "bori_start_timer" -> request("POST", "/timers", a.pick("hours", "minutes", "seconds", "label"))
         "bori_stop_timer" -> request("POST", "/timers/${enc(a.id())}/stop")
-        "bori_add_alarm" -> request("POST", "/alarms", a.pick("time", "label", "days"))
-        "bori_update_alarm" -> request("PATCH", "/alarms/${enc(a.id())}", a.pick("time", "label", "days", "enabled"))
+        "bori_add_alarm" -> request("POST", "/alarms", a.pick("time", "label", "days", "puzzle", "difficulty"))
+        "bori_update_alarm" -> request("PATCH", "/alarms/${enc(a.id())}", a.pick("time", "label", "days", "enabled", "puzzle", "difficulty"))
         "bori_list_alarms_and_timers" -> buildJsonObject {
             put("alarms", request("GET", "/alarms")); put("timers", request("GET", "/timers"))
         }
