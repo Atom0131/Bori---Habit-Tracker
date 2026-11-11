@@ -331,6 +331,9 @@ class AgentApiServerTest {
     fun alarmWithoutPuzzleAsksUnlessTurnedOff() {
         val plain = obj(call("POST", "/alarms", """{"time":"07:15"}""").second)
         assertTrue(plain.s("ask_user").contains("puzzle"), plain.toString())
+        assertEquals("true", plain.s("ask_about_puzzle"))
+        // Sent "none" unasked (as Coqui did): still ask.
+        assertEquals("true", obj(call("POST", "/alarms", """{"time":"07:16","puzzle":"none"}""").second).s("ask_about_puzzle"))
         val withPuzzle = obj(call("POST", "/alarms", """{"time":"07:20","puzzle":"math"}""").second)
         assertEquals(null, withPuzzle["ask_user"])
         val fromLabel = obj(call("POST", "/alarms", """{"time":"07:25","label":"Puzzle alarm"}""").second)

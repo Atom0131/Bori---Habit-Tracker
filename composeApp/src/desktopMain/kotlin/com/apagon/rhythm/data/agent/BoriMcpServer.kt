@@ -162,8 +162,9 @@ object BoriMcpServer {
         tool("bori_add_habit",
             "Create a habit in Bori (something the user wants to do regularly). Only name is needed; pass what the user said. " +
                 "frequency: daily (default), weekly (with days, e.g. ['mon','wed','fri']) or monthly (with month_days). " +
-                "steps makes it a routine/checklist. Leave icon out and Bori picks one from the name; the result says which, " +
-                "so tell the user (they can change it in Bori).",
+                "steps makes it a routine/checklist. Leave icon out and Bori picks one from the name. In your reply, say which " +
+                "icon the result shows and that they can change the icon and colour in Bori; if the result has no reminder_time " +
+                "or goal_days, mention in a few words that it can have those too.",
             mapOf("name" to str(), "description" to str(), "frequency" to enumOf("daily", "weekly", "monthly"),
                 "days" to days("Weekly habits: a list of mon..sun, or 'weekdays' / 'weekends'"),
                 "month_days" to withDescription(buildJsonObject { put("type", "array"); putJsonObject("items") { put("type", "integer") } },
@@ -203,7 +204,11 @@ object BoriMcpServer {
             "Set an alarm clock in Bori. days: leave it out for a one-time alarm (the next time that clock time comes); " +
                 "otherwise 'daily', 'weekdays', " +
                 "'weekends', or a list like ['mon','thu']. Use a repeating alarm for things like 'every morning at 8'. " +
-                "For 'wake me with a puzzle / maths / shake', set puzzle (and difficulty if the user says how hard).",
+                "For 'wake me with a puzzle / maths / shake', set puzzle (and difficulty if the user says how hard); " +
+                "otherwise leave puzzle out. If the result has ask_about_puzzle: true, end your reply by asking once whether " +
+                "they'd like a wake-up puzzle on it (maths, shake, memory, typing or pairs; easy, medium or hard), unless they " +
+                "already said no puzzle. 'Yes, maths' = bori_update_alarm with puzzle; 'stop asking' = bori_ai_preferences " +
+                "ask_puzzle_on_alarms=false.",
             mapOf("time" to TIME, "label" to str(), "days" to days("'once', 'daily', 'weekdays', 'weekends' or a list of mon..sun"),
                 "puzzle" to PUZZLE, "difficulty" to DIFFICULTY),
             listOf("time")),

@@ -377,9 +377,10 @@ class AgentApiServer(
                 val b = body(call)
                 val a = addAlarm(b)
                 val out = alarmJson(a)
-                // No puzzle asked for: the agent asks the user whether they want one (unless they said stop asking).
-                if (a.dismissMission == "none" && b.str("puzzle") == null && _state.value.askPuzzleOnAlarms) {
-                    JsonObject(out + ("ask_user" to JsonPrimitive(ASK_PUZZLE)))
+                // No puzzle on it: the agent asks the user whether they want one (unless they said stop asking).
+                // Not only when `puzzle` is missing: small models fill every enum and send "none" unasked (11-10).
+                if (a.dismissMission == "none" && _state.value.askPuzzleOnAlarms) {
+                    JsonObject(out + ("ask_about_puzzle" to JsonPrimitive(true)) + ("ask_user" to JsonPrimitive(ASK_PUZZLE)))
                 } else out
             }
         }
