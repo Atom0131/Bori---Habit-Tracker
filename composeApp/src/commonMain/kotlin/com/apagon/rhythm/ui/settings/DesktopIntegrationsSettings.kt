@@ -74,7 +74,7 @@ internal fun IntegrationsSectionContent() {
         SettingsGroup(
             header = "Local AI agent",
             footer = "Lets an AI app on this computer (like Hermes, Claude Desktop or Claude Code) read your agenda and add " +
-                "events, to-dos, reminders, habit check-ins and notes. Only programs on this computer can reach it, and " +
+                "events, to-dos, reminders, habits, alarms and notes. Only programs on this computer can reach it, and " +
                 "only with the secret token in ${agentState.tokenFile}. Agents can't delete anything without you confirming; " +
                 "deleted items go to Recently Deleted."
         ) {
@@ -98,6 +98,15 @@ internal fun IntegrationsSectionContent() {
                     description = "Setup to copy into Hermes, Claude Desktop, Claude Code and other MCP apps",
                     onClick = { showConnect = true },
                     trailing = { SettingsChevron() }
+                )
+                SettingsDivider()
+                SettingsItem(
+                    title = "Ask about a wake-up puzzle",
+                    description = "When an AI sets an alarm without one, it asks if you'd like a puzzle to turn it off",
+                    onClick = { agent.setAskPuzzleOnAlarms(!agentState.askPuzzleOnAlarms) },
+                    trailing = {
+                        Switch(checked = agentState.askPuzzleOnAlarms, onCheckedChange = { agent.setAskPuzzleOnAlarms(it) }, colors = crystalSwitchColors())
+                    }
                 )
                 SettingsDivider()
                 SettingsItem(

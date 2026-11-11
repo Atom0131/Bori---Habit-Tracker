@@ -63,6 +63,7 @@ class AgentApiServerTest {
             AlarmRepository(db.alarmDao()), TimerRepository(db.timerDao()), port
         )
         api.setEnabled(true)
+        api.setAskPuzzleOnAlarms(true) // the prefs file outlives a test
         assertTrue(api.state.value.running, api.state.value.lastError)
         token = File(home, "agent_token").readText().trim()
         runBlocking {
@@ -267,8 +268,8 @@ class AgentApiServerTest {
         assertEquals(null, BoriMcpServer.handle(obj("""{"jsonrpc":"2.0","method":"notifications/initialized"}""")))
 
         val names = rpc(2, "tools/list")["result"]!!.jsonObject["tools"]!!.jsonArray.map { it.jsonObject.s("name") }
-        assertEquals(20, names.size)
-        assertTrue("bori_add_todo" in names && "bori_delete" in names)
+        assertEquals(23, names.size)
+        assertTrue("bori_add_todo" in names && "bori_delete" in names && "bori_add_habit" in names && "bori_ai_preferences" in names)
 
         val add = rpc(3, "tools/call", """{"name":"bori_add_todo","arguments":{"title":"Buy coffee","priority":"high"}}""")["result"]!!.jsonObject
         assertEquals("false", add["isError"]!!.jsonPrimitive.content, add.toString())
@@ -323,5 +324,114 @@ class AgentApiServerTest {
         assertTrue(win.first { it.name == "Claude Code" }.text.endsWith("\"C:\\Users\\Ana Lee\\AppData\\Local\\Bori\\Bori.exe\" --mcp"))
         val linux = com.apagon.rhythm.ui.settings.aiAppSetups("/usr/bin/bori", false)
         assertEquals("mcp_servers:\n  bori:\n    command: \"/usr/bin/bori\"\n    args: [\"--mcp\"]", linux.first { it.name == "Hermes" }.text)
+    }
+
+    @Test
+    fun alarmWithoutPuzzleAsksUnlessTurnedOff() {
+        val plain = obj(call("POST", "/alarms", """{"time":"07:15"}""").second)
+        assertTrue(plain.s("ask_user").contains("puzzle"), plain.toString())
+        val withPuzzle = obj(call("POST", "/alarms", """{"time":"07:20","puzzle":"math"}""").second)
+        assertEquals(null, withPuzzle["ask_user"])
+        val fromLabel = obj(call("POST", "/alarms", """{"time":"07:25","label":"Puzzle alarm"}""").second)
+        assertEquals(null, fromLabel["ask_user"])
+
+        assertEquals("true", obj(call("GET", "/preferences").second).s("ask_puzzle_on_alarms"))
+        assertEquals("false", obj(call("PATCH", "/preferences", """{"ask_puzzle_on_alarms":false}""").second).s("ask_puzzle_on_alarms"))
+        assertEquals(false, api.state.value.askPuzzleOnAlarms)
+        assertEquals(null, obj(call("POST", "/alarms", """{"time":"07:30"}""").second)["ask_user"])
+        // Kept across a restart, and turning agents off and on doesn't reset it.
+        api.setEnabled(false); api.setEnabled(true)
+        assertEquals("false", obj(call("GET", "/preferences").second).s("ask_puzzle_on_alarms"))
+        assertEquals(400, call("PATCH", "/preferences", """{"ask_puzzle_on_alarms":"maybe"}""").first)
+
+        // Through MCP: the question becomes an explicit line, and is taken out of the JSON.
+        api.setAskPuzzleOnAlarms(true)
+        BoriMcpServer.url = "http://127.0.0.1:$port"
+        val res = BoriMcpServer.handle(obj("""{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"bori_add_alarm",
+            "arguments":{"time":"06:00"}}}"""))!!["result"]!!.jsonObject
+        val text = res["content"]!!.jsonArray[0].jsonObject.s("text")
+        assertTrue(text.contains("Then ask the user, in one short line: Want a wake-up puzzle"), text)
+        assertTrue(!text.contains("\"ask_user\""), text)
+        val prefs = BoriMcpServer.handle(obj("""{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"bori_ai_preferences",
+            "arguments":{"ask_puzzle_on_alarms":false}}}"""))!!["result"]!!.jsonObject
+        assertEquals("false", prefs.s("isError"))
+        assertEquals(false, api.state.value.askPuzzleOnAlarms)
+        val read = BoriMcpServer.resultText("bori_ai_preferences", obj("{}"), obj("""{"ask_puzzle_on_alarms":false}"""))
+        assertTrue(!read.startsWith("Saved."), read)
+    }
+
+    @Test
+    fun habitsWithEveryOption() {
+        val (c, body) = call("POST", "/habits", """{"name":"Morning run"}""")
+        assertEquals(200, c, body)
+        val run = obj(body)
+        assertEquals("Running", run.s("icon"))
+        assertEquals("daily", run.s("frequency"))
+        assertTrue(run.s("tell_user").contains("Running icon") && run.s("tell_user").contains("change"), body)
+        assertTrue(run.s("tell_user").contains("reminder time"), body)
+
+        val gym = obj(call("POST", "/habits", """{"name":"Gym","days":["mon","wed","fri"],"reminder_time":"18:00","goal_days":66,"color":"blue"}""").second)
+        assertEquals("weekly", gym.s("frequency"))
+        assertEquals(listOf("mon", "wed", "fri"), gym["days"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals("blue", gym.s("color"))
+        val stored = runBlocking { db.habitDao().getHabitBySyncId(gym.s("id"))!! }
+        assertEquals(0b10101, stored.weekDaysMask)
+        assertEquals(3, stored.targetDaysPerWeek)
+        assertEquals(2, stored.colorIndex)
+        assertEquals("18:00", stored.reminderTime)
+        assertEquals(66, stored.durationDays)
+        assertTrue(!gym.s("tell_user").contains("reminder time"), gym.toString())
+
+        val routine = obj(call("POST", "/habits", """{"name":"Wind down","steps":["Stretch","Read 10 pages"],"icon":"sleep"}""").second)
+        assertEquals("Sleep", routine.s("icon"))
+        assertEquals(listOf("Stretch", "Read 10 pages"), routine["steps"]!!.jsonArray.map { it.jsonPrimitive.content })
+
+        val water = obj(call("POST", "/habits", """{"name":"Drink water","icon":"unicorn"}""").second)
+        assertEquals("Hydration", water.s("icon"))
+        assertTrue(water.s("tell_user").contains("no 'unicorn' icon"), water.toString())
+
+        val monthly = obj(call("POST", "/habits", """{"name":"Pay rent","frequency":"monthly","month_days":[1,15]}""").second)
+        assertEquals(listOf("1", "15"), monthly["month_days"]!!.jsonArray.map { it.jsonPrimitive.content })
+
+        // An edit changes only what's passed.
+        val edited = obj(call("PATCH", "/habits/${gym.s("id")}", """{"days":"weekdays","reminder_time":"none"}""").second)
+        assertEquals(5, edited["days"]!!.jsonArray.size)
+        assertEquals("Gym", edited.s("name")); assertEquals("blue", edited.s("color")); assertEquals("66", edited.s("goal_days"))
+        assertEquals(null, runBlocking { db.habitDao().getHabitBySyncId(gym.s("id"))!! }.reminderTime)
+        assertEquals(400, call("PATCH", "/habits/${gym.s("id")}", """{"icon":"unicorn"}""").first)
+
+        assertEquals(400, call("POST", "/habits", """{"name":"x","color":"plaid"}""").first)
+        assertEquals(400, call("POST", "/habits", """{"name":"x","frequency":"hourly"}""").first)
+        assertEquals(400, call("POST", "/habits", """{"name":"x","frequency":"monthly","month_days":[40]}""").first)
+        assertEquals(400, call("POST", "/habits", """{"description":"no name"}""").first)
+
+        val listed = Json.parseToJsonElement(call("GET", "/habits").second).jsonArray.map { it.jsonObject }
+        assertTrue(listed.any { it.s("name") == "Gym" && it.s("icon") == "Gym" && it["done"] != null }, listed.toString())
+
+        assertEquals(400, call("DELETE", "/habits/${run.s("id")}").first)
+        assertTrue(obj(call("DELETE", "/habits/${run.s("id")}?confirm=true").second).s("note").contains("14 days"))
+        assertEquals(404, call("PATCH", "/habits/${run.s("id")}", """{"name":"y"}""").first)
+
+        assertEquals(emptyList(), BoriMcpServer.ignoredArguments("bori_add_habit",
+            obj("""{"name":"a","frequency":"weekly","days":["mon"],"month_days":[1],"reminder_time":"08:00","goal_days":30,"color":"red","icon":"Gym","steps":["a"],"description":"d"}""")))
+        // The icon note reaches the model as a "tell the user" line.
+        val text = BoriMcpServer.resultText("bori_add_habit", obj("""{"name":"a"}"""), obj("""{"name":"a","tell_user":"I gave it the Gym icon."}"""))
+        assertTrue(text.contains("Then tell the user: I gave it the Gym icon.") && !text.contains("tell_user"), text)
+    }
+
+    @Test
+    fun habitIconGuesses() {
+        val labels = HabitIconGuess.labels
+        HabitIconGuess.SYNONYMS.values.forEach { assertTrue(it in labels, "No icon called $it") }
+        fun g(name: String) = labels.getOrNull(HabitIconGuess.guess(name))
+        assertEquals("Hydration", g("Drink water"))
+        assertEquals("Running", g("Run 5k"))
+        assertEquals("Reading", g("Read 20 pages"))
+        assertEquals("Meditation", g("Meditate"))
+        assertEquals("Medication", g("Take vitamins"))
+        assertEquals("Yoga", g("Yoga"))
+        assertEquals("Swimming", g("Swim laps"))
+        assertEquals("Language", g("Spanish on Duolingo"))
+        assertEquals(null, g("Zzqx"))
     }
 }

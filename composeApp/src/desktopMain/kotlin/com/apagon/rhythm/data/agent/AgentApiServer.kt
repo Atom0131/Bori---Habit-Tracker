@@ -6,6 +6,8 @@ import com.apagon.rhythm.data.db.NotesDao
 import com.apagon.rhythm.data.model.Alarm
 import com.apagon.rhythm.data.model.CalendarEvent
 import com.apagon.rhythm.data.model.EventReminder
+import com.apagon.rhythm.data.model.Habit
+import com.apagon.rhythm.data.model.HabitFrequency
 import com.apagon.rhythm.data.model.Note
 import com.apagon.rhythm.data.model.Recurrence
 import com.apagon.rhythm.data.model.Reminder
@@ -16,6 +18,7 @@ import com.apagon.rhythm.data.model.TodoPriority
 import com.apagon.rhythm.data.model.TodoSubtask
 import com.apagon.rhythm.data.repository.AlarmRepository
 import com.apagon.rhythm.data.repository.CalendarEventRepository
+import com.apagon.rhythm.data.repository.ChecklistDraft
 import com.apagon.rhythm.data.repository.HabitRepository
 import com.apagon.rhythm.data.repository.NotesRepository
 import com.apagon.rhythm.data.repository.ReminderRepository
@@ -112,6 +115,12 @@ class AgentApiServer(
         private val DAYS = listOf("sun", "mon", "tue", "wed", "thu", "fri", "sat")
         /** Wake-up puzzle ids, as stored in Alarm.dismissMission (the phone's WakeUpCheck ids). */
         private val PUZZLES = listOf("none", "math", "shake", "memory", "typing", "pairs")
+        const val ASK_PUZZLE = "Want a wake-up puzzle on this alarm? Maths, shake, memory, typing or pairs; easy, medium or hard. " +
+            "(Say 'stop asking' and I won't ask again.)"
+        /** Habit.weekDaysMask bit order: bit0 = Monday … bit6 = Sunday (not the alarms' Sunday-first order). */
+        private val HABIT_DAYS = listOf("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+        /** Names for habitColorPalette's five colours, by colorIndex. */
+        private val HABIT_COLORS = listOf("purple", "green", "blue", "red", "orange")
         /** A sum written into an alarm label: "8+6=?", "7 * 4", "12 x 3 = ?". Ranges like "6-7" or "24/7" and
          * doses like "2x500" only count with an "=". */
         private val SUM_IN_LABEL = Regex("\\d+\\s*[+×*÷]\\s*\\d+(\\s*=\\s*(\\?|\\d+))?|\\d+\\s*[-x/]\\s*\\d+\\s*=\\s*(\\?|\\d+)")
@@ -130,7 +139,7 @@ class AgentApiServer(
     }
 
     @Serializable
-    private data class Prefs(val enabled: Boolean = false)
+    private data class Prefs(val enabled: Boolean = false, val askPuzzleOnAlarms: Boolean = true)
 
     private class BadRequest(message: String) : Exception(message)
     private class NotFound(message: String) : Exception(message)
@@ -149,16 +158,29 @@ class AgentApiServer(
 
     // ── Lifecycle ───────────────────────────────────────────────────────────────────────────────
 
+    private val prefsJson = Json { ignoreUnknownKeys = true }
+
+    private fun readPrefs(): Prefs = runCatching { prefsJson.decodeFromString(Prefs.serializer(), prefsFile.readText()) }.getOrDefault(Prefs())
+
+    init {
+        _state.value = _state.value.copy(askPuzzleOnAlarms = readPrefs().askPuzzleOnAlarms)
+    }
+
     fun start() {
-        val enabled = runCatching { Json.decodeFromString(Prefs.serializer(), prefsFile.readText()).enabled }.getOrDefault(false)
-        _state.value = _state.value.copy(enabled = enabled)
-        if (enabled) startServer()
+        val p = readPrefs()
+        _state.value = _state.value.copy(enabled = p.enabled, askPuzzleOnAlarms = p.askPuzzleOnAlarms)
+        if (p.enabled) startServer()
     }
 
     override fun setEnabled(enabled: Boolean) {
-        prefsFile.writeText(Json.encodeToString(Prefs.serializer(), Prefs(enabled)))
+        prefsFile.writeText(Json.encodeToString(Prefs.serializer(), readPrefs().copy(enabled = enabled)))
         _state.value = _state.value.copy(enabled = enabled)
         if (enabled) startServer() else stopServer()
+    }
+
+    override fun setAskPuzzleOnAlarms(ask: Boolean) {
+        prefsFile.writeText(Json.encodeToString(Prefs.serializer(), readPrefs().copy(askPuzzleOnAlarms = ask)))
+        _state.value = _state.value.copy(askPuzzleOnAlarms = ask)
     }
 
     override fun regenerateToken() {
@@ -290,6 +312,19 @@ class AgentApiServer(
         post("/reminders") { handle(call) { reminderJson(addReminder(body(call))) } }
         patch("/reminders/{id}") { handle(call) { reminderJson(editReminder(call.parameters["id"]!!, body(call))) } }
 
+        get("/preferences") { handle(call) { preferencesJson() } }
+        patch("/preferences") {
+            handle(call) {
+                val b = body(call)
+                if (b.containsKey("ask_puzzle_on_alarms")) {
+                    setAskPuzzleOnAlarms(b.bool("ask_puzzle_on_alarms") ?: throw BadRequest("ask_puzzle_on_alarms must be true or false"))
+                }
+                preferencesJson()
+            }
+        }
+
+        post("/habits") { handle(call) { addHabit(body(call)) } }
+        patch("/habits/{id}") { handle(call) { editHabit(call.parameters["id"]!!, body(call)) } }
         get("/habits") {
             handle(call) {
                 val day = call.request.queryParameters["date"]?.let(::date) ?: LocalDate.now().toString()
@@ -299,7 +334,7 @@ class AgentApiServer(
         post("/habits/{id}/check") {
             handle(call) {
                 val b = body(call)
-                val h = habits.getHabitBySyncId(call.parameters["id"]!!)?.takeIf { it.deletedAt == null } ?: throw NotFound("No habit with that id")
+                val h = habit(call.parameters["id"]!!)
                 val day = b.str("date")?.let(::date) ?: LocalDate.now().toString()
                 if (b.bool("done") == false) habits.markIncomplete(h.id, day) else habits.markComplete(h.id, day)
                 buildJsonObject { put("habit", h.name); put("date", day); put("done", b.bool("done") != false) }
@@ -337,7 +372,17 @@ class AgentApiServer(
         }
 
         get("/alarms") { handle(call) { JsonArray(alarms.getAllAlarms().first().filter { it.deletedAt == null }.map { alarmJson(it) }) } }
-        post("/alarms") { handle(call) { alarmJson(addAlarm(body(call))) } }
+        post("/alarms") {
+            handle(call) {
+                val b = body(call)
+                val a = addAlarm(b)
+                val out = alarmJson(a)
+                // No puzzle asked for: the agent asks the user whether they want one (unless they said stop asking).
+                if (a.dismissMission == "none" && b.str("puzzle") == null && _state.value.askPuzzleOnAlarms) {
+                    JsonObject(out + ("ask_user" to JsonPrimitive(ASK_PUZZLE)))
+                } else out
+            }
+        }
         patch("/alarms/{id}") { handle(call) { alarmJson(editAlarm(call.parameters["id"]!!, body(call))) } }
 
         delete("/{kind}/{id}") {
@@ -359,9 +404,11 @@ class AgentApiServer(
                     "notes" -> notes.deleteNote(openNote(id)) // same lock check as read/edit
                     "timers" -> timers.deleteTimer(timer(id))
                     "alarms" -> alarms.deleteAlarm(alarm(id))
+                    "habits" -> habits.deleteHabit(habit(id))
                     else -> throw NotFound("Unknown kind")
                 }
-                buildJsonObject { put("deleted", id); put("note", "Moved to Recently Deleted in Bori; restorable for 30 days.") }
+                val days = if (call.parameters["kind"] == "habits") 14 else 30
+                buildJsonObject { put("deleted", id); put("note", "Moved to Recently Deleted in Bori; restorable for $days days.") }
             }
         }
     }
@@ -393,14 +440,153 @@ class AgentApiServer(
     private suspend fun habitsJson(day: String): JsonElement {
         val done = habits.getCompletionsByDate(day).first().map { it.habitId }.toSet()
         return buildJsonArray {
-            habits.getAllActiveHabits().first().forEach { h ->
-                add(buildJsonObject {
-                    put("id", h.syncId); put("name", h.name); put("frequency", h.frequency.name)
-                    put("done", h.id in done); put("reminder_time", h.reminderTime)
-                })
+            habits.getAllActiveHabits().first().forEach { h -> add(JsonObject(habitJson(h) + ("done" to JsonPrimitive(h.id in done)))) }
+        }
+    }
+
+    // ── Habits ──────────────────────────────────────────────────────────────────────────────────
+
+    private suspend fun habit(id: String) =
+        habits.getHabitBySyncId(id)?.takeIf { it.deletedAt == null } ?: throw NotFound("No habit with that id")
+
+    private suspend fun habitJson(h: Habit) = buildJsonObject {
+        put("id", h.syncId); put("name", h.name)
+        if (h.description.isNotBlank()) put("description", h.description)
+        put("frequency", h.frequency.name.lowercase())
+        if (h.frequency == HabitFrequency.WEEKLY) {
+            put("days", JsonArray(HABIT_DAYS.indices.filter { h.weekDaysMask and (1 shl it) != 0 }.map { JsonPrimitive(HABIT_DAYS[it]) }))
+        }
+        if (h.frequency == HabitFrequency.MONTHLY) {
+            put("month_days", JsonArray((0..30).filter { h.monthDaysMask and (1 shl it) != 0 }.map { JsonPrimitive(it + 1) }))
+        }
+        put("reminder_time", h.reminderTime)
+        if (h.durationDays > 0) put("goal_days", h.durationDays)
+        put("icon", HabitIconGuess.labels.getOrNull(h.iconIndex) ?: "default")
+        put("color", if (h.colorArgb != null) "custom" else HABIT_COLORS.getOrElse(h.colorIndex) { HABIT_COLORS[0] })
+        if (h.isChecklist) {
+            put("steps", JsonArray(habits.getItemsForHabitSync(h.id).sortedBy { it.sortOrder }.map { JsonPrimitive(it.label) }))
+        }
+    }
+
+    /** `days` for a weekly habit: a list of mon..sun, "weekdays", "weekends" or "daily". Monday-first mask. */
+    private fun habitDaysMask(v: JsonElement?): Int? {
+        // Alarm parsing gives a Sunday-first mask; rotate it so Monday is bit 0.
+        val sunFirst = daysMask(v) ?: return null
+        return (sunFirst shr 1) or ((sunFirst and 1) shl 6)
+    }
+
+    private fun monthDaysMask(v: JsonElement?): Int? {
+        if (v == null || v is JsonNull) return null
+        val items = when (v) {
+            is JsonArray -> v.map { it.jsonPrimitive.content }
+            is JsonPrimitive -> v.content.trim('[', ']', ' ').split(',')
+            else -> throw BadRequest("month_days must be a list of days of the month, like [1, 15]")
+        }.map { it.trim(' ', '\'', '"') }.filter { it.isNotEmpty() }
+        return items.fold(0) { m, d ->
+            val n = d.toIntOrNull()?.takeIf { it in 1..31 } ?: throw BadRequest("month_days must be numbers 1-31, got '$d'")
+            m or (1 shl (n - 1))
+        }
+    }
+
+    private fun habitFrequency(b: JsonObject): HabitFrequency? = when (b.str("frequency")?.trim()?.lowercase()) {
+        null -> null
+        "daily", "day", "every day", "everyday" -> HabitFrequency.DAILY
+        "weekly", "week" -> HabitFrequency.WEEKLY
+        "monthly", "month" -> HabitFrequency.MONTHLY
+        else -> throw BadRequest("frequency must be daily, weekly or monthly")
+    }
+
+    private fun habitColor(b: JsonObject): Int? {
+        val v = b.str("color")?.trim()?.lowercase() ?: return null
+        val i = HABIT_COLORS.indexOf(when (v) { "violet" -> "purple"; "teal", "emerald" -> "green"; "amber", "yellow" -> "orange"; else -> v })
+        if (i < 0) throw BadRequest("color must be one of ${HABIT_COLORS.joinToString()}")
+        return i
+    }
+
+    private fun steps(b: JsonObject): List<ChecklistDraft>? {
+        val v = b["steps"] ?: return null
+        if (v is JsonNull) return null
+        val items = when (v) {
+            is JsonArray -> v.map { it.jsonPrimitive.content }
+            is JsonPrimitive -> v.content.split('\n', ';')
+            else -> throw BadRequest("steps must be a list of strings")
+        }
+        return items.map { it.trim().removePrefix("- ").trim() }.filter { it.isNotEmpty() }.map { ChecklistDraft(it) }
+    }
+
+    private fun goalDays(b: JsonObject): Int? = b.num("goal_days")?.toInt()
+
+    /** Applies weekly/monthly days. A weekly habit with no days yet gets every day; a monthly one the 1st. */
+    private fun withSchedule(h: Habit, b: JsonObject): Habit {
+        val freq = habitFrequency(b) ?: if (b.containsKey("days") && b.str("days")?.lowercase() !in setOf("daily", "every day", "everyday"))
+            HabitFrequency.WEEKLY else if (b.containsKey("month_days")) HabitFrequency.MONTHLY else h.frequency
+        val week = habitDaysMask(b["days"]) ?: h.weekDaysMask
+        val month = monthDaysMask(b["month_days"]) ?: h.monthDaysMask
+        return when (freq) {
+            HabitFrequency.DAILY -> h.copy(frequency = freq)
+            HabitFrequency.WEEKLY -> (if (week == 0) 0b1111111 else week).let { m ->
+                h.copy(frequency = freq, weekDaysMask = m, targetDaysPerWeek = m.countOneBits())
+            }
+            HabitFrequency.MONTHLY -> (if (month == 0) 1 else month).let { m ->
+                h.copy(frequency = freq, monthDaysMask = m, targetDaysPerMonth = m.countOneBits())
             }
         }
     }
+
+    private suspend fun addHabit(b: JsonObject): JsonElement {
+        val name = b.str("name")?.trim()?.takeIf { it.isNotEmpty() } ?: throw BadRequest("name is required")
+        val description = b.str("description")?.trim().orEmpty()
+        val asked = b.str("icon")?.trim()?.takeIf { it.isNotEmpty() }
+        val named = asked?.let(HabitIconGuess::byName)
+        val icon = named ?: HabitIconGuess.guess(name, description)
+        val steps = steps(b).orEmpty()
+        var h = Habit(
+            name = name, description = description,
+            reminderTime = b.str("reminder_time")?.takeIf { it.isNotBlank() }?.let(::time),
+            durationDays = goalDays(b) ?: 0,
+            colorIndex = habitColor(b) ?: 0,
+            iconIndex = icon,
+            isChecklist = steps.isNotEmpty()
+        )
+        h = withSchedule(h, b)
+        val id = if (steps.isNotEmpty()) habits.addHabitWithItems(h, steps) else habits.addHabit(h)
+        val saved = habits.getHabitByIdRaw(id) ?: throw IllegalStateException("Habit wasn't saved")
+        val iconName = HabitIconGuess.labels.getOrNull(icon)
+        val colorName = HABIT_COLORS[saved.colorIndex.coerceIn(0, 4)]
+        val tell = buildString {
+            if (asked != null && named == null) append("There's no '$asked' icon, so ")
+            append(if (iconName != null) "I gave it the $iconName icon ($colorName). " else "It has the default icon ($colorName). ")
+            append("They can change the icon and colour in Bori.")
+            val extras = listOfNotNull(
+                "a reminder time".takeIf { saved.reminderTime == null },
+                "a goal of a number of days".takeIf { saved.durationDays == 0 }
+            )
+            if (extras.isNotEmpty()) append(" It can also have ${extras.joinToString(" or ")} if they'd like.")
+        }
+        return JsonObject(habitJson(saved) + ("tell_user" to JsonPrimitive(tell)))
+    }
+
+    private suspend fun editHabit(id: String, b: JsonObject): JsonElement {
+        val old = habit(id)
+        val asked = b.str("icon")?.trim()?.takeIf { it.isNotEmpty() }
+        val icon = asked?.let { HabitIconGuess.byName(it) ?: throw BadRequest("No icon called '$it'. Try a simple word like Running, Reading, Gym, Hydration, Meditation, Sleep.") }
+        val steps = steps(b)
+        var h = old.copy(
+            name = b.str("name")?.trim()?.takeIf { it.isNotEmpty() } ?: old.name,
+            description = if (b.containsKey("description")) b.str("description")?.trim().orEmpty() else old.description,
+            reminderTime = if (b.containsKey("reminder_time")) b.str("reminder_time")?.takeIf { it.isNotBlank() && it.lowercase() != "none" }?.let(::time) else old.reminderTime,
+            durationDays = goalDays(b) ?: old.durationDays,
+            colorIndex = habitColor(b) ?: old.colorIndex,
+            colorArgb = if (b.containsKey("color")) null else old.colorArgb,
+            iconIndex = icon ?: old.iconIndex,
+            isChecklist = steps?.isNotEmpty() ?: old.isChecklist
+        )
+        h = withSchedule(h, b)
+        if (steps != null) habits.updateHabitWithItems(h, steps) else habits.updateHabit(h)
+        return habitJson(habit(id))
+    }
+
+    private fun preferencesJson() = buildJsonObject { put("ask_puzzle_on_alarms", _state.value.askPuzzleOnAlarms) }
 
     // ── Events ──────────────────────────────────────────────────────────────────────────────────
 

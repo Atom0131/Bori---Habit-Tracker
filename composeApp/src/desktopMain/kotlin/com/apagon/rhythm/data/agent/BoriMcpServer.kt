@@ -51,11 +51,13 @@ object BoriMcpServer {
         Bori is the user's own habit tracker, calendar, to-do list, reminders, notes, alarms and timers app (computer + phone, synced).
         - Dates are yyyy-MM-dd and times HH:mm (24-hour), always the user's local time; never convert to UTC. If unsure of today's date, call bori_agenda first: it returns today.
         - Turn the user's words into absolute values yourself ("Tuesday" = the next Tuesday, "morning" = 09:00, "tonight" = 20:00).
-        - Pick the right kind: something at a time with a duration = event; something to get done = to-do; "remind me to X at T" = reminder; "I did my habit" = bori_list_habits then bori_check_habit; longer writing = note; "set a timer" = timer; "wake me" = alarm.
+        - Pick the right kind: something at a time with a duration = event; a task to get done = to-do (it only rings if it has a due time; a date alone is silent, which is right when the user didn't ask to be reminded); "remind me to X at T" = reminder (it rings); something to do regularly or a routine to build = habit (bori_add_habit); "I did my habit" = bori_list_habits then bori_check_habit; longer writing = note; "set a timer" = timer; "wake me" / "alarm" = alarm.
+        - Only ask a follow-up question when a tool result tells you to, or when you truly can't tell which kind the user means: then ask one short question instead of guessing. Don't ask about extras the user didn't mention.
         - Anything that repeats goes on the item itself with `repeat` (daily, weekdays, weekly, biweekly, monthly, yearly, or {every, unit, days, until, count}).
         - Add and change things right away without asking "should I?". Then confirm by starting your reply with "✅ Updated in Bori Habit Tracker:" followed by one line of exactly what was saved, using the values the tool returned (e.g. "✅ Updated in Bori Habit Tracker: added to-do "Buy coffee", due tomorrow at 9:00"). Only say this after the tool succeeded; if it failed, say it was NOT saved and why.
         - To change or find something, look it up first (bori_agenda, bori_search_notes, bori_list_alarms_and_timers). Repeating events appear once per date with the same id and their own occurrence_date: use only_date to change a single date.
         - "An alarm with a puzzle / maths / shake to turn it off" = bori_add_alarm with puzzle set. Bori makes up a new problem every time it rings and keeps the answer hidden: never write a problem or its answer in the label, a note or your reply.
+        - If a tool result says to ask whether they want a wake-up puzzle, ask once. "Yes, maths" = bori_update_alarm with puzzle (and difficulty); "no" = leave it; "stop asking" / "never ask" = bori_ai_preferences ask_puzzle_on_alarms=false ("always ask" turns it back on).
         - Turning an alarm off is bori_update_alarm enabled=false, stopping a timer is bori_stop_timer: neither is a delete.
         - DELETING: always say exactly what you will delete and wait for the user's explicit yes in this conversation, then call bori_delete with confirm=true. Never delete on your own initiative.
         - Don't create duplicates; check the agenda if unsure. Don't invent dates the user didn't give.
@@ -84,6 +86,9 @@ object BoriMcpServer {
         put("type", "string"); putJsonArray("enum") { values.forEach { add(JsonPrimitive(it)) } }
     }
     private val PRIORITY = enumOf("high", "medium", "low", "none")
+    private val HABIT_COLOR = enumOf("purple", "green", "blue", "red", "orange")
+    private val HABIT_ICON = str("An icon name like Running, Reading, Gym, Hydration, Meditation, Sleep, Study, Medication, " +
+        "Walking, Cooking, Music, Journal, Savings, Cleaning. Leave it out and Bori picks one.")
     private val PUZZLE = withDescription(enumOf("none", "math", "shake", "memory", "typing", "pairs"),
         "Wake-up puzzle the phone asks for before the alarm stops: math (solve sums), shake (shake the phone), " +
             "memory (repeat a digit sequence), typing (type a phrase), pairs (match circles); 'none' turns it off. " +
@@ -153,6 +158,27 @@ object BoriMcpServer {
             listOf("id")),
         tool("bori_list_habits", "List the user's habits and whether each is done on a day (default today).",
             mapOf("date" to DATE)),
+        tool("bori_add_habit",
+            "Create a habit in Bori (something the user wants to do regularly). Only name is needed; pass what the user said. " +
+                "frequency: daily (default), weekly (with days, e.g. ['mon','wed','fri']) or monthly (with month_days). " +
+                "steps makes it a routine/checklist. Leave icon out and Bori picks one from the name; the result says which, " +
+                "so tell the user (they can change it in Bori).",
+            mapOf("name" to str(), "description" to str(), "frequency" to enumOf("daily", "weekly", "monthly"),
+                "days" to days("Weekly habits: a list of mon..sun, or 'weekdays' / 'weekends'"),
+                "month_days" to withDescription(buildJsonObject { put("type", "array"); putJsonObject("items") { put("type", "integer") } },
+                    "Monthly habits: days of the month, e.g. [1, 15]"),
+                "reminder_time" to withDescription(TIME, "HH:mm, 24-hour: a daily nudge on the phone"),
+                "goal_days" to withDescription(INT, "Keep it up for this many days, e.g. 30, 66 or 100"),
+                "color" to HABIT_COLOR, "icon" to HABIT_ICON, "steps" to withDescription(STRINGS, "Routine steps, in order")),
+            listOf("name")),
+        tool("bori_update_habit",
+            "Change a Bori habit (only the fields you pass). Get the id from bori_list_habits. steps replaces the whole step list; " +
+                "reminder_time 'none' removes the reminder.",
+            mapOf("id" to str(), "name" to str(), "description" to str(), "frequency" to enumOf("daily", "weekly", "monthly"),
+                "days" to days(), "month_days" to buildJsonObject { put("type", "array"); putJsonObject("items") { put("type", "integer") } },
+                "reminder_time" to str("HH:mm, 24-hour, or 'none'"), "goal_days" to INT,
+                "color" to HABIT_COLOR, "icon" to HABIT_ICON, "steps" to STRINGS),
+            listOf("id")),
         tool("bori_check_habit", "Check in a habit for a day (default today), or undo it with done=false.",
             mapOf("id" to str(), "date" to DATE, "done" to BOOL), listOf("id")),
         tool("bori_search_notes", "Search the user's Bori notes by text. Returns ids, titles and previews.",
@@ -186,11 +212,15 @@ object BoriMcpServer {
                 "puzzle" to PUZZLE, "difficulty" to DIFFICULTY),
             listOf("id")),
         tool("bori_list_alarms_and_timers", "List the user's Bori alarms and timers with their ids.", emptyMap()),
+        tool("bori_ai_preferences",
+            "Read or change how you (the assistant) behave in Bori. ask_puzzle_on_alarms=false when the user says to stop " +
+                "asking about wake-up puzzles on alarms; true when they want to be asked again. Call with no arguments to read.",
+            mapOf("ask_puzzle_on_alarms" to BOOL)),
         tool("bori_delete",
             "Delete a Bori item (it goes to Recently Deleted). ONLY call this after the user has explicitly said yes to " +
                 "deleting this exact item in this conversation; then pass confirm=true. For one date of a repeating event, " +
                 "pass date (its occurrence_date) to skip only that date.",
-            mapOf("kind" to enumOf("events", "todos", "reminders", "notes", "alarms", "timers"), "id" to str(),
+            mapOf("kind" to enumOf("events", "todos", "reminders", "notes", "alarms", "timers", "habits"), "id" to str(),
                 "confirm" to BOOL, "date" to str("yyyy-MM-dd, events only: delete just this date of a repeating event")),
             listOf("kind", "id", "confirm")),
     )
@@ -232,6 +262,8 @@ object BoriMcpServer {
         return parsed ?: JsonNull
     }
 
+    private val HABIT_FIELDS = arrayOf("name", "description", "frequency", "days", "month_days", "reminder_time", "goal_days", "color", "icon", "steps")
+
     private fun JsonObject.pick(vararg keys: String) = JsonObject(filterKeys { it in keys }.filterValues { it !is JsonNull })
     private fun JsonObject.s(key: String): String? = (get(key) as? JsonPrimitive)?.contentOrNull
     private fun JsonObject.id(): String = s("id") ?: throw NoSuchElementException("id")
@@ -246,6 +278,10 @@ object BoriMcpServer {
         "bori_add_reminder" -> request("POST", "/reminders", a.pick("title", "at", "note", "repeat"))
         "bori_update_reminder" -> request("PATCH", "/reminders/${enc(a.id())}", a.pick("title", "at", "note", "done", "repeat"))
         "bori_list_habits" -> request("GET", "/habits", query = mapOf("date" to a.s("date")))
+        "bori_add_habit" -> request("POST", "/habits", a.pick(*HABIT_FIELDS))
+        "bori_update_habit" -> request("PATCH", "/habits/${enc(a.id())}", a.pick(*HABIT_FIELDS))
+        "bori_ai_preferences" -> if (a.containsKey("ask_puzzle_on_alarms")) request("PATCH", "/preferences", a.pick("ask_puzzle_on_alarms"))
+            else request("GET", "/preferences")
         "bori_check_habit" -> request("POST", "/habits/${enc(a.id())}/check", a.pick("date", "done"))
         "bori_search_notes" -> request("GET", "/notes/search", query = mapOf("q" to (a.s("query") ?: "")))
         "bori_add_note" -> request("POST", "/notes", a.pick("title", "markdown", "notebook", "tags"))
@@ -287,16 +323,7 @@ object BoriMcpServer {
                 val args = params["arguments"] as? JsonObject ?: JsonObject(emptyMap())
                 val name = params.s("name")
                 val (text, isError) = try {
-                    val out = pretty.encodeToString(JsonElement.serializer(), callTool(name, args))
-                    // Arguments this tool doesn't take were dropped. Say so, so the model can't tell the user
-                    // something happened that didn't (11-09: a to-do's "remind 30 min before" vanished and
-                    // Coqui confirmed a 15:30 alert anyway).
-                    val ignored = ignoredArguments(name, args)
-                    val note = if (ignored.isEmpty()) "" else "\nNOT done: Bori ignored ${ignored.joinToString()} " +
-                        "(this tool doesn't support it). Tell the user that part wasn't set."
-                    // Small local models follow the tool result more reliably than the instructions.
-                    (if (name in READ_ONLY) out + note else "Saved. Start your reply with \"✅ Updated in Bori Habit Tracker:\" " +
-                        "and say what changed.$note\n$out") to false
+                    resultText(name, args, callTool(name, args)) to false
                 } catch (e: BoriError) {
                     e.message.orEmpty() to true
                 } catch (e: NoSuchElementException) {
@@ -318,6 +345,30 @@ object BoriMcpServer {
     }
 
     /** The argument names [args] passes that tool [name]'s schema doesn't list (they are dropped). */
+    /**
+     * What the model reads back from a successful call. Small local models follow the tool result more reliably
+     * than the instructions, so the reply format and any follow-up (Bori's `ask_user` / `tell_user`) are spelled
+     * out here, and those two fields are taken out of the JSON so they aren't repeated word for word.
+     */
+    internal fun resultText(name: String?, args: JsonObject, result: JsonElement): String {
+        val obj = result as? JsonObject
+        val ask = (obj?.get("ask_user") as? JsonPrimitive)?.contentOrNull
+        val tell = (obj?.get("tell_user") as? JsonPrimitive)?.contentOrNull
+        val shown = if (obj != null && (ask != null || tell != null)) JsonObject(obj - "ask_user" - "tell_user") else result
+        val out = pretty.encodeToString(JsonElement.serializer(), shown)
+        // Arguments this tool doesn't take were dropped. Say so, so the model can't tell the user
+        // something happened that didn't (11-09: a to-do's "remind 30 min before" vanished and
+        // Coqui confirmed a 15:30 alert anyway).
+        val ignored = ignoredArguments(name, args)
+        val note = if (ignored.isEmpty()) "" else "\nNOT done: Bori ignored ${ignored.joinToString()} " +
+            "(this tool doesn't support it). Tell the user that part wasn't set."
+        val follow = (tell?.let { "\nThen tell the user: $it" } ?: "") +
+            (ask?.let { "\nThen ask the user, in one short line: $it" } ?: "")
+        val readOnly = name in READ_ONLY || (name == "bori_ai_preferences" && args.isEmpty())
+        return if (readOnly) out + note + follow
+        else "Saved. Start your reply with \"✅ Updated in Bori Habit Tracker:\" and say what changed.$note$follow\n$out"
+    }
+
     internal fun ignoredArguments(name: String?, args: JsonObject): List<String> {
         val tool = TOOLS.firstOrNull { it["name"]?.jsonPrimitive?.contentOrNull == name } ?: return emptyList()
         val known = ((tool["inputSchema"] as? JsonObject)?.get("properties") as? JsonObject)?.keys ?: return emptyList()

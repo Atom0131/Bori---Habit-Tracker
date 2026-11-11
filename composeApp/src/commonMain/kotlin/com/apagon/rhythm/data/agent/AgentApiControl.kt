@@ -12,6 +12,8 @@ interface AgentApiControl {
     fun setEnabled(enabled: Boolean)
     /** Replaces the token; agents holding the old one stop working. */
     fun regenerateToken()
+    /** Whether an AI that sets an alarm without a wake-up puzzle asks the user if they want one. */
+    fun setAskPuzzleOnAlarms(ask: Boolean)
 }
 
 data class AgentApiState(
@@ -23,5 +25,6 @@ data class AgentApiState(
     val lastRequestAt: Long? = null,
     /** Full path of this Bori's own launcher; an AI app runs it with `--mcp` (see BoriMcpServer). */
     val mcpCommand: String = "bori",
-    val isWindows: Boolean = false
+    val isWindows: Boolean = false,
+    val askPuzzleOnAlarms: Boolean = true
 )
