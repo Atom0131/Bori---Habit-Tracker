@@ -55,6 +55,7 @@ object BoriMcpServer {
         - Anything that repeats goes on the item itself with `repeat` (daily, weekdays, weekly, biweekly, monthly, yearly, or {every, unit, days, until, count}).
         - Add and change things right away without asking "should I?". Then confirm by starting your reply with "✅ Updated in Bori Habit Tracker:" followed by one line of exactly what was saved, using the values the tool returned (e.g. "✅ Updated in Bori Habit Tracker: added to-do "Buy coffee", due tomorrow at 9:00"). Only say this after the tool succeeded; if it failed, say it was NOT saved and why.
         - To change or find something, look it up first (bori_agenda, bori_search_notes, bori_list_alarms_and_timers). Repeating events appear once per date with the same id and their own occurrence_date: use only_date to change a single date.
+        - "An alarm with a puzzle / maths / shake to turn it off" = bori_add_alarm with puzzle set. Bori makes up a new problem every time it rings and keeps the answer hidden: never write a problem or its answer in the label, a note or your reply.
         - Turning an alarm off is bori_update_alarm enabled=false, stopping a timer is bori_stop_timer: neither is a delete.
         - DELETING: always say exactly what you will delete and wait for the user's explicit yes in this conversation, then call bori_delete with confirm=true. Never delete on your own initiative.
         - Don't create duplicates; check the agenda if unsure. Don't invent dates the user didn't give.
@@ -86,7 +87,8 @@ object BoriMcpServer {
     private val PUZZLE = withDescription(enumOf("none", "math", "shake", "memory", "typing", "pairs"),
         "Wake-up puzzle the phone asks for before the alarm stops: math (solve sums), shake (shake the phone), " +
             "memory (repeat a digit sequence), typing (type a phrase), pairs (match circles); 'none' turns it off. " +
-            "On the computer the alarm still stops with a plain Dismiss.")
+            "Bori makes up a NEW problem each time the alarm rings and hides the answer, so never invent one yourself: " +
+            "no problem or answer in the label, a note or your reply. On the computer the alarm still stops with a plain Dismiss.")
     private val DIFFICULTY = withDescription(INT,
         "Puzzle difficulty 1-3 (easy, medium, hard), default 1. math: 1 single-digit problem / 2 two-digit / 3 multiplication; " +
             "shake: 10/20/30 shakes; memory: 3/4/5 digits; typing: short/medium/long phrase; pairs: 3/4/6 pairs.")
@@ -171,7 +173,8 @@ object BoriMcpServer {
         tool("bori_stop_timer", "Pause/stop a running Bori timer. Get the id from bori_list_alarms_and_timers.",
             mapOf("id" to str()), listOf("id")),
         tool("bori_add_alarm",
-            "Set an alarm clock in Bori. days: 'once' (default, next time that clock time comes), 'daily', 'weekdays', " +
+            "Set an alarm clock in Bori. days: leave it out for a one-time alarm (the next time that clock time comes); " +
+                "otherwise 'daily', 'weekdays', " +
                 "'weekends', or a list like ['mon','thu']. Use a repeating alarm for things like 'every morning at 8'. " +
                 "For 'wake me with a puzzle / maths / shake', set puzzle (and difficulty if the user says how hard).",
             mapOf("time" to TIME, "label" to str(), "days" to days("'once', 'daily', 'weekdays', 'weekends' or a list of mon..sun"),

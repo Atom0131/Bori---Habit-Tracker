@@ -112,6 +112,9 @@ class AgentApiServer(
         private val DAYS = listOf("sun", "mon", "tue", "wed", "thu", "fri", "sat")
         /** Wake-up puzzle ids, as stored in Alarm.dismissMission (the phone's WakeUpCheck ids). */
         private val PUZZLES = listOf("none", "math", "shake", "memory", "typing", "pairs")
+        /** A sum written into an alarm label: "8+6=?", "7 * 4", "12 x 3 = ?". Ranges like "6-7" or "24/7" and
+         * doses like "2x500" only count with an "=". */
+        private val SUM_IN_LABEL = Regex("\\d+\\s*[+×*÷]\\s*\\d+(\\s*=\\s*(\\?|\\d+))?|\\d+\\s*[-x/]\\s*\\d+\\s*=\\s*(\\?|\\d+)")
     }
 
     /**
@@ -776,7 +779,9 @@ class AgentApiServer(
                 "daily", "every day", "everyday" -> 0b1111111
                 "weekdays" -> 0b0111110
                 "weekends" -> 0b1000001
-                else -> v.content.split(',').fold(0) { m, d -> m or bit(d) }
+                // Small models sometimes send a list as text: "['sun', 'mon']".
+                else -> v.content.trim('[', ']', ' ').split(',').map { it.trim(' ', '\'', '"') }.filter { it.isNotEmpty() }
+                    .ifEmpty { return 0 }.fold(0) { m, d -> m or bit(d) }
             }
             else -> throw BadRequest("days must be a word or a list of days")
         }
@@ -808,10 +813,28 @@ class AgentApiServer(
         }
     }
 
+    /**
+     * Safety net for small models that write the puzzle into the label instead of setting `puzzle`
+     * (seen 2026-11-10: label "Math Puzzle Alarm - 8+6=?", puzzle unset). A sum in the label gives the
+     * answer away, so it is cut out, and a label naming a puzzle turns that puzzle on.
+     */
+    private fun cleanAlarmLabel(label: String): String =
+        label.replace(SUM_IN_LABEL, " ").replace(Regex("\\s+"), " ").trim().trimEnd('-', ':', '–', '—', ',').trim()
+
+    private fun puzzleFromLabel(label: String): String? {
+        // Only a label that says "puzzle" or holds a sum: "Protein shake" or "Typing class" stay plain alarms.
+        val l = label.lowercase()
+        if ("puzzle" !in l && !SUM_IN_LABEL.containsMatchIn(label)) return null
+        return listOf("shake", "memory", "typing", "pairs").firstOrNull { it in l } ?: "math"
+    }
+
     private suspend fun addAlarm(b: JsonObject): Alarm {
         val t = time(b.str("time") ?: throw BadRequest("time is required (HH:mm, 24-hour)"))
-        val a = Alarm(label = b.str("label")?.trim().orEmpty(), hour = t.take(2).toInt(), minute = t.substring(3).toInt(),
-            repeatDaysMask = daysMask(b["days"]) ?: 0, dismissMission = puzzle(b) ?: "none", missionDifficulty = difficulty(b) ?: 1)
+        val rawLabel = b.str("label")?.trim().orEmpty()
+        val chosen = puzzle(b)
+        val a = Alarm(label = cleanAlarmLabel(rawLabel), hour = t.take(2).toInt(), minute = t.substring(3).toInt(),
+            repeatDaysMask = daysMask(b["days"]) ?: 0, dismissMission = chosen ?: puzzleFromLabel(rawLabel) ?: "none",
+            missionDifficulty = difficulty(b) ?: 1)
         alarms.addAlarm(a)
         return alarm(a.syncId)
     }
@@ -820,7 +843,7 @@ class AgentApiServer(
         val a = alarm(id)
         val t = b.str("time")?.let(::time)
         alarms.updateAlarm(a.copy(
-            label = b.str("label")?.trim() ?: a.label,
+            label = b.str("label")?.trim()?.let(::cleanAlarmLabel) ?: a.label,
             hour = t?.take(2)?.toInt() ?: a.hour,
             minute = t?.substring(3)?.toInt() ?: a.minute,
             repeatDaysMask = daysMask(b["days"]) ?: a.repeatDaysMask,
