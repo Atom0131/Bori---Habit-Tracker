@@ -265,6 +265,7 @@ class AgentApiServerTest {
         val init = rpc(1, "initialize", """{"protocolVersion":"2025-06-18"}""")["result"]!!.jsonObject
         assertEquals("bori", init["serverInfo"]!!.jsonObject.s("name"))
         assertTrue(init.s("instructions").contains("explicit yes"))
+        assertTrue(init.s("instructions").contains("shake the phone 10 / 20 / 30 times"))
         assertEquals(null, BoriMcpServer.handle(obj("""{"jsonrpc":"2.0","method":"notifications/initialized"}""")))
 
         val names = rpc(2, "tools/list")["result"]!!.jsonObject["tools"]!!.jsonArray.map { it.jsonObject.s("name") }
