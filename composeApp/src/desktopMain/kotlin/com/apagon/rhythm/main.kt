@@ -197,6 +197,8 @@ fun main(args: Array<String>) {
     // This is also what cross-platform JVM apps actually ship for Linux minimize-to-tray (a status
     // icon that hides/shows the window), rather than hand-rolling an iconify-based hide — Compose
     // Desktop exposes this directly as the `Tray` composable used below, no new dependency.
+    // 1.1.10: Linux hides (isVisible = false) whenever the native SNI tray icon is up; Windows
+    // minimises to its taskbar button. See onCloseRequest below.
     val mainWindowRef = mutableStateOf<androidx.compose.ui.awt.ComposeWindow?>(null)
     val showMainWindow: () -> Unit = {
         java.awt.EventQueue.invokeLater {
@@ -223,6 +225,18 @@ fun main(args: Array<String>) {
         val themePreferences = koinInject<ThemePreferences>()
         val runInBackground by themePreferences.runInBackground.collectAsState(initial = false)
 
+        // Native StatusNotifierItem first (a real transparent, round icon on Plasma); Compose's
+        // AWT Tray only where no SNI watcher exists. See LinuxStatusNotifierTray for why.
+        // Started before the Window so its close handler knows whether a tray icon exists.
+        val nativeTray = remember {
+            LinuxStatusNotifierTray.start(
+                title = "Bori",
+                onShow = showMainWindow,
+                onQuit = { java.awt.EventQueue.invokeLater { exitApplication() } }
+            )
+        }
+        val nativeTrayUp = nativeTray != null
+
         // Stage 15a: the window previously had no default/min size at all (bare OS default),
         // which is what let the old ScrollableTabRow shell get squeezed into the label-wrapping
         // widths the last layout round had to patch around. The sidebar shell replacing it needs
@@ -242,10 +256,12 @@ fun main(args: Array<String>) {
                 // call stack, is the fix actually being tested here.
                 if (runInBackground) {
                     val w = mainWindowRef.value
-                    // Windows: hide to the notification-area icon like other Windows tray apps (Discord,
-                    // Teams, OneDrive) instead of leaving a minimised button on the taskbar. The X11
-                    // iconify/hide race described above doesn't exist there, and the AWT tray is reliable.
-                    if (IS_WINDOWS && isTraySupported) {
+                    // Linux with the native tray icon: hide the window entirely, so Bori lives only in
+                    // the tray until its icon is clicked (showMainWindow brings it back). Without that
+                    // icon there'd be nothing to click, so it minimises instead.
+                    // Windows: minimise to the taskbar button (the user's choice; 1.1.9 briefly hid it
+                    // to the notification area instead and it read as "Bori quit").
+                    if (!IS_WINDOWS && nativeTrayUp) {
                         java.awt.EventQueue.invokeLater { w?.isVisible = false }
                     } else {
                         java.awt.EventQueue.invokeLater { w?.extendedState = java.awt.Frame.ICONIFIED }
@@ -301,15 +317,6 @@ fun main(args: Array<String>) {
         // universally implemented there); runInBackground still works without it since a second
         // launch's DesktopSingleInstance signal (wired to the same showMainWindow above) is the
         // fallback recovery path in that case.
-        // Native StatusNotifierItem first (a real transparent, round icon on Plasma); Compose's
-        // AWT Tray only where no SNI watcher exists. See LinuxStatusNotifierTray for why.
-        val nativeTray = remember {
-            LinuxStatusNotifierTray.start(
-                title = "Bori",
-                onShow = showMainWindow,
-                onQuit = { java.awt.EventQueue.invokeLater { exitApplication() } }
-            )
-        }
         DisposableEffect(nativeTray) { onDispose { nativeTray?.close() } }
         if (nativeTray == null && isTraySupported) {
             val trayState = rememberTrayState()

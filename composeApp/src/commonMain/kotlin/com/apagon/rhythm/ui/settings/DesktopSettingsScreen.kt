@@ -894,7 +894,8 @@ private fun LayoutSectionContent(
             }
             Text(
                 "Keep Bori running when the window is closed, so alarms, reminders, and timers " +
-                    "can still fire. Relaunch Bori to bring the window back.",
+                    "can still fire. On Linux it waits in the tray; on Windows it stays on the " +
+                    "taskbar. Click its icon to bring the window back.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

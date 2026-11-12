@@ -205,7 +205,11 @@ class QuickSyncViewModel(
                 }
                 .onFailure { e ->
                     val message = e.message ?: e::class.simpleName ?: "Sync failed"
-                    problems += "${nameOf(computer)}: $message"
+                    // Same wording as the phone: a switched-off computer reads as that, next to the
+                    // "Synced: …" line for the devices that did sync. (Names, not types: commonMain.)
+                    problems += if (e::class.simpleName in UNREACHABLE_ERRORS)
+                        "${nameOf(computer)} wasn't synced: it's off or not on Tailscale"
+                    else "${nameOf(computer)}: $message"
                     _peerResult.value = _peerResult.value + (computer.key to message)
                 }
         }
@@ -497,3 +501,10 @@ fun QuickSyncItem(viewModel: QuickSyncViewModel = koinViewModel()) {
         }
     )
 }
+
+/** Errors that mean the other computer never answered (off, Bori closed, or Tailscale down). */
+private val UNREACHABLE_ERRORS = setOf(
+    "ConnectException", "NoRouteToHostException", "SocketTimeoutException", "UnknownHostException",
+    "UnresolvedAddressException", "TimeoutCancellationException", "ConnectTimeoutException",
+    "HttpRequestTimeoutException"
+)
