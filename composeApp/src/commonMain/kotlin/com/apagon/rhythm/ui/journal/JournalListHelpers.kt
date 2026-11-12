@@ -22,13 +22,4 @@ internal fun JournalEntry.tagList(): List<String> = parseJsonStringList(tags)
 internal fun JournalEntry.photoUriList(): List<String> = parseJsonStringList(photoUris)
 internal fun JournalEntry.feelingList(): List<String> = parseJsonStringList(feelings)
 
-internal val journalFeelings = listOf(
-    "Happy" to "😄",
-    "Grateful" to "🙏",
-    "Anxious" to "😰",
-    "Excited" to "🎉",
-    "Calm" to "😌",
-    "Tired" to "😴",
-    "Proud" to "💪",
-    "Focused" to "🎯"
-)
+// The feelings list lives in JournalFeelings.kt (the Mood Meter, 40 feelings).

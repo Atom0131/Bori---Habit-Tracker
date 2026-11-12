@@ -165,9 +165,13 @@ fun DesktopJournalEntryCard(
                         modifier = Modifier.horizontalScroll(rememberScrollState())
                     ) {
                         feelings.forEach { feeling ->
-                            val pair = journalFeelings.firstOrNull { it.first == feeling }
-                            val label = if (pair != null) "${pair.second} ${pair.first}" else feeling
-                            SuggestionChip(colors = crystalAssistChipColors(), onClick = {}, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+                            val zoneColor = feelingFor(feeling)?.zone?.color
+                            SuggestionChip(
+                                colors = crystalAssistChipColors(),
+                                onClick = {},
+                                label = { Text(feelingLabel(feeling), style = MaterialTheme.typography.labelSmall) },
+                                border = zoneColor?.let { androidx.compose.foundation.BorderStroke(1.dp, it.copy(alpha = 0.6f)) }
+                            )
                         }
                         tags.forEach { tag ->
                             SuggestionChip(colors = crystalAssistChipColors(), onClick = {}, label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) })

@@ -121,21 +121,21 @@ fun DesktopEntryEditorPane(
                 )
 
                 Text("Feelings", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    journalFeelings.forEach { (key, emoji) ->
-                        val selected = key in selectedFeelings
-                        Surface(
-                            onClick = { if (selected) selectedFeelings.remove(key) else selectedFeelings.add(key) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = if (selected) null else BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        ) {
-                            Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(text = "$emoji $key", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
+                // The picked feelings, then the way into the Mood Meter (2026-11-12: 8 feelings → 40).
+                var moodMeterOpen by remember { mutableStateOf(false) }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.horizontalScroll(rememberScrollState())
+                ) {
+                    selectedFeelings.toList().forEach { key -> FeelingChip(key) { selectedFeelings.remove(key) } }
+                    AssistChip(
+                        onClick = { moodMeterOpen = true },
+                        label = { Text(if (selectedFeelings.isEmpty()) "How do you feel?" else "Add") },
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    )
                 }
+                if (moodMeterOpen) MoodMeterSheet(selectedFeelings) { moodMeterOpen = false }
 
                 OutlinedTextField(
                     value = title,
