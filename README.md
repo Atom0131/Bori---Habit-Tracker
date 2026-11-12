@@ -7,6 +7,14 @@ Android habit tracker, journal, and planner. It covers habits (with a built-in r
 to-dos, calendar events, alarms, timers, reminders, notes and notebooks, and journaling, and it's
 local-first with no backend.
 
+**New in 1.1.10:**
+
+- **Closing the window keeps Bori in the background, where you expect it.** With Run in background on,
+  X hides Bori to its tray icon on Linux (click the icon to bring it back) and leaves it on the taskbar
+  on Windows.
+- **Clearer sync results.** When one computer is off, the others still sync, and Bori says which
+  ones did and which one was off. Pairs with Android 1.96.0, which adds pull-down-to-sync on Today.
+
 **New in 1.1.9:**
 
 - **Works with local AI.** Hook up an assistant that runs on your own computer, such as Hermes with a
@@ -79,10 +87,10 @@ package manager's standard command (or just double-click it in your distro's sof
 
 | Distro | Download | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.1.9-1_amd64.deb` | `sudo apt install ./bori_1.1.9-1_amd64.deb` |
-| Fedora, openSUSE, RHEL | `bori-1.1.9-1.x86_64.rpm` | `sudo dnf install ./bori-1.1.9-1.x86_64.rpm` |
-| Arch, CachyOS, Manjaro, Artix | `bori-1.1.9-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.1.9-1-x86_64.pkg.tar.zst` |
-| Windows 10 / 11 | `bori-1.1.9.msi` | double-click it |
+| Ubuntu, Debian, Mint, Pop!_OS | `bori_1.1.10-1_amd64.deb` | `sudo apt install ./bori_1.1.10-1_amd64.deb` |
+| Fedora, openSUSE, RHEL | `bori-1.1.10-1.x86_64.rpm` | `sudo dnf install ./bori-1.1.10-1.x86_64.rpm` |
+| Arch, CachyOS, Manjaro, Artix | `bori-1.1.10-1-x86_64.pkg.tar.zst` | `sudo pacman -U ./bori-1.1.10-1-x86_64.pkg.tar.zst` |
+| Windows 10 / 11 | `bori-1.1.10.msi` | double-click it |
 
 Each package bundles its own Java runtime, so you don't need Java installed separately. Once
 installed, Bori is in your app menu, or run `bori` from a terminal. Data is stored under `~/.bori`.
@@ -103,7 +111,7 @@ Coming from 1.0.5 or older? Install the latest version by hand once (below); aft
 
 #### Windows
 
-Download `bori-1.1.9.msi` from the [Releases](../../releases) page and double-click it. It installs
+Download `bori-1.1.10.msi` from the [Releases](../../releases) page and double-click it. It installs
 just for your user, so there's no admin prompt, and adds Bori to the Start Menu and your desktop.
 The installer isn't code-signed yet, so Windows SmartScreen may warn about an unrecognised app:
 click **More info**, then **Run anyway**. Data is stored in `%APPDATA%\Bori`. To sync with your
@@ -119,8 +127,8 @@ file (pacman will ask you to confirm; press Enter):
 
 ```bash
 cd ~/Downloads
-curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.1.9/bori-1.1.9-1-x86_64.pkg.tar.zst
-sudo pacman -U ./bori-1.1.9-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/Atom0131/Bori---Habit-Tracker/releases/download/v1.1.10/bori-1.1.10-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bori-1.1.10-1-x86_64.pkg.tar.zst
 ```
 
 (Install from the downloaded file rather than passing the URL straight to `pacman -U`: for a URL,
